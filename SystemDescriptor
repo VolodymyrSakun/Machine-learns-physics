@@ -1,5 +1,6 @@
 &FEATURES
-MaxPower,3
+Distances,2
+Powers,-1,-2,-3,-4,-5,-6,-12
 &END
 
 &SYSTEM
