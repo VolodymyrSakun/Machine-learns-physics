@@ -111,8 +111,8 @@ plt.title('Forward selection. R2 vs Active coefficiants')
 plt.axis('tight')
 plt.savefig(F_img2, bbox_inches='tight')
 
-Results = pd.DataFrame(np.zeros(shape = (NofSelectedFeatures, 15)).astype(float), columns=['Selected','Bond 1','Power 1','Intermolecular 1','Bond 2','Power 2','Intermolecular 2','Bond 3','Power 3','Intermolecular 3', 'Number of distances in feature','Cummulative Coefficient','Coefficient', 'RMSE', 'R2'], dtype=float)
-
+Results = pd.DataFrame(np.zeros(shape = (NofSelectedFeatures, 14)).astype(float), columns=['Selected','Bond 1','Power 1','Intermolecular 1','Bond 2','Power 2','Intermolecular 2','Bond 3','Power 3','Intermolecular 3', 'Number of distances in feature','Coefficient', 'RMSE', 'R2'], dtype=float)
+max_distances_in_feature = 1
 for i in range(0, NofSelectedFeatures, 1):
     Results.iloc[i, 0] = i+1
     index = selected_features_list[i]
@@ -125,6 +125,8 @@ for i in range(0, NofSelectedFeatures, 1):
     if FeaturesReduced[index].nDistances >= 2:
         Results.iloc[i, 4] = FeaturesReduced[index].distances[1].Atom1.Symbol + '-' + FeaturesReduced[index].distances[1].Atom2.Symbol
         Results.iloc[i, 5] = FeaturesReduced[index].powers[1]
+        if max_distances_in_feature < 2:
+            max_distances_in_feature = 2
         if FeaturesReduced[index].distances[1].isIntermolecular == 0: # 0 = Yes 1 = No
             Results.iloc[i, 6] = 'Yes'
         else:
@@ -134,6 +136,8 @@ for i in range(0, NofSelectedFeatures, 1):
         Results.iloc[i, 5] = ' '
         Results.iloc[i, 6] = ' '
     if FeaturesReduced[index].nDistances == 3:
+        if max_distances_in_feature < 3:
+            max_distances_in_feature = 3
         Results.iloc[i, 7] = FeaturesReduced[index].distances[2].Atom1.Symbol + '-' + FeaturesReduced[index].distances[2].Atom2.Symbol
         Results.iloc[i, 8] = FeaturesReduced[index].powers[2]
         if FeaturesReduced[index].distances[2].isIntermolecular == 0: # 0 = Yes 1 = No
@@ -149,12 +153,20 @@ for i in range(0, NofSelectedFeatures, 1):
     for j in range(0, len(FeaturesAll), 1):
         if FeaturesAll[j].FeType == current_feature_type:
             counter += 1
-    Results.iloc[i, -5] = counter
-    Results.iloc[i, -4] = coef_lr[i]
-    Results.iloc[i, -3] = Results.iloc[i, -4] / Results.iloc[i, -5]
+    Results.iloc[i, -4] = counter
+    Results.iloc[i, -3] = coef_lr[i]
     Results.iloc[i, -2] = rmse_list[i]
     Results.iloc[i, -1] = r2_list[i]
     
+if max_distances_in_feature <= 2:
+    del(Results['Bond 3'])
+    del(Results['Power 3'])
+    del(Results['Intermolecular 3'])
+if max_distances_in_feature == 1:
+    del(Results['Bond 2'])
+    del(Results['Power 2'])
+    del(Results['Intermolecular 2'])
+
 writeResults = pd.ExcelWriter(F_xlsx)
 Results.to_excel(writeResults,'Summary')
 writeResults.save()
