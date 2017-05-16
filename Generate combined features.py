@@ -80,8 +80,8 @@ def StoreFeatures(F_out_features, first, last, FeaturesAll, record_list):
 
 max_number_of_distances_in_feature = 1 # if not defined in SystemDescriptor
 F = 'SystemDescriptor.' # file with info about system structure
-F_data = 'datafile short.x'
-#F_data = 'datafile1 from github gaussian process.x' # file with coordinates
+#F_data = 'datafile short.x'
+F_data = 'datafile1 from github gaussian process.x' # file with coordinates
 #F_data = 'datafile3 2 water molecules.x'
 #F_data = 'datafile4 3 water molecules small.x'
 #F_data = 'datafile5 3 water molecules big.x'
@@ -188,7 +188,7 @@ if max_number_of_distances_in_feature == 3:
                 for j2 in range(0, Sys.nDistances, 1):
                     for i3 in Powers:
                         for j3 in range(0, Sys.nDistances, 1):
-                            FeaturesAll.append(class1.InvPowDistancesFeature(3, (Distances[j1], Distances[j2], Distances[j3]), (-i1, -i2, -i3), -1))
+                            FeaturesAll.append(class1.InvPowDistancesFeature(3, (Distances[j1], Distances[j2], Distances[j3]), (i1, i2, i3), -1))
 
 NofFeatures = len(FeaturesAll) # Total number of features
 currentFeatureType = 0   
