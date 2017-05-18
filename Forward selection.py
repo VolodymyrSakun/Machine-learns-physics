@@ -98,37 +98,6 @@ ResultsOLS.iloc[4, 1] = r2_lr
 ResultsOLS.iloc[5, 1] = aIC_lr
 
 ResultsOLS.to_excel(writeResults,'LR no const', index=None, header=None)
-"""
-# Ridge
-
-ridge = Ridge(alpha=1.0, fit_intercept=False, normalize=True, copy_X=True, max_iter=None, tol=0.001, solver='auto', random_state=None)
-ridge.fit(X, y)
-y_pred_ridge = ridge.predict(X)
-coef_ridge = ridge.coef_
-r2_ridge = skm.r2_score(y, y_pred_ridge)
-mse_ridge = skm.mean_squared_error(y, y_pred_ridge)
-rmse_ridge = np.sqrt(mse_ridge)
-nonzero_count_ridge = np.count_nonzero(coef_ridge)
-rSS_ridge = 0
-for i in range(0, Size, 1):
-    rSS_ridge += (y_pred_ridge[i] - y[i])**2
-aIC_ridge = 2 * nonzero_count_ridge + Size * np.log(rSS_ridge)
-ResultsOLS = pd.DataFrame(np.zeros(shape = (6, 2)).astype(float), dtype=float)
-ResultsOLS.iloc[0, 0] = 'Ridge'
-ResultsOLS.iloc[1, 0] = 'Nonzero coefficients'
-ResultsOLS.iloc[2, 0] = 'MSE'
-ResultsOLS.iloc[3, 0] = 'RMSE'
-ResultsOLS.iloc[4, 0] = 'R2'
-ResultsOLS.iloc[5, 0] = 'AIC criterion'
-ResultsOLS.iloc[0, 1] = ' '
-ResultsOLS.iloc[1, 1] = nonzero_count_ridge
-ResultsOLS.iloc[2, 1] = mse_ridge
-ResultsOLS.iloc[3, 1] = rmse_ridge
-ResultsOLS.iloc[4, 1] = r2_ridge
-ResultsOLS.iloc[5, 1] = aIC_ridge
-
-ResultsOLS.to_excel(writeResults,'Ridge', index=None, header=None)
-"""
 
 selected_features_list = [] # list of indices of selected features
 features_index = np.linspace(start = 0, stop = NofFeatures-1, num = NofFeatures, endpoint = True, dtype=int) # list of remaining reduced features
