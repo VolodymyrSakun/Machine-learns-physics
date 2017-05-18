@@ -81,10 +81,10 @@ def StoreFeatures(F_out_features, first, last, FeaturesAll, record_list):
 max_number_of_distances_in_feature = 1 # if not defined in SystemDescriptor
 F = 'SystemDescriptor.' # file with info about system structure
 #F_data = 'datafile short.x'
-F_data = 'datafile1 from github gaussian process.x' # file with coordinates
+#F_data = 'datafile1 from github gaussian process.x' # file with coordinates
 #F_data = 'datafile3 2 water molecules.x'
 #F_data = 'datafile4 3 water molecules small.x'
-#F_data = 'datafile5 3 water molecules big.x'
+F_data = 'datafile5 3 water molecules big.x'
 #F_data = 'datafile2.x'
 F_out_features = 'Features and energy two distances reduced.csv' # output csv file with combined features and energy
 F_out_structure_FeaturesReduced = 'FeaturesReduced.dat' # output data structure which contains combined features
@@ -280,7 +280,7 @@ size_list = []
 first = 0
 last = len(record_list)
 k = 0
-BufSize = 10000
+BufSize = 20000
 if len(record_list) > BufSize:
     while k * BufSize < len(record_list):
         first = k * BufSize
@@ -292,6 +292,7 @@ if len(record_list) > BufSize:
 else:
     size_list.append((first, last))
 
+# Generate features from distances and store them into file
 i = 0
 while i < len(size_list):
     print(i)
