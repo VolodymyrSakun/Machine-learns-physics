@@ -48,6 +48,7 @@ nonzero_count_list = []
 rsquared_list = []
 rmse_OLS_list = []
 drop_order = []
+aIC_ols_list = []
 rsquared = 1
 while (max(pvalues) != 0) & (len(ols_coef) > 2):
     ols = sm.OLS(endog = y, exog = X, hasconst = False).fit()
@@ -59,15 +60,20 @@ while (max(pvalues) != 0) & (len(ols_coef) > 2):
     rsquared = ols.rsquared
     mse_OLS = skm.mean_squared_error(y, y_pred)
     rmse_OLS = np.sqrt(mse_OLS)
+    rSS_ols = 0
+    for i in range(0, Size, 1):
+        rSS_ols += (y_pred[i] - y[i])**2
+    aIC_ols = 2 * nonzero_count + Size * np.log(rSS_ols)
     rmse_OLS_list.append(rmse_OLS)
     rsquared_list.append(rsquared*100)
+    aIC_ols_list.append(aIC_ols)
     nonzero_count_list.append(nonzero_count)
     drop = np.argmax(pvalues)
     drop_order.append(features_index[drop])
     # add results in detailed table if number of active coefficients less then min_nonzero or if R2 greater then min_r2
     if (len(ols_coef) < min_nonzero) | (rsquared > min_r2):
         nonzero_count_str = str(nonzero_count)
-        Table = pd.DataFrame(np.zeros(shape = (nonzero_count, 13)).astype(float), columns=['Bond 1','Power 1','Intermolecular 1','Bond 2','Power 2','Intermolecular 2','Bond 3','Power 3','Intermolecular 3', 'Number of distances in feature','Coefficient','RMSE','R2'], dtype=float)
+        Table = pd.DataFrame(np.zeros(shape = (nonzero_count, 14)).astype(float), columns=['Bond 1','Power 1','Intermolecular 1','Bond 2','Power 2','Intermolecular 2','Bond 3','Power 3','Intermolecular 3', 'Number of distances in feature','Coefficient','RMSE','R2', 'AIC'], dtype=float)
         max_distances_in_feature = 1
         for i in range(0, nonzero_count, 1):
             Table.iloc[i, 0] = FeaturesReduced[i].distances[0].Atom1.Symbol + '-' + FeaturesReduced[i].distances[0].Atom2.Symbol
@@ -111,6 +117,7 @@ while (max(pvalues) != 0) & (len(ols_coef) > 2):
             Table.iloc[i, 10] = ols_coef[i] 
         Table.iloc[0, 11] = rmse_OLS
         Table.iloc[0, 12] = rsquared
+        Table.iloc[0, 13] = aIC_ols
         if max_distances_in_feature <= 2:
             del(Table['Bond 3'])
             del(Table['Power 3'])
