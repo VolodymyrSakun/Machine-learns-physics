@@ -11,18 +11,18 @@ class Atom(namedtuple('Atom', ['Symbol', 'Index', 'Type', 'MolecularIndex'], ver
 class AtomCoordinates(namedtuple('AtomCoordinates', ['Atom', 'x', 'y', 'z'], verbose=False)):
     __slots__ = ()
 
-class Distance(namedtuple('Distance', ['Atom1', 'Atom2', 'isIntermolecular', 'DiType'], verbose=False)):
+class Distance(namedtuple('Distance', ['Atom1', 'Atom2', 'isIntermolecular', 'DiType', 'Powers'], verbose=False)):
     __slots__ = ()
-    def __new__(_cls, Atom1, Atom2, isIntermolecular, DiType):
-        'Create new instance of Distance(Atom1, Atom2, isIntermolecular, DiType)'
+    def __new__(_cls, Atom1, Atom2, isIntermolecular, DiType, Powers):
+        'Create new instance of Distance(Atom1, Atom2, isIntermolecular, DiType, Powers)'
         if (Atom1.MolecularIndex == Atom2.MolecularIndex):
-            i = 0
+            i = 0 # Intramolecular (same molecule)
         else:
-            i = 1
+            i = 1 # Intermolecular (different molecules)
 # compute a UNIQUE identification number for a distance type        
         d = DiType*max(Atom1.Type, Atom2.Type) + min(Atom1.Type, Atom2.Type)+\
             DiType**2 * i
-        return tuple.__new__(_cls, (Atom1, Atom2, i, d))
+        return tuple.__new__(_cls, (Atom1, Atom2, i, d, Powers))
 
 class Angle(namedtuple('Angle', ['Atom1', 'Atom2', 'Atom3', 'isIntermolecular12', 'isIntermolecular13', 'isIntermolecular23', 'AnType'], verbose=False)):
     __slots__ = ()
