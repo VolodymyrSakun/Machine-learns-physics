@@ -82,9 +82,9 @@ max_number_of_distances_in_feature = 1 # if not defined in SystemDescriptor
 F = 'SystemDescriptor.' # file with info about system structure
 #F_data = 'datafile short.x'
 #F_data = 'datafile1 from github gaussian process.x' # file with coordinates
-#F_data = 'datafile3 2 water molecules.x'
+F_data = 'datafile3 2 water molecules.x'
 #F_data = 'datafile4 3 water molecules small.x'
-F_data = 'datafile5 3 water molecules big.x'
+#F_data = 'datafile5 3 water molecules big.x'
 #F_data = 'datafile2.x'
 F_out_features = 'Features and energy two distances reduced.csv' # output csv file with combined features and energy
 F_out_structure_FeaturesReduced = 'FeaturesReduced.dat' # output data structure which contains combined features
@@ -227,6 +227,8 @@ if max_number_of_distances_in_feature >= 2:
         for j1 in Distances[i1].Powers:
             for i2 in range(0, Sys.nDistances, 1):
                 for j2 in Distances[i2].Powers:
+                    if i1 == i2:
+                        continue
                     FeaturesAll.append(class1.InvPowDistancesFeature(2, (Distances[i1], Distances[i2]), (j1, j2), -1))
 
 # continue adding features with three distances if defined
@@ -237,6 +239,8 @@ if max_number_of_distances_in_feature == 3:
                 for j2 in Distances[i2].Powers:
                     for i3 in range(0, Sys.nDistances, 1):
                         for j3 in Distances[i3].Powers:
+                            if (i1 == i2) or (i2 == i3) or (i3 == i1):
+                                continue
                             FeaturesAll.append(class1.InvPowDistancesFeature(3, (Distances[i1], Distances[i2], Distances[i3]), (j1, j2, j3), -1))
 
 NofFeatures = len(FeaturesAll) # Total number of features
@@ -310,16 +314,17 @@ Size = len(record_list) # N of observations
 # record_list[Number of observation].atoms[Number of atom].z
 # record_list[Number of observation].e
              
-# FeaturesAll[Number of feature].distances.Atom1.Symbol
-# FeaturesAll[Number of feature].distances.Atom1.Index
-# FeaturesAll[Number of feature].distances.Atom1.Type
-# FeaturesAll[Number of feature].distances.Atom1.MolecularIndex
-# FeaturesAll[Number of feature].distances.Atom2.Symbol
-# FeaturesAll[Number of feature].distances.Atom2.Index
-# FeaturesAll[Number of feature].distances.Atom2.Type
-# FeaturesAll[Number of feature].distances.Atom2.MolecularIndex
+# FeaturesAll[Number of feature].distances[0].Atom1.Symbol
+# FeaturesAll[Number of feature].distances[0].Atom1.Index
+# FeaturesAll[Number of feature].distances[0].Atom1.Type
+# FeaturesAll[Number of feature].distances[0].Atom1.MolecularIndex
+# FeaturesAll[Number of feature].distances[0].Atom2.Symbol
+# FeaturesAll[Number of feature].distances[0].Atom2.Index
+# FeaturesAll[Number of feature].distances[0].Atom2.Type
+# FeaturesAll[Number of feature].distances[0].Atom2.MolecularIndex
 # FeaturesAll[100].powers
 # FeaturesAll[100].FeType
+# FeaturesAll[100].distances[0].isIntermolecular
 
 # split array if too big
 # create endpoints for array size_list[1 - inf][0 - 1]
