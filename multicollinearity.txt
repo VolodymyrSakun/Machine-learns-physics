@@ -1,0 +1,83 @@
+http://blog.minitab.com/blog/understanding-statistics/handling-multicollinearity-in-regression-analysis
+http://blog.minitab.com/blog/adventures-in-statistics-2/what-are-the-effects-of-multicollinearity-and-when-can-i-ignore-them
+https://etav.github.io/python/vif_factor_python.html
+http://psychologicalstatistics.blogspot.ca/2013/11/multicollinearity-and-collinearity-in.html
+
+Multicollinearity increases the standard errors of the coefficients. 
+Increased standard errors in turn means that coefficients for some independent 
+variables may be found not to be significantly different from 0. 
+In other words, by overinflating the standard errors, multicollinearity makes some 
+variables statistically insignificant when they should be significant. 
+Without multicollinearity (and thus, with lower standard errors), those coefficients might be significant.
+
+ In short, multicollinearity:
+
+    can make choosing the correct predictors to include more difficult.
+    interferes in determining the precise effect of each predictor, but...
+    doesn’t affect the overall fit of the model or produce bad predictions.
+
+Multicollinearity doesn’t affect how well the model fits. In fact, if you want to 
+use the model to make predictions, both models produce identical results for fitted 
+values and prediction intervals!
+
+Multicollinearity can cause a number of problems. We saw how it sapped the significance 
+of one of our predictors and changed its sign. Imagine trying to specify a model with many 
+more potential predictors. If you saw signs that kept changing and incorrect p-values, 
+it could be hard to specify the correct model! Stepwise regression does not work as well with multicollinearity.
+
+However, we also saw that multicollinearity doesn’t affect how well the model fits. 
+If the model satisfies the residual assumptions and has a satisfactory predicted R-squared, 
+even a model with severe multicollinearity can produce great predictions
+
+However, when standardizing your predictors doesn’t work, you can try other solutions such as:
+
+    removing highly correlated predictors
+    linearly combining predictors, such as adding them together
+    running entirely different analyses, such as partial least squares regression or principal components analysis
+
+	
+One way to measure multicollinearity is the variance inflation factor (VIF), which assesses 
+how much the variance of an estimated regression coefficient increases if your predictors are correlated.  
+If no factors are correlated, the VIFs will all be 1.
+
+If multicollinearity is a problem in your model -- if the VIF for a factor is near or above 5 
+-- the solution may be relatively simple.
+
+    Remove highly correlated predictors from the model.  If you have two or more factors with a high VIF, 
+	remove one from the model. Because they supply redundant information, removing one of the correlated 
+	factors usually doesn't drastically reduce the R-squared.  Consider using stepwise regression, 
+	best subsets regression, or specialized knowledge of the data set to remove these variables. 
+	Select the model that has the highest R-squared value. 
+     
+    Use Partial Least Squares Regression (PLS) or Principal Components Analysis, regression methods 
+	that cut the number of predictors to a smaller set of uncorrelated components.
+
+Do Compare These Statistics To Help Determine Variable Importance
+
+Standardized regression coefficients
+
+Change in R-squared when the variable is added to the model last
+Lowest RMSE
+Try AIC criterion to select variaables
+	
+Principal components analysis is a procedure for identifying a smaller number of uncorrelated variables, 
+called "principal components", from a large set of data. The goal of principal components analysis is to 
+explain the maximum amount of variance with the fewest number of principal components. Principal components 
+analysis is commonly used in the social sciences, market research, and other industries that use large data sets.
+
+Principal components analysis is commonly used as one step in a series of analyses. You can use principal
+components analysis to reduce the number of variables and avoid multicollinearity, or when you have too 
+many predictors relative to the number of observations.
+
+LOOK FOR INTERACTION BETWEEN MAIN FEATURES AND COMPLEMENTARY
+
+One of the first sources of non-linearity is due to possible interactions between predictors.
+Two predictors interact when the effect of one of them on the response variable varies in
+respect of the values of the other predictors.
+Finding interaction terms can be achieved in two different ways, the first one being domain
+knowledge—that is, knowing directly the problem you are modeling and incorporating
+your expertise in it. When you do not have such an expertise, an automatic search over the
+possible combinations will suffice if it is well tested using a revealing measure such as R-
+squared (Massaron 151)
+
+
