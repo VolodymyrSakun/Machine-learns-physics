@@ -14,6 +14,7 @@
 import numpy as np
 import pandas as pd
 import sklearn.metrics as skm
+import copy
 
 def argmaxabs(A):
     tmp = abs(A[0])
@@ -287,6 +288,7 @@ def BackwardElimination(X, Y, FeaturesAll, FeaturesReduced, Method='fast', Crite
             del(features_index[drop])
         # end of while
     # end of if
+    idx_return = copy.deepcopy(features_index)
     if (N_of_last_iterations_to_store is not None) and (writeResults is not None):
         if N_of_last_iterations_to_store > len(ols_coef_list):
             N_of_last_iterations_to_store = len(ols_coef_list)
@@ -388,7 +390,7 @@ def BackwardElimination(X, Y, FeaturesAll, FeaturesReduced, Method='fast', Crite
         Results.to_excel(writeResults,'Summary')
     if (StorePath is not None) and (writeResults is not None):
         writeResults.save()
-    return features_index
+    return idx_return
 # end of BackwardElimination
 
 # select the best subset from elastic net path
@@ -556,7 +558,6 @@ def FindAlternativeFit(x_std, y_std, features_idx, features_lars1, Fit=1, Method
 # Fit = 1 or 2. Two different approaches
 # Method='MSE' based on minimum value of ordinary list squared fit
 # Method='R2' based on maximum value of R2
-    import copy
     import statsmodels.regression.linear_model as sm
     if verbose:
         print('setup initial feature set from lasso / lars / elastic net')
@@ -591,21 +592,23 @@ def FindAlternativeFit(x_std, y_std, features_idx, features_lars1, Fit=1, Method
             r2_ols = ols.rsquared
             mse_ols = skm.mean_squared_error(y_std, y_pred_ols)
             results[i][j] = ((mse_ols, r2_ols, copy.deepcopy(active_features)))
-        mse_old = 1e+100
-        r2_old = 0
+        mse_better = 1e+100
+        r2_better = 0
         idx = 0
         for l in range(0, len(results[i])):
             mse_new = results[i][l][0]
             r2_new = results[i][l][1]
             if Method == 'MSE':
-                if mse_new < mse_old:
+                if mse_new < mse_better:
                     idx = l
+                    mse_better = mse_new
                 if mse_new < mse_best:
                     mse_best = mse_new
                     r2_best = results[i][l][1]
             if Method == 'R2':
-                if r2_new > r2_old:
+                if r2_new > r2_better:
                     idx = l
+                    r2_better = r2_new
                 if r2_new > r2_best:
                     r2_best = r2_new
                     mse_best = results[i][l][0]
