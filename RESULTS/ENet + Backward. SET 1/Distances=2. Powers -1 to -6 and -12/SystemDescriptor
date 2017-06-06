@@ -1,0 +1,22 @@
+&FEATURES
+Distances,2
+&DistanceDescription
+O,H,intramolecular,1,2
+H,H,intramolecular,1,2
+&endDistanceDescription
+DEFAULT
+Powers,-1,-2,-3,-4,-5,-6,-12
+&END
+
+&SYSTEM
+# Atom symbol (string), Atom type(integer), Molecule number (integer)
+# water 1
+O,1,0
+H,0,0    
+H,0,0
+# water 2
+O,1,1
+H,0,1    
+H,0,1
+&END
+ 
