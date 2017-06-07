@@ -14,7 +14,8 @@ https://pypi.python.org/pypi/spherepy/
 https://shtools.oca.eu/shtools/
 https://github.com/google/spherical-harmonics
 
-
+http://balbuceosastropy.blogspot.ca/2015/06/spherical-harmonics-in-python.html
+Spherical harmonics in Python
 
 http://docs.enthought.com/mayavi/mayavi/auto/example_spherical_harmonics.html
 # Example
