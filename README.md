@@ -14,6 +14,12 @@ datafile4.x (three water molecules small)
 
 datafile5.x (three water molecules huge)
 
+Libraries:
+
+class1.py
+
+library1.py
+
 Programs that generate data:
 
 Geneerate random coordinates for N water molecules.py
@@ -22,11 +28,8 @@ Generate random coordinates H2O CH4 CO2.py
 
 Programs that ganarate features:
 
-Generate 2 distances features.py
+Generate combined features.py
 
 Feature selection / elimination algorithms:
 
-Backward elimination.py
-
-Forward selection.py
-
+Get Fit.py
