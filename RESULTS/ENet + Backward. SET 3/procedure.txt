@@ -1,0 +1,16 @@
+Least squares for full set of features
+Number of features =  413
+MSE=  3.2937885179e-08
+RMSE=  0.000181487975301
+R2=  0.860857250905
+Elastic Net Fit
+L1 portion =  0.7
+Epsilon =  0.001
+Number of alphas = 100
+Number of features go to elastic net regularisation =  413
+Final adjustment selected =  Backward sequential
+
+ Elastic Net worked  8.594491243362427 sec
+
+ Features left for Backward Elimination =  53
+Backward Elimination worked  209.73899626731873 sec
