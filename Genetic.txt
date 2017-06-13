@@ -15,4 +15,5 @@ MinCorr = 0.8 # for ClassifyCorrelatedFeatures. Smalle value gives better result
 
 If runs long enought gives results similar to ones from Elastic Net + Backward sequential + Search alternate
 Gives better result aftr relatively short period of running if followed by ClassifyCorrelatedFeatures and FindAlternativeFit.
+For now loop works until I press <CTRL>-<C> in console. After it performs adjustment and stores results (before and after adjustment) in .xlsx
 
