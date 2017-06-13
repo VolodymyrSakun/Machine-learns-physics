@@ -1,0 +1,18 @@
+Genetic algorithm
+Parameters:
+ChromosomeSize - number of features in chromosome to fit data
+PopulationSize - number of chromosomes (parents) in population
+MutationProbability - probability of mutation [0 .. 1]. If MutationProbability = 0.2 than the probability of crossover = 0.8
+MutationInterval - how many genes in chromosome will be replaced by randomly chosen features from initial pool. Random selection from interval
+EliteFraction - fracrion of good chromosomes that will be used for crossover. 
+If PopulationSize = 100 and EliteFraction = 0.2 than 20 best chromosomes will be selected for crossover / mutation
+CrossoverFractionInterval - proportion of number of genes for crossover. If CrossoverFractionInterval = [0.7, 0.3] and ChromosomeSize = 10
+then 7 random genes from first chromosome and 3 random genes from second chromosome will produce new child
+FractionOfCrossover - int(fraction NumberOfGood / NumberOfCrossover)
+NumberOfCrossover = int(NumberOfGood / FractionOfCrossover)
+IterationPerRecord - each IterationPerRecord iteration information about best fit will be shown on console
+MinCorr = 0.8 # for ClassifyCorrelatedFeatures. Smalle value gives better result but works longer
+
+If runs long enought gives results similar to ones from Elastic Net + Backward sequential + Search alternate
+Gives better result aftr relatively short period of running if followed by ClassifyCorrelatedFeatures and FindAlternativeFit.
+
