@@ -8,8 +8,9 @@ import numpy as np
 import random
 import copy
 import pandas as pd
-import datetime
+import time
 
+TimeStart = time.time()
 # Read features and structures from files stored by "Generate combined features"
 X, Y, FeaturesAll, FeaturesReduced = library1.ReadFeatures('Features and energy two distances reduced.csv', \
     'FeaturesAll.dat', 'FeaturesReduced.dat', verbose=False)
@@ -23,7 +24,7 @@ y_std = y_std.reshape(-1)
 Size = x_std.shape[0]
 NofFeatures =len(FeaturesReduced)
 
-ChromosomeSize = 10 # number of features to fit data
+ChromosomeSize = 5 # number of features to fit data
 PopulationSize = 80 # number of parents in population
 MutationProbability = 0.2 # probability of mutation
 MutationInterval = [1, 2] # will be randomly chosen between min and max-1
@@ -153,11 +154,12 @@ for j in range(0, PopulationSize, 1):
 Population = rank(Population)
 # get best chromosome for initial population
 BestChromosome = get_best(Population)
-TimeStart = datetime.datetime.now()
-TimeLastImprovement = datetime.datetime.now()
+# TimeStart = datetime.datetime.now()
+# TimeLastImprovement = datetime.datetime.now()
+TimeLastImprovement = time.time()
 i = 0
 try: # loop will be interrupted by pressing Ctrl-C
-    while True:
+    while (time.time() - TimeLastImprovement) < 3600: # 1 hour without improvement
         new_Population = []
         NumberOfGood = int(EliteFraction * PopulationSize)
         NumberOfCrossover = int(NumberOfGood / FractionOfCrossover) # number of crossover / mutation together
@@ -187,14 +189,15 @@ try: # loop will be interrupted by pressing Ctrl-C
         BetterChromosome = get_best(new_Population)
         if BetterChromosome.MSE < BestChromosome.MSE:
             BestChromosome = BetterChromosome
-            TimeLastImprovement = datetime.datetime.now()
+            TimeLastImprovement = time.time()
         Population = copy.deepcopy(new_Population)
         del(new_Population)
         i += 1
         if (i % IterationPerRecord) == 0:            
             print('Iteration = ', i, ' Best MSE = ', BestChromosome.MSE,\
-                 'Best R2 = ', BestChromosome.R2, ' Indices = ', BestChromosome.Genes,\
-                 'Time since last improvement = ', str(datetime.datetime.now() - TimeLastImprovement))
+                 'Best R2 = ', BestChromosome.R2, "\nIndices = ", BestChromosome.Genes,\
+                 "\nTime since last improvement =", str(int((time.time() - TimeLastImprovement))), 'sec')
+
     print(BestChromosome.Genes)
 except KeyboardInterrupt: # interrupt in the morning by pressing Ctrl-C
     pass
@@ -214,7 +217,13 @@ library1.Results_to_xls(writeResults, str(len(BestChromosome.Genes)) + " Adj",\
     idx_alternative, X, Y, FeaturesAll, FeaturesReduced)
 
 writeResults.save()    
-    
+
+TimeFinish = time.time()
+TimeInterval = TimeFinish - TimeStart
+Hours = int(TimeInterval / 3600)
+Minutes = int(TimeInterval / 60) - Hours * 60
+Sec = int(TimeInterval) - Hours * 3600 - Minutes * 60
+print('Total time: ', Hours, ' hours', Minutes, ' minutes', Sec, ' sec')
 print('DONE')
     
     
