@@ -1,6 +1,6 @@
-Working with feature selection
+# Working with feature selection
 
-Data files:
+* Data files:
 
 SystemDescriptor
 
@@ -14,22 +14,22 @@ datafile4.x (three water molecules small)
 
 datafile5.x (three water molecules huge)
 
-Libraries:
+* Libraries:
 
 class1.py
 
 library1.py
 
-Programs that generate data:
+* Programs that generate data:
 
 Geneerate random coordinates for N water molecules.py
 
 Generate random coordinates H2O CH4 CO2.py
 
-Programs that ganarate features:
+* Programs that ganarate features:
 
 Generate combined features.py
 
-Feature selection / elimination algorithms:
+* Feature selection / elimination algorithms:
 
 Get Fit.py
