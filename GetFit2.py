@@ -12,7 +12,7 @@ if __name__ == '__main__':
     # Global variables
     ProcedureFileName = 'procedure.txt'
     L1 = 0.7
-    eps = 1e-5
+    eps = 1e-3
     n_alphas = 100
     #FinalAdjustment = 'Backward sequential'
     FinalAdjustment = 'Backward sequential and Search Alternative'
@@ -110,7 +110,6 @@ if __name__ == '__main__':
         nonzero_list = []
         t = time.time()        
         while len(idx) > 2:
-            print(len(idx))
             FeatureSize = len(idx)
             idx_backward = library2.BackwardElimination(X_train, Y_train, X_test, Y_test,\
                 FeaturesAll, FeaturesReduced, Method='sequential', Criterion='MSE', \
@@ -121,7 +120,8 @@ if __name__ == '__main__':
                 continue
             idx_corr = library2.ClassifyCorrelatedFeatures(x_std, idx_backward, MinCorrelation=MinCorr,\
                 Model=1, Corr_Matrix=C, verbose=False)
-            idx_alternative = library2.FindBestSet(x_std, y_std, idx_backward, idx_corr, Method='MSE', verbose=True)
+            print(len(idx_backward))
+            idx_alternative = library2.FindBestSetMP(x_std, y_std, idx_backward, idx_corr, Method='MSE', verbose=True)
             library2.Results_to_xls2(writeResults, str(len(idx_alternative)),\
                 idx_alternative, X_train, Y_train, X_test, Y_test, FeaturesAll, FeaturesReduced)
             idx = idx_alternative
