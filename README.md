@@ -30,7 +30,7 @@ Geneerate random coordinates for N water molecules.py
 
 Generate random coordinates H2O CH4 CO2.py
 
-* Programs that ganarate features:
+* Programs that genarate features:
 
 Generate harmonic features.py - generates single, double and harmonic features
 
