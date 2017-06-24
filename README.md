@@ -38,7 +38,7 @@ Generate harmonic features MP.py - same but uses multiprocessing
 
 * Feature selection / elimination algorithms:
 
-GetFit2.py - chain of algorithms: ElasticNEt, Backward sequential, Best Subset
+GetFit2.py - chain of algorithms: ElasticNEt, Backward sequential, Best Subset. Now can work in multiprocessing mode.
 
 GetFitEnetGenetic.py - chain of algorithms: ElasticNEt, Genetic, Backward sequential, Best Subset (useful if I have too many features after elastic net)
 
