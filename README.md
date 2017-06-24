@@ -16,9 +16,13 @@ datafile5.x (three water molecules huge)
 
 * Libraries:
 
-class1.py
+class2.py - mostly structures that describe system
 
-library1.py
+library2.py - functions for working with features
+
+genetic.py - functions that are used for genetic algorithm
+
+spherical.py - functions that sre used for constructing spherical harmonics features
 
 * Programs that generate data:
 
@@ -28,8 +32,13 @@ Generate random coordinates H2O CH4 CO2.py
 
 * Programs that ganarate features:
 
-Generate combined features.py
+Generate harmonic features.py - generates single, double and harmonic features
+
+Generate harmonic features MP.py - same but uses multiprocessing
 
 * Feature selection / elimination algorithms:
 
-Get Fit.py
+GetFit2.py - chain of algorithms: ElasticNEt, Backward sequential, Best Subset
+
+GetFitEnetGenetic.py - chain of algorithms: ElasticNEt, Genetic, Backward sequential, Best Subset (useful elastic net leaves too many variables)
+
