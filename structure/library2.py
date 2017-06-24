@@ -1076,7 +1076,9 @@ def FindBestSetMP(x_std, y_std, features_idx, corr_list, Method='MSE', verbose=T
     Found = True
     nCPU = mp.cpu_count()
     nFeatures = len(active_features)
-    nFeatures_per_CPU = int(nFeatures / nCPU)  
+    nFeatures_per_CPU = int(nFeatures / nCPU)
+    if nFeatures_per_CPU == 0:
+        nFeatures_per_CPU = 1
     j = 0 # 0 .. nFeatures
     idx_list = []
     while j < nFeatures:
@@ -1086,9 +1088,10 @@ def FindBestSetMP(x_std, y_std, features_idx, corr_list, Method='MSE', verbose=T
                 idx_small.append(j)
             j += 1
         idx_list.append(idx_small)
+    ran = list(range(0, len(idx_list), 1))
+    print(idx_list)
     while Found:
         Found = False
-        ran = list(range(0, nCPU, 1))
         jobs = (delayed(Fit)(x_std, y_std, idx_list[i], active_features, corr_list) for i in ran)
         output = Parallel(n_jobs=nCPU)(jobs)
         for i in range(0, len(output), 1):
