@@ -1182,7 +1182,45 @@ def FindBestSetMP2(x_std, y_std, features_idx, corr_list, Method='MSE', n_jobs=1
     pool.join()
     return active_features
 
-
+def ForwardSequential(x_std, y_std, nVariables=10, idx=None):
+    NofFeatures = x_std.shape[1]
+    Size = x_std.shape[0]
+    lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=True, n_jobs=-1)
+    if idx is None: # determine first feature if initial fit does not exist
+        x_selected = np.zeros(shape=(Size, 1), dtype=float) # matrix with selected features
+        mse_array = np.zeros(shape=(NofFeatures), dtype=float)
+        for i in range(0, NofFeatures, 1):
+            x_selected[:, 0] = x_std[:, i]
+            lr.fit(x_selected, y_std)
+            y_pred = lr.predict(x_selected)
+            mse = skm.mean_squared_error(y_std, y_pred)
+            mse_array[i] = mse
+        idx1 = np.argmin(mse_array) # get most important feature
+        idx = [] #indices of selected features
+        idx.append(idx1)
+    x_selected = np.zeros(shape=(Size, len(idx)), dtype=float) # matrix with selected features
+    for i in range(0, len(idx), 1):
+        x_selected[:, i] = x_std[:, idx[i]]
+    z = np.zeros(shape=(Size, 1), dtype=float)
+    j = len(idx)
+    while j < nVariables:
+        print(j)
+        mse_array = np.ones(shape=(NofFeatures), dtype=float)
+        z = np.zeros(shape=(Size, 1), dtype=float)
+        x_selected = np.concatenate((x_selected, z), axis=1)
+        for i in range(0, NofFeatures, 1):
+            if i in idx:
+                continue
+            x_selected[:, -1] = x_std[:, i]
+            lr.fit(x_selected, y_std)
+            y_pred = lr.predict(x_selected)
+            mse = skm.mean_squared_error(y_std, y_pred)
+            mse_array[i] = mse
+        idx_mse_min = np.argmin(mse_array) # index of feature in current matrix with smallest RMSE
+        idx.append(idx_mse_min)
+        x_selected[:, -1] = x_std[:, idx_mse_min]
+        j += 1
+    return idx
 
 
 
