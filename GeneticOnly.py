@@ -103,7 +103,7 @@ try: # loop will be interrupted by pressing Ctrl-C
 # add the remaining chromosomes from feature set            
         for j in range(len(new_Population), PopulationSize, 1):
             new_Population.append(genetic.generate_new_chromosome(ChromosomeSize, idx))
-# get fitness for initial population
+# get fitness 
         for j in range(0, PopulationSize, 1):
             new_Population[j] = genetic.get_fitness(new_Population[j], x_std, y_std)
 # rank initial population

@@ -121,7 +121,7 @@ if __name__ == '__main__':
             idx_corr = library2.ClassifyCorrelatedFeatures(x_std, idx_backward, MinCorrelation=MinCorr,\
                 Model=1, Corr_Matrix=C, verbose=False)
             print(len(idx_backward))
-            idx_alternative = library2.FindBestSetMP(x_std, y_std, idx_backward, idx_corr, Method='MSE', verbose=True)
+            idx_alternative = library2.FindBestSetMP2(x_std, y_std, idx_backward, idx_corr, Method='MSE', n_jobs=-1, verbose=True)
             library2.Results_to_xls2(writeResults, str(len(idx_alternative)),\
                 idx_alternative, X_train, Y_train, X_test, Y_test, FeaturesAll, FeaturesReduced)
             idx = idx_alternative

@@ -298,9 +298,9 @@ if __name__ == '__main__':
     if max_number_of_distances_in_feature == 2:
         for i in range(0, len(DtP_list), 1):
             for j in range(i+1, len(DtP_list), 1):
-                if DtP_list[i].Distance.isIntermolecular and  (DtP_list[i].Distance.Atom1.AtType != DtP_list[i].Distance.Atom2.AtType):
-                    if DtP_list[j].Distance.isIntermolecular and  (DtP_list[j].Distance.Atom1.AtType != DtP_list[j].Distance.Atom2.AtType):
-                        if DtP_list[i].Power != DtP_list[j].Power:
+                if DtP_list[i].Distance.isIntermolecular and  (DtP_list[i].Distance.Atom1.AtType != DtP_list[i].Distance.Atom2.AtType): # only O-H intermolecular first distance
+                    if DtP_list[j].Distance.isIntermolecular and  (DtP_list[j].Distance.Atom1.AtType != DtP_list[j].Distance.Atom2.AtType): # only O-H intermolecular second distance
+                        if DtP_list[i].Power != DtP_list[j].Power: # same powers are not included
                             FeaturesAll.append(class2.Feature(2, DtP_list[i], DtP2=DtP_list[j], Harmonic=None))
                 
     if Hamonics_include:
