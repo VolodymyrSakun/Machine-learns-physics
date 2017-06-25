@@ -1107,6 +1107,80 @@ def FindBestSetMP(x_std, y_std, features_idx, corr_list, Method='MSE', verbose=T
             active_features[best_idx_local] = best_idx_global
     return active_features
 
+def FindBestSetMP2(x_std, y_std, features_idx, corr_list, Method='MSE', n_jobs=1, verbose=True):
+# finds alternative fit using classified feature list produced by ClassifyCorrelatedFeatures  
+# returns list of indices of features
+# x_std - [n x m] numpy array of standardized features
+# rows correspond to observations
+# columns correspond to features
+# y_std - [n x 1] numpy array, standardized recponse variable
+# features_idx - indices of selected features
+# classified_list - list of classified features
+# Fit = 1 or 2. Two different approaches
+# Method='MSE' based on minimum value of ordinary list squared fit
+# Method='R2' based on maximum value of R2
+    active_features = copy.deepcopy(features_idx)
+    x_sel = np.zeros(shape=(x_std.shape[0], 1), dtype=float)
+    tmp = np.zeros(shape=(x_std.shape[0], 1), dtype=float)
+    # creating selected features array
+    for i in active_features:
+        if i == active_features[0]:# first column
+            x_sel[:, 0] = x_std[:, i]
+        else:
+            tmp[:, 0] = x_std[:, i]
+            x_sel = np.concatenate((x_sel, tmp), axis=1)
+    # initial fit
+    lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=True, n_jobs=1)
+    lr.fit(x_sel, y_std)
+    y_pred = lr.predict(x_sel)
+    mse = skm.mean_squared_error(y_std, y_pred)
+    best_mse = mse
+    Found = True
+    if n_jobs == -1:
+        nCPU = mp.cpu_count()
+    else:
+        nCPU = n_jobs
+    pool = mp.Pool(processes=nCPU)
+    nFeatures = len(active_features)
+    nFeatures_per_CPU = int(nFeatures / nCPU)
+    if nFeatures_per_CPU == 0:
+        nFeatures_per_CPU = 1
+    j = 0 # 0 .. nFeatures
+    idx_list = []
+    while j < nFeatures:
+        idx_small = []
+        for i in range(0, nFeatures_per_CPU, 1): # 0 .. nFeatures_per_CPU
+            if j < nFeatures:
+                idx_small.append(j)
+            j += 1
+        idx_list.append(idx_small)
+    ran = list(range(0, len(idx_list), 1))
+    while Found:
+        Found = False
+        out = []
+        for i in ran:
+            out.append(pool.apply_async(Fit, args=(x_std, y_std, idx_list[i], active_features, corr_list)))
+        output = [p.get() for p in out]    
+        Idx = []
+        Mse = []
+        for i in range(0, len(output), 1):
+            for j in range(0, len(output[i][0]), 1):
+                Idx.append(output[i][0][j])
+                Mse.append(output[i][1][j])
+        idx_min = np.argmin(Mse)
+        if Mse[idx_min] < best_mse:
+            best_idx_local = idx_min
+            best_mse = Mse[best_idx_local]
+            best_idx_global = Idx[idx_min]
+            Found = True
+        del(output)                  
+        if Found:
+            if verbose:
+                print('Best MSE = ', best_mse)
+            active_features[best_idx_local] = best_idx_global
+    pool.close()
+    pool.join()
+    return active_features
 
 
 

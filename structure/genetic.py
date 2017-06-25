@@ -215,3 +215,39 @@ def init_population(population, population_size, chromosome_size, idx):
     for i in range(0, population_size, 1):
         population.append(generate_new_chromosome(chromosome_size, idx))
     return population
+
+def tribe_one_generation(Tribe, NumberOfCrossover, MutationProbability, NumberOfGood, idx, MutationInterval, CrossoverFractionInterval, x_std, y_std, Method='Random'):
+    new_Tribe = []
+    TribeSize = len(Tribe)
+    ChromosomeSize = Tribe[0].Size
+    for j in range(0, NumberOfCrossover, 1):
+        rand_MutationProbability = random.random()
+        if rand_MutationProbability <= MutationProbability: # mutation
+            rand = random.randrange(0, NumberOfGood, 1) # which chromosome to mutate
+            new_Tribe.append(mutate_many(Tribe[rand], idx, MutationInterval)) # mutate one of good chromosome
+        else: # crossover 
+            p1 = rand = random.randrange(0, NumberOfGood, 1) # chose first chromosome for crossover
+            p2 = rand = random.randrange(0, NumberOfGood, 1) # chose second chromosome for crossover
+            if p1 > p2: # swap if necessary since chromosome1 if better than chromosome2
+                p1, p2 = p2, p1
+            if p2 == p1: # if the same chromosome try to get another one
+                k = 0
+                while p1 == p2 and (k < 100): # finish later
+                    p2 = rand = random.randrange(0, NumberOfGood, 1)
+                    k += 1
+            if Method == 'Random':
+                new_Tribe.append(crossover_random(Tribe[p1], Tribe[p2], idx, CrossoverFractionInterval))
+            else:
+                new_Tribe.append(crossover_pValue(Tribe[p1], Tribe[p2], idx, CrossoverFractionInterval))
+# add the remaining chromosomes from feature set            
+    while len(new_Tribe) < TribeSize:
+        new_Tribe.append(generate_new_chromosome(ChromosomeSize, idx))
+# get fitness 
+    if Method == 'Random':
+        for j in range(0, TribeSize, 1):
+            new_Tribe[j] = get_fitness(new_Tribe[j], x_std, y_std)
+    else:
+        for j in range(0, TribeSize, 1):
+            new_Tribe[j] = get_fitness_pValue(new_Tribe[j], x_std, y_std)
+
+    return new_Tribe
