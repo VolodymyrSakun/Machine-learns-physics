@@ -1,7 +1,8 @@
 # Library of functions 
 # argmaxabs
 # argminabs
-# Results_to_xls
+# Results_to_xls - inactive
+# Results_to_xls2
 # BackwardElimination
 # SelectBestSubsetFromElasticNetPath
 # CalculateVif
@@ -9,7 +10,16 @@
 # DecisionTreeEstimator
 # RandomForestEstimator
 # ClassifyCorrelatedFeatures
-# FindAlternativeFit
+# FindAlternativeFit - inactive
+# StoreFeaturesDescriprion
+# get_fit_score
+# plot_rmse
+# Fit
+# FindBestSet
+# FindBestSetMP 
+# FindBestSetMP2
+# ForwardSequential
+
 
 import numpy as np
 import pandas as pd
@@ -862,25 +872,72 @@ def Results_to_xls2(writeResults, SheetName, selected_features_list, X_train, Y_
     return
 # end of Results_to_xls
 
-def StoreFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced):
-    writeResults = pd.ExcelWriter(FileName, engine='openpyxl')
-    NofSelectedFeatures = len(FeaturesReduced)
-    selected_features_list = list(range(0,NofSelectedFeatures,1))
-    Results = pd.DataFrame(np.zeros(shape = (NofSelectedFeatures, 11)).astype(float), \
+# store in sheet of .xlsx file description of fit with real coefficients
+def Results_to_xls3(writeResults, SheetName, selected_features_list, X_train, Y_train,\
+        X_test, Y_test, FeaturesAll, FeaturesReduced, split_ratio=0.1, rand_state=101):
+# writeResults = pd.ExcelWriter('FileName.xlsx', engine='openpyxl')
+# after calling this function(s) data must be stored in the file by calling writeResults.save()
+# SheetName - name of xlsx sheet
+# selected_features_list - indices of features to proceed
+# X - [n x m] numpy array of not normalized features
+# rows correspond to observations
+# columns correspond to features
+# Y - [n x 1] numpy array, recponse variable
+# FeaturesAll - class1.InvPowDistancesFeature object. Contains all features
+# FeaturesReduced - class1.InvPowDistancesFeature object. Contains combined features
+    Size_train = len(Y_train)
+    Size_test = len(Y_test)
+    NofSelectedFeatures = len(selected_features_list)
+    x_sel_train = np.zeros(shape=(Size_train, 1), dtype=float) # matrix with selected features
+    x_sel_test = np.zeros(shape=(Size_test, 1), dtype=float) # matrix with selected features
+    z_train = np.zeros(shape=(Size_train, 1), dtype=float)
+    z_test = np.zeros(shape=(Size_test, 1), dtype=float)
+    for i in range(0, NofSelectedFeatures, 1):
+        if i == 0:
+            x_sel_train[:, 0] = X_train[:, selected_features_list[i]]
+            x_sel_test[:, 0] = X_test[:, selected_features_list[i]]
+        else:
+            x_sel_train[:, -1] = X_train[:, selected_features_list[i]]
+            x_sel_test[:, -1] = X_test[:, selected_features_list[i]]
+        x_sel_train = np.concatenate((x_sel_train, z_train), axis=1)
+        x_sel_test = np.concatenate((x_sel_test, z_test), axis=1)
+# fit selected features     
+    lr = LinearRegression(fit_intercept=False, normalize=True, copy_X=True, n_jobs=-1)
+    lr.fit(x_sel_train, Y_train)
+    coef = lr.coef_
+    y_pred = lr.predict(x_sel_test)
+    mse = skm.mean_squared_error(Y_test, y_pred)
+    rmse = np.sqrt(mse)
+    r2 = skm.r2_score(Y_test, y_pred)
+    nonzero_count = np.count_nonzero(coef)
+    rSS = 0
+    for i in range(0, Size_test, 1):
+        rSS += (y_pred[i] - Y_test[i])**2
+    aIC = 2 * nonzero_count + Size_test * np.log(rSS)
+# do not forget to check for zeros in coef later    
+    Results = pd.DataFrame(np.zeros(shape = (NofSelectedFeatures, 22)).astype(float), \
         columns=['Feature index','Feature type','Bond 1','Power 1','Intermolecular 1','Distance 1 type','Bond 2','Power 2', \
-        'Intermolecular 2', 'Distance 2 type','Number of distances in feature'], dtype=str)
+        'Intermolecular 2','Distance 2 type','Order 1','Degree 1','HaType 1','Order 2','Degree 2','HaType 2',\
+        'Number of distances in feature','Coefficients','MSE','RMSE','R2','AIC'], dtype=str)
     max_distances_in_feature = 1
+    max_harmonics_in_feature = 0
     for i in range(0, NofSelectedFeatures, 1):
         index = selected_features_list[i]
         Results.loc[i]['Feature index'] = index
         Results.loc[i]['Feature type'] = FeaturesReduced[index].FeType
-        Results.loc[i]['Bond 1'] = FeaturesReduced[index].DtP1.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP1.Distance.Atom2.Symbol
-        Results.loc[i]['Power 1'] = FeaturesReduced[index].DtP1.Power
-        Results.loc[i]['Distance 1 type'] = FeaturesReduced[index].DtP1.DtpType
-        if FeaturesReduced[index].DtP1.Distance.isIntermolecular: # True = Intermolecular False = Intramolecular
-            Results.loc[i]['Intermolecular 1'] = 'Yes'
+        if FeaturesReduced[index].nDistances >= 1:
+            Results.loc[i]['Bond 1'] = FeaturesReduced[index].DtP1.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP1.Distance.Atom2.Symbol
+            Results.loc[i]['Power 1'] = FeaturesReduced[index].DtP1.Power
+            Results.loc[i]['Distance 1 type'] = FeaturesReduced[index].DtP1.DtpType
+            if FeaturesReduced[index].DtP1.Distance.isIntermolecular: # True = Intermolecular False = Intramolecular
+                Results.loc[i]['Intermolecular 1'] = 'Yes'
+            else:
+                Results.loc[i]['Intermolecular 1'] = 'No'
         else:
-            Results.loc[i]['Intermolecular 1'] = 'No'
+            Results.loc[i]['Bond 1'] = ''
+            Results.loc[i]['Power 1'] = ''
+            Results.loc[i]['Intermolecular 1'] = ''
+            Results.loc[i]['Distance 1 type'] = ''            
         if FeaturesReduced[index].nDistances >= 2:
             Results.loc[i]['Bond 2'] = FeaturesReduced[index].DtP2.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP2.Distance.Atom2.Symbol
             Results.loc[i]['Power 2'] = FeaturesReduced[index].DtP2.Power
@@ -896,19 +953,142 @@ def StoreFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced):
             Results.loc[i]['Power 2'] = ''
             Results.loc[i]['Intermolecular 2'] = ''
             Results.loc[i]['Distance 2 type'] = ''
+        if FeaturesReduced[index].nHarmonics >= 1:   
+            Results.loc[i]['Order 1'] = FeaturesReduced[index].Harmonic1.Order
+            Results.loc[i]['Degree 1'] = FeaturesReduced[index].Harmonic1.Degree
+            Results.loc[i]['HaType 1'] = FeaturesReduced[index].Harmonic1.HaType
+            if max_harmonics_in_feature < 1:
+                max_harmonics_in_feature = 1
+        else:
+            Results.loc[i]['Order 1'] = ''
+            Results.loc[i]['Degree 1'] = ''
+            Results.loc[i]['HaType 1'] = ''
+        if FeaturesReduced[index].nHarmonics >= 2:   
+            Results.loc[i]['Order 2'] = FeaturesReduced[index].Harmonic2.Order
+            Results.loc[i]['Degree 2'] = FeaturesReduced[index].Harmonic2.Degree
+            Results.loc[i]['HaType 2'] = FeaturesReduced[index].Harmonic2.HaType
+            if max_harmonics_in_feature < 2:
+                max_harmonics_in_feature = 2
+        else:
+            Results.loc[i]['Order 2'] = ''
+            Results.loc[i]['Degree 2'] = ''
+            Results.loc[i]['HaType 2'] = ''            
         counter = 0
         current_feature_type = FeaturesReduced[index].FeType
         for j in range(0, len(FeaturesAll), 1):
             if FeaturesAll[j].FeType == current_feature_type:
                 counter += 1
         Results.loc[i]['Number of distances in feature'] = counter
-        FeaturesReduced[0].FeType
-        FeaturesReduced[0].DtP1.DtpType
+        Results.loc[i]['Coefficients'] = coef[i]
+        if i == 0:
+            Results.loc[0]['MSE'] = mse
+            Results.loc[0]['RMSE'] = rmse
+            Results.loc[0]['R2'] = r2
+            Results.loc[0]['AIC'] = aIC
+        else:
+            Results.loc[i]['MSE'] = ''
+            Results.loc[i]['RMSE'] = ''
+            Results.loc[i]['R2'] = ''
+            Results.loc[i]['AIC'] = ''
+    
     if max_distances_in_feature == 1:
         del(Results['Bond 2'])
         del(Results['Power 2'])
         del(Results['Intermolecular 2'])
         del(Results['Distance 2 type'])
+    if max_harmonics_in_feature < 2:
+        del(Results['Order 2'])
+        del(Results['Degree 2'])
+        del(Results['HaType 2'])
+    if max_harmonics_in_feature < 1:
+        del(Results['Order 1'])
+        del(Results['Degree 1'])
+        del(Results['HaType 1'])
+
+    Results.to_excel(writeResults, sheet_name=SheetName)
+    return
+# end of Results_to_xls3
+
+def StoreFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced):
+    writeResults = pd.ExcelWriter(FileName, engine='openpyxl')
+    NofSelectedFeatures = len(FeaturesReduced)
+    selected_features_list = list(range(0,NofSelectedFeatures,1))
+    Results = pd.DataFrame(np.zeros(shape = (NofSelectedFeatures, 17)).astype(float), \
+        columns=['Feature index','Feature type','Bond 1','Power 1','Intermolecular 1','Distance 1 type','Bond 2','Power 2', \
+        'Intermolecular 2', 'Distance 2 type','Order 1','Degree 1','HaType 1','Order 2','Degree 2','HaType 2','Number of distances in feature'], dtype=str)
+    max_distances_in_feature = 1
+    max_harmonics_in_feature = 0
+    for i in range(0, NofSelectedFeatures, 1):
+        index = selected_features_list[i]
+        Results.loc[i]['Feature index'] = index
+        Results.loc[i]['Feature type'] = FeaturesReduced[index].FeType
+        if FeaturesReduced[index].nDistances >= 1:
+            Results.loc[i]['Bond 1'] = FeaturesReduced[index].DtP1.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP1.Distance.Atom2.Symbol
+            Results.loc[i]['Power 1'] = FeaturesReduced[index].DtP1.Power
+            Results.loc[i]['Distance 1 type'] = FeaturesReduced[index].DtP1.DtpType
+            if FeaturesReduced[index].DtP1.Distance.isIntermolecular: # True = Intermolecular False = Intramolecular
+                Results.loc[i]['Intermolecular 1'] = 'Yes'
+            else:
+                Results.loc[i]['Intermolecular 1'] = 'No'
+        else:
+            Results.loc[i]['Bond 1'] = ''
+            Results.loc[i]['Power 1'] = ''
+            Results.loc[i]['Intermolecular 1'] = ''
+            Results.loc[i]['Distance 1 type'] = ''            
+        if FeaturesReduced[index].nDistances >= 2:
+            Results.loc[i]['Bond 2'] = FeaturesReduced[index].DtP2.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP2.Distance.Atom2.Symbol
+            Results.loc[i]['Power 2'] = FeaturesReduced[index].DtP2.Power
+            Results.loc[i]['Distance 2 type'] = FeaturesReduced[index].DtP2.DtpType
+            if max_distances_in_feature < 2:
+                max_distances_in_feature = 2
+            if FeaturesReduced[index].DtP2.Distance.isIntermolecular: # 1 = Intermolecular 0 = Intramolecular
+                Results.loc[i]['Intermolecular 2'] = 'Yes'
+            else:
+                Results.loc[i]['Intermolecular 2'] = 'No'
+        else:
+            Results.loc[i]['Bond 2'] = ''
+            Results.loc[i]['Power 2'] = ''
+            Results.loc[i]['Intermolecular 2'] = ''
+            Results.loc[i]['Distance 2 type'] = ''
+        if FeaturesReduced[index].nHarmonics >= 1:   
+            Results.loc[i]['Order 1'] = FeaturesReduced[index].Harmonic1.Order
+            Results.loc[i]['Degree 1'] = FeaturesReduced[index].Harmonic1.Degree
+            Results.loc[i]['HaType 1'] = FeaturesReduced[index].Harmonic1.HaType
+            if max_harmonics_in_feature < 1:
+                max_harmonics_in_feature = 1
+        else:
+            Results.loc[i]['Order 1'] = ''
+            Results.loc[i]['Degree 1'] = ''
+            Results.loc[i]['HaType 1'] = ''
+        if FeaturesReduced[index].nHarmonics >= 2:   
+            Results.loc[i]['Order 2'] = FeaturesReduced[index].Harmonic2.Order
+            Results.loc[i]['Degree 2'] = FeaturesReduced[index].Harmonic2.Degree
+            Results.loc[i]['HaType 2'] = FeaturesReduced[index].Harmonic2.HaType
+            if max_harmonics_in_feature < 2:
+                max_harmonics_in_feature = 2
+        else:
+            Results.loc[i]['Order 2'] = ''
+            Results.loc[i]['Degree 2'] = ''
+            Results.loc[i]['HaType 2'] = ''            
+        counter = 0
+        current_feature_type = FeaturesReduced[index].FeType
+        for j in range(0, len(FeaturesAll), 1):
+            if FeaturesAll[j].FeType == current_feature_type:
+                counter += 1
+        Results.loc[i]['Number of distances in feature'] = counter
+    if max_distances_in_feature == 1:
+        del(Results['Bond 2'])
+        del(Results['Power 2'])
+        del(Results['Intermolecular 2'])
+        del(Results['Distance 2 type'])
+    if max_harmonics_in_feature < 2:
+        del(Results['Order 2'])
+        del(Results['Degree 2'])
+        del(Results['HaType 2'])
+    if max_harmonics_in_feature < 1:
+        del(Results['Order 1'])
+        del(Results['Degree 1'])
+        del(Results['HaType 1'])
     Results.to_excel(writeResults)
     writeResults.save()  
     return
@@ -1107,7 +1287,7 @@ def FindBestSetMP(x_std, y_std, features_idx, corr_list, Method='MSE', verbose=T
             active_features[best_idx_local] = best_idx_global
     return active_features
 
-def FindBestSetMP2(x_std, y_std, features_idx, corr_list, Method='MSE', n_jobs=1, verbose=True):
+def FindBestSetMP2(x_std, y_std, features_idx, corr_list, Method='MSE', n_jobs=-1, verbose=True):
 # finds alternative fit using classified feature list produced by ClassifyCorrelatedFeatures  
 # returns list of indices of features
 # x_std - [n x m] numpy array of standardized features

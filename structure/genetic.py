@@ -1,3 +1,16 @@
+# get_fitness
+# get_fitness_pValue
+# generate_new_chromosome
+# mutate_one
+# mutate_many
+# rank_chromosome
+# rank_population
+# get_best
+# crossover_random
+# crossover_pValue
+# init_population
+# tribe_one_generation
+
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import sklearn.metrics as skm

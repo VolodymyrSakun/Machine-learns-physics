@@ -1,5 +1,6 @@
 import numpy as np
 from math import acos
+from scipy.special import sph_harm
 
 # n - degree. 0, 1, 2, 3 ...
 # m - order. ... -3, -2, -1, 0, 1, 2, 3 ...   abs(m) <= n
@@ -122,8 +123,15 @@ def get_bisection(p1, origin, p3):
     bisection = UnitVector(bisection)
     return bisection
 
-def get_transformation_matrix(new_origin_O, H1, H2, external_atom):
+def get_directing_point_O2_O3(O2, O3):
+    directing_point = Point((O2.x+O3.x)/2, (O2.y+O3.y)/2, (O2.z+O3.z)/2)
+    return directing_point
+    
+def get_transformation_matrix(new_origin_O, H1, H2, directing_point):
 # calculate new basis and transformation matrix
+# e1 is the bisection between O-H1 and O-H2
+# e2 is the normal to plane O-H1-H2 pointed towards external atom
+# e3 is cross product e1 x e2  
     M_translation = np.eye(4)
     M_rotation = np.eye(4)
     M_translation[0,3] = new_origin_O.x
@@ -133,7 +141,7 @@ def get_transformation_matrix(new_origin_O, H1, H2, external_atom):
     e1 = get_bisection(H1, new_origin_O, H2) # new X axis. bisection unit vector
     e2 = Vector(plane.a, plane.b, plane.c) # new Y axis. normal to plane towards external atom
     e2 = UnitVector(e2)
-    y_direction = vector_from_points(new_origin_O, external_atom) 
+    y_direction = vector_from_points(new_origin_O, directing_point) 
     cos = dot_product3(e2, y_direction) / y_direction.length
     if cos < 0:
         e2 = vector_multiply_by_number(e2, -1) # new Y axis
@@ -151,10 +159,10 @@ def transform_coordinates(M, point):
     z = M[2,0]*point.x + M[2,1]*point.y + M[2,2]*point.z + M[0,3]*1
     new_point = Point(x, y, z)
     return new_point
-    
-def get_angles(new_origin, H1, H2, external_atom):
+
+def get_angles(new_origin, H1, H2, external_atom, directing_point):
     p1 = Vector(external_atom.x + new_origin.x, external_atom.y + new_origin.y, external_atom.z + new_origin.z)
-    e1, e2, e3, M_translation, M_rotation = get_transformation_matrix(new_origin, H1, H2, external_atom)
+    e1, e2, e3, M_translation, M_rotation = get_transformation_matrix(new_origin, H1, H2, directing_point)
     cos_phi = dot_product3(p1, e3) / p1.length
     phi = acos(cos_phi)
     projection_on_z = projection(p1, e3)
@@ -163,31 +171,40 @@ def get_angles(new_origin, H1, H2, external_atom):
     theta = acos(cos_theta)
     return theta, phi
     
-    
-"""
-def get_bisection(p1, origin, p3):
-    from scipy.optimize import fsolve
-# origin - origin of bisection
-# bisection between p1 and p3 on the same plane
-# slow and not good
-    def equations(p):
-        d1, d2, d3 = p
-        return ((b1-a1)*(d1-a1) + (b2-a2)*(d2-a1) + (b3-a3)*(d3-a3) - (c1-a1)*(d1-a1) - (c2-a2)*(d2-a2) - (c3-a3)*(d3-a3),\
-            A*d1 + B*d2 + C*d3 - D,\
-            (d1-a1)**2 + (d2-a2)**2 + (d3-a3)**2 - 1)
+def get_real_form1(m, n, theta, phi):
+    if m == 0:
+        s = sph_harm(0, n, theta, phi)
+        return s
+    s_m = sph_harm(m, n, theta, phi)
+    s_minus_m = sph_harm((-1)*m, n, theta, phi)
+    if m < 0:
+        s = (1j/np.sqrt(2))*(s_m - (-1)**m * s_minus_m)
+    if m > 0:
+        s = (1/np.sqrt(2))*(s_minus_m + (-1)**m * s_m)
+    return s.real
+  
+def get_real_form2(m, n, theta, phi):
+    if m == 0:
+        s = sph_harm(0, n, theta, phi)
+        return s
+    s_abs_m = sph_harm(abs(m), n, theta, phi)
+    s_minus_abs_m = sph_harm((-1)*abs(m), n, theta, phi)
+    if m < 0:
+        s = 1j/np.sqrt(2)*(s_minus_abs_m - (-1)**m * s_abs_m)
+    if m > 0:
+        s = 1/np.sqrt(2)*(s_minus_abs_m + (-1)**m * s_abs_m)
+    return s.real
 
-    plane = plane_from3points(p1, origin, p3)
-    A, B, C, D = plane.a, plane.b, plane.c, plane.d
-    a1, a2, a3 = origin.x, origin.y, origin.z
-    b1, b2, b3 = p1.x, p1.y, p1.z
-    c1, c2, c3 = p3.x, p3.y, p3.z
-    d1, d2, d3 =  fsolve(equations, (1, 1, 1))
-    arrow = Point(d1, d2, d3)
-    bisection = vector_from_points(origin, arrow)
-    bisection = UnitVector(bisection)
-    return bisection
-"""    
 
+def get_real_form3(m, n, theta, phi):
+    if m == 0:
+        s = sph_harm(0, n, theta, phi)
+        return s
+    if m < 0:
+        s = np.sqrt(2) * (-1)**m * sph_harm(abs(m), n, theta, phi).imag
+    if m > 0:
+        s = np.sqrt(2) * (-1)**m * sph_harm(m, n, theta, phi).real
+    return s.real
 
 
 

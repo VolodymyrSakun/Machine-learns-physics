@@ -1,4 +1,5 @@
 # max number of different kind of atoms = 9
+import numpy as np
 
 class Atom:
     Symbol = None # atom symbol. Example: O, H, C, Si
@@ -54,50 +55,87 @@ class Distance:
             min(atom1.AtType, atom2.AtType)
             
 class Distance_to_Power:
+# power cannot be zero
     Distance = None
     Power = None
     DtpType = None
     def __init__(self, distance, power):
         self.Distance = distance
-        self.Power = power    
-        self.DtpType = distance.DiType + 1000*power
+        self.Power = power   
+        sign = np.sign(power)
+        if sign == -1:
+            sign = 0
+        self.DtpType = distance.DiType + 1000*abs(power) + 100000*sign
         
 class Harmonic:
     Order = None # Can be ... -3, -2, -1, 0, 1, 2, 3 ... use only positive. Less or = to Degree 
     Degree = None # 0, 1, 2, 3 ....
     Center = None # which atom is taken as zero reference
-    Basis = None # Method to establish basis
     Atom = None # atom from another molecule that harmonic is calculated for
     HaType = None # type of harmonic. each harmonic is unique I hope
-    def __init__(self, order, degree, center, atom, basis='bisection'):
+    def __init__(self, order, degree, center, atom):
         self.Order = order
         self.Degree = degree
         self.Center = center
         self.Atom = atom
-        self.Basis = basis
+        if order != 0:
+            sign = np.sign(order)
+        else:
+            sign = 1
+        if sign == -1:
+            sign = 0
+        self.HaType = 10000*sign + 1000*abs(self.Order) + 100*self.Degree + 10*self.Center.AtType +self.Atom.AtType
         
 class Feature:
-    nDistances = None
+    nDistances = 0
+    nHarmonics = 0
     DtP1 = None
     DtP2 = None
-    FeType = None
-    Harmonic = None
-    def __init__(self, nDistances, DtP1, DtP2=None, Harmonic=None):
-        self.nDistances = nDistances
+    FeType = 'None'
+    Harmonic1 = None
+    Harmonic2 = None
+    def __init__(self, DtP1, DtP2=None, Harmonic1=None, Harmonic2=None):
+        if DtP1 is not None:
+            if DtP2 is not None:
+                self.nDistances = 2
+            else:
+                self.nDistances = 1
+        if Harmonic1 is not None:
+            if Harmonic2 is not None:
+                self.nHarmonics = 2
+            else:
+                self.nHarmonics = 1
         self.DtP1 = DtP1
-        if Harmonic is not None:
-            self.Harmonic = Harmonic
-            return
+        if Harmonic1 is not None:
+            self.Harmonic1 = Harmonic1
+            h1_type = Harmonic1.HaType
+        else:
+            h1_type = 0
+        if Harmonic2 is not None:
+            self.Harmonic2 = Harmonic2
+            h2_type = Harmonic2.HaType
+        else:
+            h2_type = 0
+        if DtP1 is not None:
+            self.DtP1 = DtP1
+            d1_type = DtP1.DtpType
+        else:
+            d1_type = 0
         if DtP2 is not None:
             self.DtP2 = DtP2
-        if DtP2 is None:
-            self.FeType = DtP1.DtpType
-        if DtP2 is not None:
-            T1 = abs(DtP1.DtpType)
-            T2 = abs(DtP2.DtpType)
-            self.FeType = 100000*min(T1, T2) + max(T1, T2)
-            if DtP1.DtpType * DtP2.DtpType < 0:
-                self.FeType = self.FeType * (-1)
+            d2_type = DtP2.DtpType
+        else:
+            d2_type = 0
+        D1 = str(d1_type)   
+        D1 = D1.zfill(6)
+        D2 = str(d2_type)   
+        D2 = D2.zfill(6)
+        H1 = str(h1_type)
+        H1 = H1.zfill(5)
+        H2 = str(h2_type)
+        H2 = H2.zfill(5)
+        self.FeType = D1 + D2 + H1 + H2
+        return
         
 def print_feature(feature):
     print('Number of distances = ', feature.nDistances)
