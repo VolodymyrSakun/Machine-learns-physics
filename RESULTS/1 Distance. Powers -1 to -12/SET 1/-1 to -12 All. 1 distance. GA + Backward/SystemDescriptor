@@ -1,0 +1,49 @@
+&FEATURES
+&SingleDistances
+SingleDistancesInclude = True
+&SingleDistancesDescription
+&endSingleDistancesDescription
+&DefaultSingleDistances
+SinglePowers: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12
+&endSingleDistances
+
+&DoubleDistances
+DoubleDistancesInclude=True
+&DoubleDistancesDescription
+O,O,intermolecular: -1,-2,-3
+O,H,intermolecular: -1,-2,-3
+H,H,intermolecular: -1,-2,-3
+O,H,intramolecular:
+H,H,intramolecular:
+&endDoubleDistancesDescription
+&DefaultDoubleDistances
+DoublePowers: -1,-2,-3,-4,-5
+IncludeAllExcept=False
+ExcludeAllExcept=True
+&IncludeExcludeList
+O,H,intermolecular; O,H,intermolecular
+&endIncludeExcludeList
+&endDoubleDistances
+
+&Harmonics
+HarmonicsInclude=False
+Order: -2,-1,0,1,2
+Degree: 0,1,2
+# symbol of atom to be a center of coordinate system to calculate harmonics
+Center: O
+Atoms: O,H
+&endHarmonics
+&endFEATURES
+
+&SYSTEM
+# Atom symbol (string), Atom type(integer), Molecule number (integer)
+# water 1
+O,1,0
+H,0,0    
+H,0,0
+# water 2
+O,1,1
+H,0,1    
+H,0,1
+&END
+ 
