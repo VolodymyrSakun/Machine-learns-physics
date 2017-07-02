@@ -194,8 +194,8 @@ if __name__ == '__main__':
     #F_data = 'short three water molecules.x'
     #F_data = 'datafile1 from github gaussian process.x' # file with coordinates
     #F_data = 'datafile2.x'
-    F_data = 'datafile3 2 water molecules.x'
-    #F_data = 'datafile4 3 water molecules small.x'
+    #F_data = 'datafile3 2 water molecules.x'
+    F_data = 'datafile4 3 water molecules small.x'
     #F_data = 'datafile5 3 water molecules big.x'
     F_HarmonicFeatures = 'Harmonic Features.csv' # output csv file with combined features and energy
     F_HarmonicFeaturesAll = 'HarmonicFeaturesAll.dat' # output data structure which contains all features
@@ -222,6 +222,8 @@ if __name__ == '__main__':
     ProceedHarmonics = False    
     for i in range(0, len(lines), 1):
         x = lines[i]
+        if x[0] == '#':
+            continue
         if (x.find('SingleDistancesInclude') != -1):
             s = re.split(Separators, x)
             s = list(filter(bool, s)) # removes empty records
@@ -237,6 +239,10 @@ if __name__ == '__main__':
             s = list(filter(bool, s)) # removes empty records
             if 'True' in s: # proceed single distances
                 ProceedHarmonics = True
+        if (x.find('F_data') != -1):        
+            s = re.split(Separators, x)
+            s = list(filter(bool, s))  
+            F_data = s[1]
     if ProceedSingle:
         if ('&SingleDistancesDescription' in lines):
             for i in range(0, len(lines), 1):
@@ -284,6 +290,7 @@ if __name__ == '__main__':
                     s = re.split(Separators, x)
                     s = list(filter(bool, s))
                     DoublePowersDefault = list(filter(bool, s)) # removes empty records
+                    del(DoublePowersDefault[0])
                 if (x.find('IncludeAllExcept') != -1):
                     s = re.split(Separators, x)
                     s = list(filter(bool, s))  
@@ -298,6 +305,13 @@ if __name__ == '__main__':
                         ExcludeAllExcept = True
                     if (s[1] == 'False') or (s[1] == 'No'):
                         ExcludeAllExcept = False 
+                if (x.find('IncludeSameType') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))  
+                    if (s[1] == 'True') or (s[1] == 'Yes'):
+                        IncludeSameType = True
+                    if (s[1] == 'False') or (s[1] == 'No'):
+                        IncludeSameType = False                    
         if ('&IncludeExcludeList' in lines):
             for i in range(0, len(lines), 1):
                 x = lines[i]
@@ -351,6 +365,7 @@ if __name__ == '__main__':
         if i.DiType not in DiTypeList:
             DiTypeList.append(i.DiType)
     FeaturesAll = [] # list of all features
+    
     if ProceedSingle:
         # add DiType for each record   
         SingleDescriptionDiType = []                 
@@ -380,114 +395,164 @@ if __name__ == '__main__':
                     inter = 'intramolecular'
                 SingleDescription.append([idx.Atom1.Symbol, idx.Atom2.Symbol, inter])
                 SingleDescription[-1] += SinglePowersDefault
-            FeaturesAll = [] # list of all features
+
     # make list of features with only one distance
-    
-        DtP_list = []
+        DtP_Single_list = []
         for i in range(0, len(Distances), 1):
             k = SingleDescriptionDiType.index(Distances[i].DiType)
             Powers = SingleDescription[k][3:]
             for j in Powers:
-                DtP_list.append(class2.Distance_to_Power(Distances[i], int(j)))
+                DtP_Single_list.append(class2.Distance_to_Power(Distances[i], int(j)))
     
-        for i in DtP_list:
+        for i in DtP_Single_list:
             FeaturesAll.append(class2.Feature(i, DtP2=None))        
             
-            
-            
-                    
+    if ProceedDouble:
+        # add DiType for each record   
+        DoubleDescriptionDiType = []                 
+        for i in range(0, len(DoubleDescription), 1):
+            a1 = DoubleDescription[i][0]
+            a2 = DoubleDescription[i][1]
+            if DoubleDescription[i][2] == 'intermolecular':
+                inter = True
+            else:
+                inter = False
+            for j in Distances:
+                if j.isIntermolecular == inter:
+                    if ((j.Atom1.Symbol == a1) and (j.Atom2.Symbol == a2)) or \
+                        ((j.Atom1.Symbol == a2) and (j.Atom2.Symbol == a1)):
+                        DoubleDescriptionDiType.append(j.DiType)
+                        break
+        for i in DiTypeList:
+            if i not in DoubleDescriptionDiType:
+                DoubleDescriptionDiType.append(i)
+                for j in Distances:
+                    if j.DiType == i:
+                        idx = j
+                        break
+                if idx.isIntermolecular:
+                    inter = 'intermolecular'
+                else:
+                    inter = 'intramolecular'
+                DoubleDescription.append([idx.Atom1.Symbol, idx.Atom2.Symbol, inter])
+                DoubleDescription[-1] += DoublePowersDefault
 
-                        
-
+    # make list of features with only one distance
     
-#    HarmonicDescriptionFirst = 0 #if they have the same value use only default
-#    HarmonicDescriptionLast = 0
-#    Hamonics_include = False
-#    for i in range(0, len(lines), 1):
-#        x = lines[i]
-#        if (x.find('&HarmonicsDescription') != -1):
-#            HarmonicDescriptionFirst = i + 1
-#        if (x.find('&endHarmonicsDescription') != -1):   
-#            HarmonicDescriptionLast = i
-#    if HarmonicDescriptionFirst != HarmonicDescriptionLast:
-#        for i in range(HarmonicDescriptionFirst, HarmonicDescriptionLast, 1):
-#            x = lines[i]
-#            if (x.find('Order') != -1):
-#                Str_order = x.split(',', -1)
-#                for k in range(1, len(Str_order), 1):
-#                    Str_order[k] = int(Str_order[k])
-#            if (x.find('Degree') != -1):
-#                Str_degree = x.split(',', -1)   
-#                for k in range(1, len(Str_degree), 1):
-#                    Str_degree[k] = int(Str_degree[k])   
-#            if (x.find('Center') != -1):
-#                Str_center = x.split(',', -1)   
-#        Order_list = Str_order[1:]
-#        Degree_list = Str_degree[1:]
-#        Center = Str_center[1]
-#        Hamonics_include = True
+        DtP_Double_list = []
+        for i in range(0, len(Distances), 1):
+            k = DoubleDescriptionDiType.index(Distances[i].DiType)
+            Powers = DoubleDescription[k][3:]
+            for j in Powers:
+                DtP_Double_list.append(class2.Distance_to_Power(Distances[i], int(j)))
         
+        IncludeExcludeDiTypes = [] # can be empty
+        for i in IncludeExcludeList:
+            a11 = i[0]
+            a12 = i[1]
+            a21 = i[3]
+            a22 = i[4]
+            if i[2] == 'intermolecular':
+                inter1 = True
+            else:
+                inter1 = False
+            if i[5] == 'intermolecular':
+                inter2 = True
+            else:
+                inter2 = False
+            for j in Distances:
+                if j.isIntermolecular == inter1:
+                    if ((j.Atom1.Symbol == a11) and (j.Atom2.Symbol == a12)) or \
+                        ((j.Atom1.Symbol == a12) and (j.Atom2.Symbol == a11)):
+                        Type1 = j.DiType
+                        break
+            for j in Distances:
+                if j.isIntermolecular == inter2:
+                    if ((j.Atom1.Symbol == a21) and (j.Atom2.Symbol == a22)) or \
+                        ((j.Atom1.Symbol == a22) and (j.Atom2.Symbol == a21)):
+                        Type2 = j.DiType
+                        break
+            IncludeExcludeDiTypes.append((Type1, Type2))
 
-    
-     
-    
-    
-    # list of harmonics. only between O and H from different molecules
-#    H_list = []
-#    for i in Degree:
-#        for j in Order:
-#            if abs(j) > i:
-#                continue # abs value of Order must be <= Degree
-#            for k in range(0, len(Atoms), 1): # centers
-#                if Atoms[k].Symbol != 'O': # can also use Atoms[k].Symbol != 'O'
-#                    continue # if not oxygen
-#                for l in range(0, len(Atoms), 1): # hydrogens
-#                    if Atoms[l].Symbol != 'H': # can also use Atoms[l].Symbol != 'H'
-#                        continue # if not hydrogen
-#                    if Atoms[k].MolecularIndex == Atoms[l].MolecularIndex:
-#                        continue # O and H belong to the same molecule
-#                    H_list.append(class2.Harmonic(j, i, Atoms[k], Atoms[l]))
-    
-    
-    # include r*r only O-H intermolecular        
-    #if max_number_of_distances_in_feature == 2:
-    #    for i in range(0, len(DtP_list), 1):
-    #        for j in range(i+1, len(DtP_list), 1):
-    #            if DtP_list[i].Distance.isIntermolecular and  (DtP_list[i].Distance.Atom1.AtType != DtP_list[i].Distance.Atom2.AtType): # only O-H intermolecular first distance
-    #                if DtP_list[j].Distance.isIntermolecular and  (DtP_list[j].Distance.Atom1.AtType != DtP_list[j].Distance.Atom2.AtType): # only O-H intermolecular second distance
-    #                    if DtP_list[i].Power != DtP_list[j].Power: # same powers are not included
-    #                        FeaturesAll.append(class2.Feature(2, DtP_list[i], DtP2=DtP_list[j]))
-                              
-    # include r*r for all 
-    #if max_number_of_distances_in_feature == 2:
-    #    for i in range(0, len(DtP_list), 1):
-    #        for j in range(i+1, len(DtP_list), 1):
-    #            if (DtP_list[i].Distance.isIntermolecular == DtP_list[j].Distance.isIntermolecular) and \
-    #                DtP_list[i].Distance.DiType == DtP_list[j].Distance.DiType:
-    #                    continue # do not include distances with same DiType which belongs to the same molecule 
-    #            if DtP_list[i].Power != DtP_list[j].Power: # same powers are not included
-    #                FeaturesAll.append(class2.Feature(2, DtP_list[i], DtP2=DtP_list[j], Harmonic=None))
-    
-    # include r*r*H*H only O-H intermolecular distances and harmonics
-#    for i in range(0, len(DtP_list), 1): # first O-H distance
-#        if not DtP_list[i].Distance.isIntermolecular: 
-#            continue # if distance is not intermolecular skip it
-#        if (DtP_list[i].Distance.Atom1.AtType == DtP_list[i].Distance.Atom2.AtType):
-#            continue # if distance is between same types of atoms - skip it (O-O or H-H)
-#        for j in range(0, len(DtP_list), 1): # second O-H distance
-#            if not DtP_list[j].Distance.isIntermolecular: 
-#                continue # if distance is not intermolecular skip it
-#            if (DtP_list[j].Distance.Atom1.AtType == DtP_list[j].Distance.Atom2.AtType):
-#                continue
-#            for k in range(0, len(H_list), 1): # first harmonic corresponds to DtP1
-#                if not(((H_list[k].Center.Index == DtP_list[i].Distance.Atom1.Index) and (H_list[k].Atom.Index == DtP_list[i].Distance.Atom2.Index)) or ((H_list[k].Center.Index == DtP_list[i].Distance.Atom2.Index) and (H_list[k].Atom.Index == DtP_list[i].Distance.Atom1.Index))):
-#                    continue    
-#                for l in range(0, len(H_list), 1): # second harmonic corresponds to DtP2
-#                    if not(((H_list[l].Center.Index == DtP_list[j].Distance.Atom1.Index) and (H_list[l].Atom.Index == DtP_list[j].Distance.Atom2.Index)) or ((H_list[l].Center.Index == DtP_list[j].Distance.Atom2.Index) and (H_list[l].Atom.Index == DtP_list[j].Distance.Atom1.Index))):
-#                        continue    
-#                    FeaturesAll.append(class2.Feature(DtP_list[i], DtP2=DtP_list[j], Harmonic1=H_list[k], Harmonic2=H_list[l]))
+        for i in range(0, len(DtP_Double_list), 1):
+            for j in range(i+1, len(DtP_Double_list), 1):
+                if not IncludeSameType:
+                    if DtP_Double_list[i].Distance.DiType == DtP_Double_list[j].Distance.DiType: # skip if distances of the same type
+                        continue
+                if len(IncludeExcludeDiTypes) == 0:
+                    FeaturesAll.append(class2.Feature(DtP_Double_list[i], DtP2=DtP_Double_list[j]))
+                else:
+                    for k in IncludeExcludeDiTypes:
+                        if ExcludeAllExcept:
+                            if (DtP_Double_list[i].Distance.DiType == k[0] and DtP_Double_list[j].Distance.DiType == k[1]) or (DtP_Double_list[i].Distance.DiType == k[1] and DtP_Double_list[j].Distance.DiType == k[0]):
+                               FeaturesAll.append(class2.Feature(DtP_Double_list[i], DtP2=DtP_Double_list[j])) # append if match
+                        if IncludeAllExcept:
+                            if (DtP_Double_list[i].Distance.DiType == k[0] and DtP_Double_list[j].Distance.DiType == k[1]) or (DtP_Double_list[i].Distance.DiType == k[1] and DtP_Double_list[j].Distance.DiType == k[0]):
+                                continue #skip if match
+                            FeaturesAll.append(class2.Feature(DtP_Double_list[i], DtP2=DtP_Double_list[j]))
+                        
+    #    HarmonicDescriptionFirst = 0 #if they have the same value use only default
+    #    HarmonicDescriptionLast = 0
+    #    Hamonics_include = False
+    #    for i in range(0, len(lines), 1):
+    #        x = lines[i]
+    #        if (x.find('&HarmonicsDescription') != -1):
+    #            HarmonicDescriptionFirst = i + 1
+    #        if (x.find('&endHarmonicsDescription') != -1):   
+    #            HarmonicDescriptionLast = i
+    #    if HarmonicDescriptionFirst != HarmonicDescriptionLast:
+    #        for i in range(HarmonicDescriptionFirst, HarmonicDescriptionLast, 1):
+    #            x = lines[i]
+    #            if (x.find('Order') != -1):
+    #                Str_order = x.split(',', -1)
+    #                for k in range(1, len(Str_order), 1):
+    #                    Str_order[k] = int(Str_order[k])
+    #            if (x.find('Degree') != -1):
+    #                Str_degree = x.split(',', -1)   
+    #                for k in range(1, len(Str_degree), 1):
+    #                    Str_degree[k] = int(Str_degree[k])   
+    #            if (x.find('Center') != -1):
+    #                Str_center = x.split(',', -1)   
+    #        Order_list = Str_order[1:]
+    #        Degree_list = Str_degree[1:]
+    #        Center = Str_center[1]
+    #        Hamonics_include = True
             
-                
+        # list of harmonics. only between O and H from different molecules
+    #    H_list = []
+    #    for i in Degree:
+    #        for j in Order:
+    #            if abs(j) > i:
+    #                continue # abs value of Order must be <= Degree
+    #            for k in range(0, len(Atoms), 1): # centers
+    #                if Atoms[k].Symbol != 'O': # can also use Atoms[k].Symbol != 'O'
+    #                    continue # if not oxygen
+    #                for l in range(0, len(Atoms), 1): # hydrogens
+    #                    if Atoms[l].Symbol != 'H': # can also use Atoms[l].Symbol != 'H'
+    #                        continue # if not hydrogen
+    #                    if Atoms[k].MolecularIndex == Atoms[l].MolecularIndex:
+    #                        continue # O and H belong to the same molecule
+    #                    H_list.append(class2.Harmonic(j, i, Atoms[k], Atoms[l]))
+                        
+        # include r*r*H*H only O-H intermolecular distances and harmonics
+    #    for i in range(0, len(DtP_list), 1): # first O-H distance
+    #        if not DtP_list[i].Distance.isIntermolecular: 
+    #            continue # if distance is not intermolecular skip it
+    #        if (DtP_list[i].Distance.Atom1.AtType == DtP_list[i].Distance.Atom2.AtType):
+    #            continue # if distance is between same types of atoms - skip it (O-O or H-H)
+    #        for j in range(0, len(DtP_list), 1): # second O-H distance
+    #            if not DtP_list[j].Distance.isIntermolecular: 
+    #                continue # if distance is not intermolecular skip it
+    #            if (DtP_list[j].Distance.Atom1.AtType == DtP_list[j].Distance.Atom2.AtType):
+    #                continue
+    #            for k in range(0, len(H_list), 1): # first harmonic corresponds to DtP1
+    #                if not(((H_list[k].Center.Index == DtP_list[i].Distance.Atom1.Index) and (H_list[k].Atom.Index == DtP_list[i].Distance.Atom2.Index)) or ((H_list[k].Center.Index == DtP_list[i].Distance.Atom2.Index) and (H_list[k].Atom.Index == DtP_list[i].Distance.Atom1.Index))):
+    #                    continue    
+    #                for l in range(0, len(H_list), 1): # second harmonic corresponds to DtP2
+    #                    if not(((H_list[l].Center.Index == DtP_list[j].Distance.Atom1.Index) and (H_list[l].Atom.Index == DtP_list[j].Distance.Atom2.Index)) or ((H_list[l].Center.Index == DtP_list[j].Distance.Atom2.Index) and (H_list[l].Atom.Index == DtP_list[j].Distance.Atom1.Index))):
+    #                        continue    
+    #                    FeaturesAll.append(class2.Feature(DtP_list[i], DtP2=DtP_list[j], Harmonic1=H_list[k], Harmonic2=H_list[l]))
+                            
     # Make list of reduced features
     FeaturesReduced = []
     FeType_list = []
@@ -601,7 +666,6 @@ if __name__ == '__main__':
     
     print("DONE")
     
-    
-    
+
     
     
