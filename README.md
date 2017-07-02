@@ -2,7 +2,7 @@
 
 * Data files:
 
-SystemDescriptor
+SystemDescriptor - descriptor for Generate harmonic features (MP).py
 
 datafile1 from github gaussian process.x (from quantum mechanics)
 
@@ -38,7 +38,16 @@ Generate harmonic features MP.py - same but uses multiprocessing
 
 * Feature selection / elimination algorithms:
 
-GetFit2.py - chain of algorithms: ElasticNEt, Backward sequential, Best Subset. Now can work in multiprocessing mode.
+Abbreviation:
 
-GetFitEnetGenetic.py - chain of algorithms: ElasticNEt, Genetic, Backward sequential, Best Subset (useful if I have too many features after elastic net)
+MP - code uses multiprocessing and run functions in parallel using 100% of CPU
 
+ENet - Elastic Net algorithm from sklearn
+
+GA - Genetic algorithm (structure.genetic)
+
+BS - Backward sequential selection (elimination) algorithm (structure.library2)
+
+FS - Forward sequential selection algorithm (structure.library2)
+
+BF - Best Fit algorithm (structure.library2)
