@@ -1,3 +1,11 @@
+# Atom
+# AtomCoordinates
+# record
+# Distance
+# Distance_to_Power
+# Harmonic
+# Feature
+
 # max number of different kind of atoms = 9
 import numpy as np
 
@@ -43,8 +51,12 @@ class Distance:
     isIntermolecular = None
     DiType = None
     def __init__(self, atom1, atom2):
-        self.Atom1 = atom1
-        self.Atom2 = atom2
+        if atom1.AtType > atom2.AtType:
+            self.Atom1 = atom1
+            self.Atom2 = atom2
+        else:
+            self.Atom1 = atom2
+            self.Atom2 = atom1
         if (atom1.MolecularIndex != atom2.MolecularIndex):
             self.isIntermolecular = True # atoms belong to different molecules
             i = 1
@@ -134,7 +146,10 @@ class Feature:
         H1 = H1.zfill(5)
         H2 = str(h2_type)
         H2 = H2.zfill(5)
-        self.FeType = D1 + D2 + H1 + H2
+        if D1 > D2:
+            self.FeType = D1 + D2 + H1 + H2
+        else:
+            self.FeType = D2 + D1 + H2 + H1
         return
         
 def print_feature(feature):
@@ -163,5 +178,5 @@ def print_feature(feature):
         print('Atom2 Index = ', feature.DtP2.Distance.Atom2.Index)
         
         
-        
+
         

@@ -3,6 +3,7 @@
 # argminabs
 # Results_to_xls - inactive
 # Results_to_xls2
+# Results_to_xls3
 # BackwardElimination
 # SelectBestSubsetFromElasticNetPath
 # CalculateVif
@@ -636,6 +637,13 @@ def RandomForestEstimator(x_std, y_std, MaxFeatures=10, NofTrees=10, verbose=Fal
         feature_importance_forest[tmp] = 0
     return idx
 
+def get_full_list(idx, NofFeatures):
+    idx_corr = []
+    n = np.array(range(0, NofFeatures, 1), dtype=int)
+    for i in range(0, len(idx), 1):
+        idx_corr.append(n)
+    return idx_corr
+
 def ClassifyCorrelatedFeatures(X, features_idx, MinCorrelation, Model=1, Corr_Matrix=None, verbose=False):
 # creates list of correlated features 
 # X - [n x m] numpy array of features
@@ -659,11 +667,11 @@ def ClassifyCorrelatedFeatures(X, features_idx, MinCorrelation, Model=1, Corr_Ma
     if Corr_Matrix is not None:
         C = Corr_Matrix
     else:
-#        C = np.cov(X, rowvar=False, bias=True)
-        A = pd.DataFrame(X, dtype=float)
-        B = A.corr()
-        B.fillna(0, inplace=True) # replace NaN with 0
-        C = B.as_matrix()
+        C = np.cov(X, rowvar=False, bias=True)
+#        A = pd.DataFrame(X, dtype=float)
+#        B = A.corr()
+#        B.fillna(0, inplace=True) # replace NaN with 0
+#        C = B.as_matrix()
     list1 = []
     list2 = []
     features_lars_idx = list(features_idx)

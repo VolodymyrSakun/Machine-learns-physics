@@ -16,6 +16,7 @@ from sklearn.linear_model import LinearRegression
 import sklearn.metrics as skm
 import statsmodels.regression.linear_model as sm
 import random
+from structure import library2
 
 class Gene:
     idx = None
@@ -51,6 +52,8 @@ def get_fitness(chromosome, x_std, y_std):
     r2 = skm.r2_score(y_std, y_pred)
     chromosome.MSE = mse
     chromosome.R2 = r2
+#    chromosome = set_fitness_for_genes(chromosome, x_std, y_std)
+#    chromosome = rank_chromosome(chromosome)
     return chromosome
 
 # get fit for given chromosome (MSE and R2)
@@ -72,7 +75,7 @@ def get_fitness_pValue(chromosome, x_std, y_std):
     chromosome.R2 = r2
     for i in range(0, chromosome_size, 1):
         chromosome.Genes[i].p_Value = pvalues[i]
-    rank_chromosome(chromosome) # rank genes in chromosome according to p-Values
+    chromosome = rank_chromosome(chromosome) # rank genes in chromosome according to p-Values
     return chromosome
 
 def generate_new_chromosome(chromosome_size, idx):
@@ -87,6 +90,21 @@ def generate_new_chromosome(chromosome_size, idx):
             if rand not in Gene_list:
                 Found = True
         Gene_list.append(Gene(rand))
+    chromosome = Chromosome(Gene_list, chromosome_size)
+    return chromosome
+
+def generate_new_chromosomeM(chromosome_size, idx, x_std, y_std, C):
+    NofFeatures = len(idx)
+    idx_list = []
+    for i in range(0, chromosome_size, 1):
+        rand = random.randrange(0, NofFeatures-1, 1)
+        idx_list.append(rand)
+    idx_corr = library2.ClassifyCorrelatedFeatures(x_std, idx_list, MinCorrelation=0.95, Model=2, Corr_Matrix=C, verbose=False)    
+#    idx_corr = library2.get_full_list(idx_list, len(idx))
+    idx_alternative = library2.FindBestSet(x_std, y_std, idx_list, idx_corr, Method='MSE', verbose=False)
+    Gene_list = []
+    for i in range(0, chromosome_size, 1):
+        Gene_list.append(Gene(idx_alternative[i]))
     chromosome = Chromosome(Gene_list, chromosome_size)
     return chromosome
 
@@ -111,7 +129,6 @@ def mutate_many(chromosome, idx, mutation_interval):
         chromosome.Genes[rand2].idx = rand # assign new gene fo chromosome
     return chromosome
 
-# only for p-Value method
 def rank_chromosome(chromosome):
     chromosome_size = len(chromosome.Genes)
     swapped = True
@@ -127,6 +144,31 @@ def rank_chromosome(chromosome):
 # Assign ranks to chromosome
     for i in range(0, chromosome_size, 1):
         chromosome.Genes[i].rank = i
+    return chromosome
+
+def set_fitness_for_genes(chromosome, x_std, y_std):
+    chromosome_size = chromosome.Size
+    Size = x_std.shape[0]
+    z = np.zeros(shape=(Size, 1), dtype=float)
+    tmp = np.zeros(shape=(Size, 1), dtype=float)
+    lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=False, n_jobs=1)
+    x_sel = np.zeros(shape=(Size, chromosome_size), dtype=float)
+# creating selected features array
+    for i in range(0, chromosome_size, 1):
+        idx = chromosome.Genes[i].idx
+        x_sel[:, i] = x_std[:, idx] # copy selected features from initial set
+    lr.fit(x_sel, y_std)
+    y_pred = lr.predict(x_sel)
+    mse_full = skm.mean_squared_error(y_std, y_pred)
+    for i in range(0, chromosome_size, 1):
+        tmp[:, 0] = x_sel[:, i] # save column
+        x_sel[:, i] = z[:, 0] # copy zeros to column
+        lr.fit(x_sel, y_std)
+        y_pred = lr.predict(x_sel)
+        mse = skm.mean_squared_error(y_std, y_pred)
+        drop = mse - mse_full # changes of mse after dropping one gene
+        chromosome.Genes[i].p_Value = drop
+        x_sel[:, i] = tmp[:, 0] # restore column
     return chromosome
 
 def rank_population(population): # assign Chromosome.Rank for all population
@@ -227,6 +269,11 @@ def crossover_pValue(chromosome1, chromosome2, idx, CrossoverFractionInterval=[0
 def init_population(population, population_size, chromosome_size, idx):
     for i in range(0, population_size, 1):
         population.append(generate_new_chromosome(chromosome_size, idx))
+    return population
+
+def init_populationM(population, population_size, chromosome_size, idx, x_std, y_std, C):
+    for i in range(0, population_size, 1):
+        population.append(generate_new_chromosomeM(chromosome_size, idx, x_std, y_std, C))
     return population
 
 def tribe_one_generation(Tribe, NumberOfCrossover, MutationProbability, NumberOfGood, idx, MutationInterval, CrossoverFractionInterval, x_std, y_std, Method='Random'):
