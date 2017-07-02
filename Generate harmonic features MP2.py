@@ -195,7 +195,7 @@ if __name__ == '__main__':
     #F_data = 'datafile1 from github gaussian process.x' # file with coordinates
     #F_data = 'datafile2.x'
     #F_data = 'datafile3 2 water molecules.x'
-    F_data = 'datafile4 3 water molecules small.x'
+    #F_data = 'datafile4 3 water molecules small.x'
     #F_data = 'datafile5 3 water molecules big.x'
     F_HarmonicFeatures = 'Harmonic Features.csv' # output csv file with combined features and energy
     F_HarmonicFeaturesAll = 'HarmonicFeaturesAll.dat' # output data structure which contains all features
@@ -222,6 +222,8 @@ if __name__ == '__main__':
     ProceedHarmonics = False    
     for i in range(0, len(lines), 1):
         x = lines[i]
+        if len(x) == 0:
+            continue
         if x[0] == '#':
             continue
         if (x.find('SingleDistancesInclude') != -1):
@@ -240,9 +242,10 @@ if __name__ == '__main__':
             if 'True' in s: # proceed single distances
                 ProceedHarmonics = True
         if (x.find('F_data') != -1):        
-            s = re.split(Separators, x)
-            s = list(filter(bool, s))  
-            F_data = s[1]
+            s = re.split('F_data = |F_data=|', x)
+            s = list(filter(bool, s))
+            f_name = s
+            F_data = f_name[0]
     if ProceedSingle:
         if ('&SingleDistancesDescription' in lines):
             for i in range(0, len(lines), 1):
