@@ -51,7 +51,7 @@ if __name__ == '__main__':
     else:
         nCPU = n_jobs
     TribeSize = 100 # Population per CPU
-    ChromosomeSize = 15 # number of features to fit data
+    ChromosomeSize = 20 # number of features to fit data
     PopulationSize = TribeSize*nCPU # Total population
     MutationProbability = 0.3 # probability of mutation
     MutationInterval = [1, 3] # will be randomly chosen between min and max-1

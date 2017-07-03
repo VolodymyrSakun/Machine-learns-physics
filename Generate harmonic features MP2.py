@@ -202,8 +202,6 @@ if __name__ == '__main__':
     F_HarmonicFeaturesReduced = 'HarmonicFeaturesReduced.dat' # output data structure which contains combined features
     FileName = 'Harmonic Features Reduced List.xlsx'
     # temporary variables. to be replaced
-    Degree = [0, 1]
-    Order = [-1, 0, 1]
     Separators = '=|,| |:|;|: |'
     
     try:
@@ -220,6 +218,7 @@ if __name__ == '__main__':
     ProceedSingle = False
     ProceedDouble = False
     ProceedHarmonics = False    
+    F_data = ''
     for i in range(0, len(lines), 1):
         x = lines[i]
         if len(x) == 0:
@@ -246,6 +245,9 @@ if __name__ == '__main__':
             s = list(filter(bool, s))
             f_name = s
             F_data = f_name[0]
+    if len(F_data) == 0:
+        print('Please specify file name in SystemDescriptor')
+        print('Add row like \"F_data = filename.x\" at the beginning of file')
     if ProceedSingle:
         if ('&SingleDistancesDescription' in lines):
             for i in range(0, len(lines), 1):
@@ -329,7 +331,97 @@ if __name__ == '__main__':
                 s = list(filter(bool, s)) # removes empty records
                 IncludeExcludeList.append(s)
     if ProceedHarmonics:
-        pass
+        if ('&HarmonicDescription' in lines):
+            for i in range(0, len(lines), 1):
+                x = lines[i]
+                if (x.find('&HarmonicDescription') != -1):
+                    First = i + 1 # index of first record of single distance description
+                if (x.find('&endHarmonicDescription') != -1):
+                    Last = i # index +1 of last record of single distance description
+            HarmonicDescription = []
+            for i in range(First, Last, 1):
+                x = lines[i]
+                s = re.split(Separators, x)
+                s = list(filter(bool, s)) # removes empty records
+                HarmonicDescription.append(s)
+            del(First)
+            del(Last)
+        if ('&Harmonics' in lines):
+            for i in range(0, len(lines), 1):
+                x = lines[i]
+                if (x.find('Order') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))
+                    o = list(filter(bool, s)) # removes empty records
+                    del(o[0])    
+                    Order = []
+                    for j in range(0, len(o), 1):
+                        Order.append(int(o[j]))
+                if (x.find('Degree') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))
+                    Degree = list(filter(bool, s)) # removes empty records
+                    del(Degree[0])              
+                if (x.find('Degree') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))
+                    d = list(filter(bool, s)) # removes empty records
+                    del(d[0])   
+                    Degree = []
+                    for j in range(0, len(d), 1):
+                        Degree.append(int(d[j]))
+                if (x.find('HarmonicCenter') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s)) # removes empty records
+                    HarmonicCenter = s[1]
+                if (x.find('HarmonicAtoms') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s)) # removes empty records
+                    del(s[0])
+                    HarmonicAtoms = s
+        if ('&DefaultHarmonics' in lines):
+            for i in range(0, len(lines), 1):
+                x = lines[i]
+                if (x.find('HarmonicPowers') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))
+                    HarmonicPowersDefault = list(filter(bool, s)) # removes empty records
+                    del(HarmonicPowersDefault[0])
+                if (x.find('IncludeHarmonicAllExcept') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))  
+                    if (s[1] == 'True') or (s[1] == 'Yes'):
+                        IncludeHarmonicAllExcept = True
+                    if (s[1] == 'False') or (s[1] == 'No'):
+                        IncludeHarmonicAllExcept = False
+                if (x.find('ExcludeHarmonicAllExcept') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))  
+                    if (s[1] == 'True') or (s[1] == 'Yes'):
+                        ExcludeHarmonicAllExcept = True
+                    if (s[1] == 'False') or (s[1] == 'No'):
+                        ExcludeHarmonicAllExcept = False 
+                if (x.find('IncludeHarmonicSameType') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))  
+                    if (s[1] == 'True') or (s[1] == 'Yes'):
+                        IncludeHarmonicSameType = True
+                    if (s[1] == 'False') or (s[1] == 'No'):
+                        IncludeHarmonicSameType = False   
+        if ('&IncludeExcludeHarmonicList' in lines):
+            for i in range(0, len(lines), 1):
+                x = lines[i]
+                if (x.find('&IncludeExcludeHarmonicList') != -1):
+                    First = i + 1 # index of first record of single distance description
+                if (x.find('&endIncludeExcludeHarmonicList') != -1):
+                    Last = i # index +1 of last record of single distance description
+            IncludeExcludeHarmonicList = []
+            for i in range(First, Last, 1):
+                x = lines[i]
+                s = re.split(Separators, x)
+                s = list(filter(bool, s)) # removes empty records
+                IncludeExcludeHarmonicList.append(s)             
+                    
     if ('&SYSTEM' in lines):
         i = 0 # index of line in file
         Atoms = [] # create list of atom structures from file
@@ -493,6 +585,99 @@ if __name__ == '__main__':
                             if (DtP_Double_list[i].Distance.DiType == k[0] and DtP_Double_list[j].Distance.DiType == k[1]) or (DtP_Double_list[i].Distance.DiType == k[1] and DtP_Double_list[j].Distance.DiType == k[0]):
                                 continue #skip if match
                             FeaturesAll.append(class2.Feature(DtP_Double_list[i], DtP2=DtP_Double_list[j]))
+
+    if ProceedHarmonics:
+        # add DiType for each record   
+        HarmonicDescriptionDiType = []                 
+        for i in range(0, len(HarmonicDescription), 1):
+            a1 = HarmonicDescription[i][0]
+            a2 = HarmonicDescription[i][1]
+            if HarmonicDescription[i][2] == 'intermolecular':
+                inter = True
+            else:
+                inter = False
+            for j in Distances:
+                if j.isIntermolecular == inter:
+                    if ((j.Atom1.Symbol == a1) and (j.Atom2.Symbol == a2)) or \
+                        ((j.Atom1.Symbol == a2) and (j.Atom2.Symbol == a1)):
+                        HarmonicDescriptionDiType.append(j.DiType)
+                        break
+        for i in DiTypeList:
+            if i not in HarmonicDescriptionDiType:
+                HarmonicDescriptionDiType.append(i)
+                for j in Distances:
+                    if j.DiType == i:
+                        idx = j
+                        break
+                if idx.isIntermolecular:
+                    inter = 'intermolecular'
+                else:
+                    inter = 'intramolecular'
+                HarmonicDescription.append([idx.Atom1.Symbol, idx.Atom2.Symbol, inter])
+                HarmonicDescription[-1] += HarmonicPowersDefault
+
+    # make list of features with only one distance
+    
+        DtP_Harmonic_list = []
+        for i in range(0, len(Distances), 1):
+            k = HarmonicDescriptionDiType.index(Distances[i].DiType)
+            Powers = HarmonicDescription[k][3:]
+            for j in Powers:
+                DtP_Harmonic_list.append(class2.Distance_to_Power(Distances[i], int(j)))
+        
+        IncludeExcludeHarmonicDiTypes = [] # can be empty
+        for i in IncludeExcludeHarmonicList:
+            a11 = i[0]
+            a12 = i[1]
+            a21 = i[3]
+            a22 = i[4]
+            if i[2] == 'intermolecular':
+                inter1 = True
+            else:
+                inter1 = False
+            if i[5] == 'intermolecular':
+                inter2 = True
+            else:
+                inter2 = False
+            for j in Distances:
+                if j.isIntermolecular == inter1:
+                    if ((j.Atom1.Symbol == a11) and (j.Atom2.Symbol == a12)) or \
+                        ((j.Atom1.Symbol == a12) and (j.Atom2.Symbol == a11)):
+                        Type1 = j.DiType
+                        break
+            for j in Distances:
+                if j.isIntermolecular == inter2:
+                    if ((j.Atom1.Symbol == a21) and (j.Atom2.Symbol == a22)) or \
+                        ((j.Atom1.Symbol == a22) and (j.Atom2.Symbol == a21)):
+                        Type2 = j.DiType
+                        break
+            IncludeExcludeHarmonicDiTypes.append((Type1, Type2))
+
+        for i in range(0, len(DtP_Harmonic_list), 1):
+            for j in range(i, len(DtP_Harmonic_list), 1):
+                for li in Degree:
+                    for mi in Order:
+                        if abs(mi) > li:
+                            continue
+                        for lj in Degree:
+                            for mj in Order:
+                                if abs(mj) > lj:
+                                    continue
+                                center_i = DtP_Harmonic_list[i].Distance.Atom1 # Oxygen1
+                                atom_i = DtP_Harmonic_list[i].Distance.Atom2 # Hydrogen1
+                                center_j = DtP_Harmonic_list[j].Distance.Atom1 # Oxygen2
+                                atom_j = DtP_Harmonic_list[j].Distance.Atom2 # Hydrogen2
+                                if center_i.MolecularIndex != center_j.MolecularIndex:
+                                    continue # skip if centers are different
+                                if atom_i.MolecularIndex == atom_j.MolecularIndex:
+                                    continue # skip if atoms of same molecule
+                                if atom_i.Index == atom_j.Index:
+                                    continue
+                                if DtP_Harmonic_list[i].Power > DtP_Harmonic_list[j].Power:
+                                    continue # skip duplicates
+                                FeaturesAll.append(class2.Feature(DtP_Harmonic_list[i], \
+                                    DtP2=DtP_Harmonic_list[j], Harmonic1=class2.Harmonic(mi, li, center_i, atom_i),\
+                                    Harmonic2=class2.Harmonic(mj, lj, center_j, atom_j)))
                         
     #    HarmonicDescriptionFirst = 0 #if they have the same value use only default
     #    HarmonicDescriptionLast = 0

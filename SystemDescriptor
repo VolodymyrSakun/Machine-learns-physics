@@ -17,7 +17,7 @@ SinglePowers: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15
 &endSingleDistances
 
 &DoubleDistances
-DoubleDistancesInclude=True
+DoubleDistancesInclude=False
 &DoubleDistancesDescription
 O,O,intermolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
 O,H,intermolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
@@ -36,12 +36,27 @@ O,H,intermolecular; O,H,intermolecular
 &endDoubleDistances
 
 &Harmonics
-HarmonicsInclude=False
-Order: -2,-1,0,1,2
-Degree: 0,1,2
+HarmonicsInclude=True
+Order: -3,-2,-1,0,1,2,3
+Degree: 0,1,2,3
 # symbol of atom to be a center of coordinate system to calculate harmonics
-Center: O
-Atoms: O,H
+HarmonicCenter: O
+HarmonicAtoms: O,H
+&HarmonicDescription
+O,O,intermolecular:
+O,H,intermolecular: -1,-2,-3,-4,-5,-6
+H,H,intermolecular:
+O,H,intramolecular:
+H,H,intramolecular:
+&endHarmonicDescription
+&DefaultHarmonics
+HarmonicPowers: -1,-2
+IncludeHarmonicSameType=True
+IncludeHarmonicAllExcept=False
+ExcludeHarmonicAllExcept=True
+&IncludeExcludeHarmonicList
+O,H,intermolecular; O,H,intermolecular
+&endIncludeExcludeHarmonicList
 &endHarmonics
 &endFEATURES
 
