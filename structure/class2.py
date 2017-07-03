@@ -52,7 +52,7 @@ class Distance:
     DiType = None
     def __init__(self, atom1, atom2):
         if atom1.AtType > atom2.AtType:
-            self.Atom1 = atom1
+            self.Atom1 = atom1 # Oxygene first
             self.Atom2 = atom2
         else:
             self.Atom1 = atom2
