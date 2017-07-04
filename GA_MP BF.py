@@ -50,7 +50,7 @@ if __name__ == '__main__':
         nCPU = mp.cpu_count()
     else:
         nCPU = n_jobs
-    TribeSize = 4 # Population per CPU
+    TribeSize = 100 # Population per CPU
     ChromosomeSize = 6 # number of features to fit data
     PopulationSize = TribeSize*nCPU # Total population
     MutationProbability = 0.3 # probability of mutation
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     idx_corr = library2.get_full_list(idx, X_train.shape[1])
     writeResults = pd.ExcelWriter(F_Out, engine='openpyxl')
     idx_alternative = library2.FindBestSet(x_std, y_std, idx, idx_corr, Method='MSE', verbose=True)
-    library2.Results_to_xls2(writeResults, str(len(idx_alternative)),\
+    library2.Results_to_xls3(writeResults, str(len(idx_alternative)),\
         idx_alternative, X_train, Y_train, X_test, Y_test, FeaturesAll, FeaturesReduced)
     writeResults.save()
     print('DONE')

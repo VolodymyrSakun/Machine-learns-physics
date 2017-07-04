@@ -128,7 +128,7 @@ idx = [BestChromosome.Genes[j].idx for j in range(0, len(BestChromosome.Genes), 
 idx_corr = library2.get_full_list(idx, X_train.shape[1])
 writeResults = pd.ExcelWriter(F_Out, engine='openpyxl')
 idx_alternative = library2.FindBestSet(x_std, y_std, idx, idx_corr, Method='MSE', verbose=True)
-library2.Results_to_xls2(writeResults, str(len(idx_alternative)),\
+library2.Results_to_xls3(writeResults, str(len(idx_alternative)),\
     idx_alternative, X_train, Y_train, X_test, Y_test, FeaturesAll, FeaturesReduced)
 writeResults.save()
 print('DONE')

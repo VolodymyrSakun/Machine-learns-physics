@@ -150,7 +150,7 @@ while len(idx) > 2:
 #        Model=1, Corr_Matrix=C, verbose=False)
     idx_corr = library2.get_full_list(idx, X_train.shape[1])
     idx_alternative = library2.FindBestSet(x_std, y_std, idx_backward, idx_corr, Method='MSE', verbose=True)
-    library2.Results_to_xls2(writeResults, str(len(idx_alternative)),\
+    library2.Results_to_xls3(writeResults, str(len(idx_alternative)),\
         idx_alternative, X_train, Y_train, X_test, Y_test, FeaturesAll, FeaturesReduced)
     idx = idx_alternative
     nonzero, mse, rmse, r2, aIC = library2.get_fit_score(X_train, X_test, Y_train, Y_test, idx=idx)

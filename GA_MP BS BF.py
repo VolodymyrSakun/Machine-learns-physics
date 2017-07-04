@@ -51,7 +51,7 @@ if __name__ == '__main__':
     else:
         nCPU = n_jobs
     TribeSize = 100 # Population per CPU
-    ChromosomeSize = 20 # number of features to fit data
+    ChromosomeSize = 15 # number of features to fit data
     PopulationSize = TribeSize*nCPU # Total population
     MutationProbability = 0.3 # probability of mutation
     MutationInterval = [1, 3] # will be randomly chosen between min and max-1
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     #        Model=1, Corr_Matrix=C, verbose=False)
         idx_corr = library2.get_full_list(idx, X_train.shape[1])
         idx_alternative = library2.FindBestSet(x_std, y_std, idx_backward, idx_corr, Method='MSE', verbose=True)
-        library2.Results_to_xls2(writeResults, str(len(idx_alternative)),\
+        library2.Results_to_xls3(writeResults, str(len(idx_alternative)),\
             idx_alternative, X_train, Y_train, X_test, Y_test, FeaturesAll, FeaturesReduced)
         idx = idx_alternative
         nonzero, mse, rmse, r2, aIC = library2.get_fit_score(X_train, X_test, Y_train, Y_test, idx=idx)
@@ -159,3 +159,5 @@ if __name__ == '__main__':
     writeResults.save()
     library2.plot_rmse("Results", nonzero_list, rmse_list, r2_list)
     print('DONE')
+
+

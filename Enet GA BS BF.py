@@ -13,6 +13,7 @@ import random
 import copy
 
 # Global variables
+F_name = 'ENet GA BS BF.xlsx'
 ProcedureFileName = 'procedure.txt'
 L1 = 0.7
 eps = 1e-3
@@ -68,10 +69,10 @@ print('Genetic algorithm')
 Method = 'Random'
 nCPU = mp.cpu_count()
 ChromosomeSize = 15 # number of features to fit data
-PopulationSize = 10*nCPU # number of parents in population
-MutationProbability = 0.2 # probability of mutation
+PopulationSize = 100*nCPU # number of parents in population
+MutationProbability = 0.3 # probability of mutation
 MutationInterval = [1, 3] # will be randomly chosen between min and max-1
-EliteFraction = 0.2 # fracrion of good chromosomes that will be used for crossover
+EliteFraction = 0.3 # fracrion of good chromosomes that will be used for crossover
 NumberOfGood = int(EliteFraction * PopulationSize)
 FractionOfCrossover = 1 # int(fraction NumberOfGood / NumberOfCrossover)
 NumberOfCrossover = int(NumberOfGood / FractionOfCrossover) # number of crossover / mutation together
@@ -154,7 +155,7 @@ print("\n", 'Features left for Backward Elimination and Search Alternative = ', 
 print('MinCorrelation = ', MinCorr)
 print('Correlation matrix')
 C = np.cov(x_std, rowvar=False, bias=True)
-writeResults = pd.ExcelWriter('Backward Sequential Best Fit.xlsx', engine='openpyxl')
+writeResults = pd.ExcelWriter(F_name, engine='openpyxl')
 mse_list = []
 rmse_list = []
 r2_list = []
@@ -167,14 +168,14 @@ while len(idx) > 2:
     idx_backward = library2.BackwardElimination(X_train, Y_train, X_test, Y_test,\
         FeaturesAll, FeaturesReduced, Method='sequential', Criterion='MSE', \
         N_of_features_to_select=FeatureSize-1, idx=idx, PlotPath=False, StorePath=False, \
-        FileName='Backward sequential', N_of_last_iterations_to_store=None, verbose=False)
+        FileName='BS', N_of_last_iterations_to_store=None, verbose=False)
     if len(idx_backward) > LastIterationsToStore:
         idx = idx_backward
         continue
     idx_corr = library2.ClassifyCorrelatedFeatures(x_std, idx_backward, MinCorrelation=MinCorr,\
         Model=1, Corr_Matrix=C, verbose=False)
     idx_alternative = library2.FindBestSet(x_std, y_std, idx_backward, idx_corr, Method='MSE', verbose=True)
-    library2.Results_to_xls2(writeResults, str(len(idx_alternative)),\
+    library2.Results_to_xls3(writeResults, str(len(idx_alternative)),\
         idx_alternative, X_train, Y_train, X_test, Y_test, FeaturesAll, FeaturesReduced)
     idx = idx_alternative
     nonzero, mse, rmse, r2, aIC = library2.get_fit_score(X_train, X_test, Y_train, Y_test, idx=idx)

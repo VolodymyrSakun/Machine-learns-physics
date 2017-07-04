@@ -184,6 +184,7 @@ def StoreFeatures(F_out_features, first, last, FeaturesAll, FeaturesReduced, rec
     else:
         Table.to_csv(f, index=False, header=False)
     f.close()
+
     return
 # end of StoreFeatures
 
@@ -571,6 +572,8 @@ if __name__ == '__main__':
 
         for i in range(0, len(DtP_Double_list), 1):
             for j in range(i+1, len(DtP_Double_list), 1):
+                if DtP_Double_list[i].Power > DtP_Double_list[j].Power:
+                    continue # skip duplicates
                 if not IncludeSameType:
                     if DtP_Double_list[i].Distance.DiType == DtP_Double_list[j].Distance.DiType: # skip if distances of the same type
                         continue
@@ -672,75 +675,13 @@ if __name__ == '__main__':
                                 if atom_i.MolecularIndex == atom_j.MolecularIndex:
                                     continue # skip if atoms of same molecule
                                 if atom_i.Index == atom_j.Index:
-                                    continue
+                                    continue # skip if external atoms are same
                                 if DtP_Harmonic_list[i].Power > DtP_Harmonic_list[j].Power:
                                     continue # skip duplicates
                                 FeaturesAll.append(class2.Feature(DtP_Harmonic_list[i], \
                                     DtP2=DtP_Harmonic_list[j], Harmonic1=class2.Harmonic(mi, li, center_i, atom_i),\
                                     Harmonic2=class2.Harmonic(mj, lj, center_j, atom_j)))
                         
-    #    HarmonicDescriptionFirst = 0 #if they have the same value use only default
-    #    HarmonicDescriptionLast = 0
-    #    Hamonics_include = False
-    #    for i in range(0, len(lines), 1):
-    #        x = lines[i]
-    #        if (x.find('&HarmonicsDescription') != -1):
-    #            HarmonicDescriptionFirst = i + 1
-    #        if (x.find('&endHarmonicsDescription') != -1):   
-    #            HarmonicDescriptionLast = i
-    #    if HarmonicDescriptionFirst != HarmonicDescriptionLast:
-    #        for i in range(HarmonicDescriptionFirst, HarmonicDescriptionLast, 1):
-    #            x = lines[i]
-    #            if (x.find('Order') != -1):
-    #                Str_order = x.split(',', -1)
-    #                for k in range(1, len(Str_order), 1):
-    #                    Str_order[k] = int(Str_order[k])
-    #            if (x.find('Degree') != -1):
-    #                Str_degree = x.split(',', -1)   
-    #                for k in range(1, len(Str_degree), 1):
-    #                    Str_degree[k] = int(Str_degree[k])   
-    #            if (x.find('Center') != -1):
-    #                Str_center = x.split(',', -1)   
-    #        Order_list = Str_order[1:]
-    #        Degree_list = Str_degree[1:]
-    #        Center = Str_center[1]
-    #        Hamonics_include = True
-            
-        # list of harmonics. only between O and H from different molecules
-    #    H_list = []
-    #    for i in Degree:
-    #        for j in Order:
-    #            if abs(j) > i:
-    #                continue # abs value of Order must be <= Degree
-    #            for k in range(0, len(Atoms), 1): # centers
-    #                if Atoms[k].Symbol != 'O': # can also use Atoms[k].Symbol != 'O'
-    #                    continue # if not oxygen
-    #                for l in range(0, len(Atoms), 1): # hydrogens
-    #                    if Atoms[l].Symbol != 'H': # can also use Atoms[l].Symbol != 'H'
-    #                        continue # if not hydrogen
-    #                    if Atoms[k].MolecularIndex == Atoms[l].MolecularIndex:
-    #                        continue # O and H belong to the same molecule
-    #                    H_list.append(class2.Harmonic(j, i, Atoms[k], Atoms[l]))
-                        
-        # include r*r*H*H only O-H intermolecular distances and harmonics
-    #    for i in range(0, len(DtP_list), 1): # first O-H distance
-    #        if not DtP_list[i].Distance.isIntermolecular: 
-    #            continue # if distance is not intermolecular skip it
-    #        if (DtP_list[i].Distance.Atom1.AtType == DtP_list[i].Distance.Atom2.AtType):
-    #            continue # if distance is between same types of atoms - skip it (O-O or H-H)
-    #        for j in range(0, len(DtP_list), 1): # second O-H distance
-    #            if not DtP_list[j].Distance.isIntermolecular: 
-    #                continue # if distance is not intermolecular skip it
-    #            if (DtP_list[j].Distance.Atom1.AtType == DtP_list[j].Distance.Atom2.AtType):
-    #                continue
-    #            for k in range(0, len(H_list), 1): # first harmonic corresponds to DtP1
-    #                if not(((H_list[k].Center.Index == DtP_list[i].Distance.Atom1.Index) and (H_list[k].Atom.Index == DtP_list[i].Distance.Atom2.Index)) or ((H_list[k].Center.Index == DtP_list[i].Distance.Atom2.Index) and (H_list[k].Atom.Index == DtP_list[i].Distance.Atom1.Index))):
-    #                    continue    
-    #                for l in range(0, len(H_list), 1): # second harmonic corresponds to DtP2
-    #                    if not(((H_list[l].Center.Index == DtP_list[j].Distance.Atom1.Index) and (H_list[l].Atom.Index == DtP_list[j].Distance.Atom2.Index)) or ((H_list[l].Center.Index == DtP_list[j].Distance.Atom2.Index) and (H_list[l].Atom.Index == DtP_list[j].Distance.Atom1.Index))):
-    #                        continue    
-    #                    FeaturesAll.append(class2.Feature(DtP_list[i], DtP2=DtP_list[j], Harmonic1=H_list[k], Harmonic2=H_list[l]))
-                            
     # Make list of reduced features
     FeaturesReduced = []
     FeType_list = []
@@ -763,7 +704,8 @@ if __name__ == '__main__':
     f.close()
     
     library2.StoreFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced)
-
+    library2.store_structure('Structure.xlsx', Atoms, Distances, DtP_Double_list, FeaturesAll)
+    
     # Read coordinates from file
     f = open(F_data, "r")
     data0 = f.readlines()
@@ -851,9 +793,6 @@ if __name__ == '__main__':
         except:
             pass
             
-    
-    print("DONE")
-    
 
-    
+    print("DONE")
     
