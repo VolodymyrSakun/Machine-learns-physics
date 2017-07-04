@@ -51,20 +51,35 @@ class Distance:
     isIntermolecular = None
     DiType = None
     def __init__(self, atom1, atom2):
-        if atom1.AtType > atom2.AtType:
-            self.Atom1 = atom1 # Oxygene first
-            self.Atom2 = atom2
-        else:
-            self.Atom1 = atom2
-            self.Atom2 = atom1
         if (atom1.MolecularIndex != atom2.MolecularIndex):
             self.isIntermolecular = True # atoms belong to different molecules
             i = 1
         else:
             self.isIntermolecular = False # atoms belong to the same molecule
             i = 0
-        self.DiType = 100*i + 10*max(atom1.AtType, atom2.AtType) + \
-            min(atom1.AtType, atom2.AtType)
+        if atom1.AtType == atom2.AtType: # atoms of same type
+            if atom1.MolecularIndex != atom2.MolecularIndex: # atoms of same type belong to different molecules
+                if atom1.MolecularIndex > atom2.MolecularIndex:
+                    self.Atom1 = atom2 # lowest molecular index first
+                    self.Atom2 = atom1  
+                else:
+                    self.Atom1 = atom1 
+                    self.Atom2 = atom2  
+            else: # atoms of same type belong to same molecule
+                if atom1.Index > atom2.Index:
+                    self.Atom1 = atom2 # lowest atom index first
+                    self.Atom2 = atom1  
+                else:
+                    self.Atom1 = atom1 
+                    self.Atom2 = atom2  
+        else: # atoms of different types
+            if atom1.AtType > atom2.AtType:
+                self.Atom1 = atom2 # lowest type first
+                self.Atom2 = atom1
+            else:
+                self.Atom1 = atom1
+                self.Atom2 = atom2
+        self.DiType = 100*i + 10*self.Atom1.AtType + self.Atom2.AtType
             
 class Distance_to_Power:
 # power cannot be zero
@@ -76,7 +91,7 @@ class Distance_to_Power:
         self.Power = power   
         sign = np.sign(power)
         if sign == -1:
-            sign = 0
+            sign = 0 # negative sign becomes 0 in type record, positive becomes 1
         self.DtpType = distance.DiType + 1000*abs(power) + 100000*sign
         
 class Harmonic:
@@ -107,37 +122,114 @@ class Feature:
     Harmonic1 = None
     Harmonic2 = None
     def __init__(self, DtP1, DtP2=None, Harmonic1=None, Harmonic2=None):
+        swapped = False
+        Common = 0
+        h1_type = 0
+        h2_type = 0
+        d1_type = 0
+        d2_type = 0
         if DtP1 is not None:
             if DtP2 is not None:
-                self.nDistances = 2
-            else:
+                self.nDistances = 2 # two distances in feature
+                if (DtP1.DtpType == DtP2.DtpType): # distances have same type
+                    if (not DtP1.Distance.isIntermolecular) and (not DtP2.Distance.isIntermolecular):
+                        # both intra 
+                        Common = 1 # have common atom
+                        sum1 = DtP1.Distance.Atom1.Index + DtP1.Distance.Atom2.Index
+                        sum2 = DtP2.Distance.Atom1.Index + DtP2.Distance.Atom2.Index
+                        if sum1 > sum2: # sort according to indices if both intramolecular (O H)
+                            self.DtP1 = DtP2
+                            self.DtP2 = DtP1
+                            swapped = True
+                        else:
+                            self.DtP1 = DtP1
+                            self.DtP2 = DtP2       
+                    else: # same type but not both intra
+                        if not bool(DtP1.Distance.isIntermolecular * DtP2.Distance.isIntermolecular):
+                        # one inter, one intra
+                            if DtP1.Distance.isIntermolecular: # intermolecular first
+                                self.DtP1 = DtP1
+                                self.DtP2 = DtP2    
+                            else:
+                                self.DtP1 = DtP2
+                                self.DtP2 = DtP1 
+                                swapped = True                                   
+                        else: # both inter
+                            if DtP1.Distance.Atom1.Index != DtP2.Distance.Atom1.Index:
+                                # no common first atom
+                                if DtP1.Distance.Atom1.Index > DtP2.Distance.Atom1.Index:
+                                    self.DtP1 = DtP2 # atom with smaller index first
+                                    self.DtP2 = DtP1
+                                    swapped = True
+                                else:
+                                    self.DtP1 = DtP1
+                                    self.DtP2 = DtP2                                     
+                            else:
+                                Common = 1
+                                # common first atom using indices of second atom to sort
+                                if DtP1.Distance.Atom2.Index > DtP2.Distance.Atom2.Index:                                
+                                    self.DtP1 = DtP2 # atom with smaller index first
+                                    self.DtP2 = DtP1
+                                    swapped = True
+                                else:
+                                    self.DtP1 = DtP1
+                                    self.DtP2 = DtP2  
+                                if (DtP1.Distance.Atom1.Symbol == 'O') and \
+                                    (DtP1.Distance.Atom2.Symbol == 'O') and \
+                                    (DtP2.Distance.Atom1.Symbol == 'O') and \
+                                    (DtP2.Distance.Atom2.Symbol == 'O'):
+                                    Common = 0
+                else: # distances with different types
+                    if (DtP1.Distance.Atom1.AtType == DtP2.Distance.Atom1.AtType) and\
+                        (DtP1.Distance.Atom2.AtType == DtP2.Distance.Atom2.AtType):
+                        # atoms 1 and 2 of same types, 1 inter, 1 intra
+                        if DtP1.Distance.isIntermolecular: # intermolecular first
+                            self.DtP1 = DtP1
+                            self.DtP2 = DtP2    
+                        else:
+                            self.DtP1 = DtP2
+                            self.DtP2 = DtP1 
+                            swapped = True 
+                    else: #at least one atom type is different; order: O-O, O-H, O-H
+                        if DtP1.Distance.Atom1.AtType != DtP2.Distance.Atom1.AtType:
+                            # first atoms of different types
+                            if DtP1.Distance.Atom1.AtType > DtP2.Distance.Atom1.AtType:
+                                self.DtP1 = DtP2 # atom with smaller index first
+                                self.DtP2 = DtP1
+                                swapped = True
+                            else:
+                                self.DtP1 = DtP1
+                                self.DtP2 = DtP2 
+                        else: # first atomf of same types, sort using second atom
+                            if DtP1.Distance.Atom2.AtType > DtP2.Distance.Atom2.AtType:
+                                self.DtP1 = DtP2 # atom with smaller index first
+                                self.DtP2 = DtP1
+                                swapped = True
+                            else:
+                                self.DtP1 = DtP1
+                                self.DtP2 = DtP2                     
+            else: # only one distance
                 self.nDistances = 1
-        if Harmonic1 is not None:
-            if Harmonic2 is not None:
-                self.nHarmonics = 2
-            else:
-                self.nHarmonics = 1
-        self.DtP1 = DtP1
+                self.DtP1 = DtP1
         if Harmonic1 is not None:
             self.Harmonic1 = Harmonic1
-            h1_type = Harmonic1.HaType
-        else:
-            h1_type = 0
-        if Harmonic2 is not None:
-            self.Harmonic2 = Harmonic2
-            h2_type = Harmonic2.HaType
-        else:
-            h2_type = 0
+            if Harmonic2 is not None:
+                self.nHarmonics = 2
+                if swapped:
+                    self.Harmonic1 = Harmonic2
+                    self.Harmonic2 = Harmonic1
+                else:
+                    self.Harmonic1 = Harmonic1
+                    self.Harmonic2 = Harmonic2                    
+                h2_type = self.Harmonic2.HaType
+            else:
+                h2_type = 0
+                self.nHarmonics = 1
+            h1_type = self.Harmonic1.HaType   
         if DtP1 is not None:
-            self.DtP1 = DtP1
-            d1_type = DtP1.DtpType
-        else:
-            d1_type = 0
+            d1_type = self.DtP1.DtpType
         if DtP2 is not None:
-            self.DtP2 = DtP2
-            d2_type = DtP2.DtpType
-        else:
-            d2_type = 0
+            d2_type = self.DtP2.DtpType
         D1 = str(d1_type)   
         D1 = D1.zfill(6)
         D2 = str(d2_type)   
@@ -146,10 +238,8 @@ class Feature:
         H1 = H1.zfill(5)
         H2 = str(h2_type)
         H2 = H2.zfill(5)
-        if D1 > D2:
-            self.FeType = D1 + D2 + H1 + H2
-        else:
-            self.FeType = D2 + D1 + H2 + H1
+        C = str(Common)
+        self.FeType = C + D1 + D2 + H1 + H2
         return
         
 def print_feature(feature):
@@ -178,5 +268,27 @@ def print_feature(feature):
         print('Atom2 Index = ', feature.DtP2.Distance.Atom2.Index)
         
         
-
-        
+def print_atom(atom):
+    print('Symbol: ', atom.Symbol)
+    print('Index: ', atom.Index)
+    print('Atom type: ', atom.AtType)
+    print('Molecular index', atom.MolecularIndex)
+    
+def print_distance(distance):
+    print('Is intermolecular: ', distance.isIntermolecular)  
+    print('Distance type: ', distance.DiType)
+    print('Atom1:')
+    print_atom(distance.Atom1)
+    print('Atom2:')
+    print_atom(distance.Atom2)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
