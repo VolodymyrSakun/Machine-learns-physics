@@ -13,12 +13,14 @@ class Atom:
     Symbol = None # atom symbol. Example: O, H, C, Si
     Index = None # order in the system 0 .. N-1 where N is number of atoms in the system
     AtType = None # atom type identification number. Example atom symbol 'O' corresponds to number 0
+    AtTypeDigits = 1 # can be increased
     MolecularIndex = None # which molecule atom belongs to. In other words number of molecule in the system where this atom exists
     def __init__(self, symbol, index, tYpe, molecular_index):
         self.Symbol = symbol
         self.Index = index
         self.AtType = tYpe
         self.MolecularIndex = molecular_index
+        self.AtTypeDigids = 1
         
 class AtomCoordinates:
     Atom = None
@@ -79,20 +81,26 @@ class Distance:
             else:
                 self.Atom1 = atom1
                 self.Atom2 = atom2
-        self.DiType = 100*i + 10*self.Atom1.AtType + self.Atom2.AtType
+        self.DiType = 10**self.Atom1.AtTypeDigits*10**self.Atom1.AtTypeDigits*i + 10**self.Atom1.AtTypeDigits*self.Atom1.AtType + self.Atom2.AtType
             
 class Distance_to_Power:
 # power cannot be zero
     Distance = None
     Power = None
-    DtpType = None
+    PowerDigits = 2 # can be increased if necessary
+    DtpType = 'None'
     def __init__(self, distance, power):
         self.Distance = distance
         self.Power = power   
+        self.PowerDigits = 2
         sign = np.sign(power)
         if sign == -1:
             sign = 0 # negative sign becomes 0 in type record, positive becomes 1
-        self.DtpType = distance.DiType + 1000*abs(power) + 100000*sign
+        p = str(abs(power))
+        p = p.zfill(self.PowerDigits)
+        s = str(sign)
+        d = str(distance.DiType)
+        self.DtpType = s + p + d
         
 class Harmonic:
     Order = None # Can be ... -3, -2, -1, 0, 1, 2, 3 ... use only positive. Less or = to Degree 
@@ -114,6 +122,228 @@ class Harmonic:
         self.HaType = 10000*sign + 1000*abs(self.Order) + 100*self.Degree + 10*self.Center.AtType +self.Atom.AtType
         
 class Feature:
+    nDistances = 0
+    nHarmonics = 0
+    DtP1 = None
+    DtP2 = None
+    FeType = 'None'
+    Harmonic1 = None
+    Harmonic2 = None
+    def __init__(self, DtP1, DtP2=None, Harmonic1=None, Harmonic2=None):
+        if (DtP1 is not None) and (DtP2 is None): # one distance in feature
+            self.nDistances = 1
+            # get category based on molecular index
+            CategoryAtomic = 5 # can only be 5 for single distance
+            # get category based on atomic index
+            if DtP1.Distance.isIntermolecular:
+                CategoryMolecular = 5 # intermolecular
+            else:
+                CategoryMolecular = 2 # intramolecular
+            self.DtP1 = DtP1
+            p1 = str(abs(self.DtP1.Power))
+            p1 = p1.zfill(DtP1.PowerDigits)
+            t1 = str(self.DtP1.Distance.Atom1.AtType)
+            t1 = t1.zfill(self.DtP1.Distance.Atom1.AtTypeDigits)
+            t2 = str(self.DtP1.Distance.Atom2.AtType)
+            t2 = t2.zfill(self.DtP1.Distance.Atom2.AtTypeDigits)
+            c1 = str(CategoryMolecular)
+            c2 = str(CategoryAtomic)
+            self.FeType = p1 + t1 + t2 + c1 + c2
+            return
+        if (DtP1 is not None) and (DtP2 is not None): # two distances in feature
+            self.nDistances = 2
+            # arrange distances
+            Swapped = False
+            if DtP1.Distance.Atom1.AtType != DtP2.Distance.Atom1.AtType: # first atoms of different types
+                if DtP1.Distance.Atom1.AtType > DtP2.Distance.Atom1.AtType: 
+                    self.DtP1 = DtP2 # lowest index first
+                    self.DtP2 = DtP1
+                    Swapped = True
+                else:
+                    self.DtP1 = DtP1
+                    self.DtP2 = DtP2
+            else: 
+                if DtP1.Distance.Atom2.AtType != DtP2.Distance.Atom2.AtType: 
+                    # first atoms are of same types. sort according to second atom types
+                    if DtP1.Distance.Atom2.AtType > DtP2.Distance.Atom2.AtType:
+                        self.DtP1 = DtP2 # lowest index first
+                        self.DtP2 = DtP1
+                        Swapped = True
+                    else:
+                        self.DtP1 = DtP1 
+                        self.DtP2 = DtP2  
+                else: # first and second types have equal types. sort according to molecular indices of first atoms
+                    if DtP1.Distance.Atom1.MolecularIndex != DtP2.Distance.Atom1.MolecularIndex: 
+                        if DtP1.Distance.Atom1.MolecularIndex > DtP2.Distance.Atom1.MolecularIndex:
+                            self.DtP1 = DtP2 # lowest index first
+                            self.DtP2 = DtP1
+                            Swapped = True
+                        else:
+                            self.DtP1 = DtP1
+                            self.DtP2 = DtP2  
+                    else: # sort according to molecular indices of second atoms
+                        if DtP1.Distance.Atom2.MolecularIndex != DtP2.Distance.Atom2.MolecularIndex: 
+                            if DtP1.Distance.Atom2.MolecularIndex > DtP2.Distance.Atom2.MolecularIndex:
+                                self.DtP1 = DtP2 # lowest index first
+                                self.DtP2 = DtP1
+                                Swapped = True
+                            else:
+                                self.DtP1 = DtP1 
+                                self.DtP2 = DtP2  
+                        else: # mess
+                            self.DtP1 = DtP1 
+                            self.DtP2 = DtP2
+            # get category based on molecular index
+            Found = False
+            if (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP1.Distance.Atom2.MolecularIndex) and \
+                (self.DtP2.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex): # categories 1 and 2
+                if self.DtP1.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom1.MolecularIndex: #category 1
+                    CategoryMolecular = 1 # category 1
+                    Found = True
+                else:
+                    CategoryMolecular = 2 # category 2
+                    Found = True
+            if (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP1.Distance.Atom2.MolecularIndex): # first distance intra
+                if ((self.DtP2.Distance.Atom1.MolecularIndex == self.DtP1.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP2.Distance.Atom2.MolecularIndex != self.DtP1.Distance.Atom1.MolecularIndex)) or \
+                    ((self.DtP2.Distance.Atom2.MolecularIndex == self.DtP1.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP2.Distance.Atom1.MolecularIndex != self.DtP1.Distance.Atom1.MolecularIndex)):
+                    CategoryMolecular = 3 # category 3
+                    Found = True                        
+            if (self.DtP2.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex): # second distance intra
+                if ((self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom2.MolecularIndex != self.DtP2.Distance.Atom1.MolecularIndex)) or \
+                    ((self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom1.MolecularIndex)):
+                    CategoryMolecular = 3 # category 3
+                    Found = True                        
+            if (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP1.Distance.Atom2.MolecularIndex): # first distance intra
+                if (self.DtP2.Distance.Atom1.MolecularIndex != self.DtP1.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP2.Distance.Atom2.MolecularIndex != self.DtP1.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP2.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom2.MolecularIndex):
+                    CategoryMolecular = 4 # category 4
+                    Found = True         
+            if (self.DtP2.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex): # first distance intra
+                if (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom2.MolecularIndex != self.DtP2.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP1.Distance.Atom2.MolecularIndex):
+                    CategoryMolecular = 4 # category 4
+                    Found = True         
+            if ((self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) and \
+                (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex)) or \
+                ((self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex) and \
+                (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex)): # category 5
+                 CategoryMolecular = 5 # category 5
+                 Found = True                 
+            if (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP1.Distance.Atom2.MolecularIndex) and \
+                (self.DtP2.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom2.MolecularIndex):
+                if (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) or \
+                    (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex) or \
+                    (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) or \
+                    (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex): # category 6
+                    CategoryMolecular = 6 # category 6
+                    Found = True    
+            if not Found:
+                idx_list = [] # make a list with atom's indices
+                idx_list.append(self.DtP1.Distance.Atom1.MolecularIndex)
+                idx_list.append(self.DtP1.Distance.Atom2.MolecularIndex)
+                idx_list.append(self.DtP2.Distance.Atom1.MolecularIndex)
+                idx_list.append(self.DtP2.Distance.Atom2.MolecularIndex)
+                Dup = False
+                for i in range(0, len(idx_list), 1):
+                    c = idx_list.count(idx_list[i])
+                    if c > 1:
+                        Dup = True # if there are duplicates
+                if not Dup:
+                    CategoryMolecular = 7 # one common atom
+                    Found = True
+            if not Found:
+                CategoryMolecular = 'ERROR'
+            # get category based on atomic index
+            Found = False
+            if (self.DtP1.Distance.Atom1.Index == self.DtP1.Distance.Atom2.Index) and \
+                (self.DtP2.Distance.Atom1.Index == self.DtP2.Distance.Atom2.Index): # categories 1 and 2
+                if self.DtP1.Distance.Atom1.Index != self.DtP2.Distance.Atom1.Index: #category 1
+                    CategoryAtomic = 1 # category 1
+                    Found = True
+                else:
+                    CategoryAtomic = 2 # category 2
+                    Found = True
+            if (self.DtP1.Distance.Atom1.Index == self.DtP1.Distance.Atom2.Index): # first distance intra
+                if ((self.DtP2.Distance.Atom1.Index == self.DtP1.Distance.Atom1.Index) and \
+                    (self.DtP2.Distance.Atom2.Index != self.DtP1.Distance.Atom1.Index)) or \
+                    ((self.DtP2.Distance.Atom2.Index == self.DtP1.Distance.Atom1.Index) and \
+                    (self.DtP2.Distance.Atom1.Index != self.DtP1.Distance.Atom1.Index)):
+                    CategoryAtomic = 3 # category 3
+                    Found = True                        
+            if (self.DtP2.Distance.Atom1.Index == self.DtP2.Distance.Atom2.Index): # second distance intra
+                if ((self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom1.Index) and \
+                    (self.DtP1.Distance.Atom2.Index != self.DtP2.Distance.Atom1.Index)) or \
+                    ((self.DtP1.Distance.Atom2.Index == self.DtP2.Distance.Atom1.Index) and \
+                    (self.DtP1.Distance.Atom1.Index != self.DtP2.Distance.Atom1.Index)):
+                    CategoryAtomic = 3 # category 3
+                    Found = True                        
+            if (self.DtP1.Distance.Atom1.Index == self.DtP1.Distance.Atom2.Index): # first distance intra
+                if (self.DtP2.Distance.Atom1.Index != self.DtP1.Distance.Atom1.Index) and \
+                    (self.DtP2.Distance.Atom2.Index != self.DtP1.Distance.Atom1.Index) and \
+                    (self.DtP2.Distance.Atom1.Index != self.DtP2.Distance.Atom2.Index):
+                    CategoryAtomic = 4 # category 4
+                    Found = True         
+            if (self.DtP2.Distance.Atom1.Index == self.DtP2.Distance.Atom2.Index): # first distance intra
+                if (self.DtP1.Distance.Atom1.Index != self.DtP2.Distance.Atom1.Index) and \
+                    (self.DtP1.Distance.Atom2.Index != self.DtP2.Distance.Atom1.Index) and \
+                    (self.DtP1.Distance.Atom1.Index != self.DtP1.Distance.Atom2.Index):
+                    CategoryAtomic = 4 # category 4
+                    Found = True         
+            if ((self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom1.Index) and \
+                (self.DtP1.Distance.Atom2.Index == self.DtP2.Distance.Atom2.Index)) or \
+                ((self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom2.Index) and \
+                (self.DtP1.Distance.Atom2.Index == self.DtP2.Distance.Atom1.Index)): # category 5
+                 CategoryAtomic = 5 # category 5
+                 Found = True                 
+            if (self.DtP1.Distance.Atom1.Index != self.DtP1.Distance.Atom2.Index) and \
+                (self.DtP2.Distance.Atom1.Index != self.DtP2.Distance.Atom2.Index):
+                if (self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom1.Index) or \
+                    (self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom2.Index) or \
+                    (self.DtP1.Distance.Atom2.Index == self.DtP2.Distance.Atom1.Index) or \
+                    (self.DtP1.Distance.Atom2.Index == self.DtP2.Distance.Atom2.Index): # category 6
+                    CategoryAtomic = 6 # category 6
+                    Found = True    
+            if not Found:
+                idx_list = [] # make a list with atom's indices
+                idx_list.append(self.DtP1.Distance.Atom1.Index)
+                idx_list.append(self.DtP1.Distance.Atom2.Index)
+                idx_list.append(self.DtP2.Distance.Atom1.Index)
+                idx_list.append(self.DtP2.Distance.Atom2.Index)
+                Dup = False
+                for i in range(0, len(idx_list), 1):
+                    c = idx_list.count(idx_list[i])
+                    if c > 1:
+                        Dup = True # if there are duplicates
+                if not Dup:
+                    CategoryAtomic = 7 # one common atom
+                    Found = True
+            if not Found:
+                CategoryAtomic = 'ERROR'
+                    
+        p1 = str(abs(self.DtP1.Power))
+        p1 = p1.zfill(DtP1.PowerDigits)
+        p2 = str(abs(self.DtP2.Power))
+        p2 = p2.zfill(DtP2.PowerDigits)
+        t11 = str(self.DtP1.Distance.Atom1.AtType)
+        t11 = t11.zfill(self.DtP1.Distance.Atom1.AtTypeDigits)
+        t12 = str(self.DtP1.Distance.Atom2.AtType)
+        t12 = t12.zfill(self.DtP1.Distance.Atom2.AtTypeDigits)
+        t21 = str(self.DtP2.Distance.Atom1.AtType)
+        t21 = t21.zfill(self.DtP2.Distance.Atom1.AtTypeDigits)
+        t22 = str(self.DtP2.Distance.Atom2.AtType)
+        t22 = t22.zfill(self.DtP2.Distance.Atom2.AtTypeDigits)
+        c1 = str(CategoryMolecular)
+        c2 = str(CategoryAtomic)
+        self.FeType = p1 + p2 + t11 + t12 + t21 + t22 + c1 + c2
+        return
+                    
+class Feature1:
     nDistances = 0
     nHarmonics = 0
     DtP1 = None
@@ -163,8 +393,20 @@ class Feature:
                                     swapped = True
                                 else:
                                     self.DtP1 = DtP1
-                                    self.DtP2 = DtP2                                     
-                            else:
+                                    self.DtP2 = DtP2  
+                                mol_list = []
+                                count_list = []
+                                mol_list.append(self.DtP1.Distance.Atom1.MolecularIndex)
+                                mol_list.append(self.DtP1.Distance.Atom2.MolecularIndex)
+                                mol_list.append(self.DtP2.Distance.Atom1.MolecularIndex)
+                                mol_list.append(self.DtP2.Distance.Atom2.MolecularIndex)
+                                for i in range(0, len(mol_list), 1):
+                                    count_list.append(mol_list.count(mol_list[i]))
+                                if count_list.count(2) == 2:
+                                    Common = 4 # one common molecule
+                                if count_list.count(2) == 4:
+                                    Common = 5 # two common molecules                                
+                            else: # both inter with common first atom
                                 Common = 1
                                 # common first atom using indices of second atom to sort
                                 if DtP1.Distance.Atom2.Index > DtP2.Distance.Atom2.Index:                                
@@ -179,6 +421,20 @@ class Feature:
                                     (DtP2.Distance.Atom1.Symbol == 'O') and \
                                     (DtP2.Distance.Atom2.Symbol == 'O'):
                                     Common = 0
+                                if self.DtP1.Distance.Atom1.Symbol == 'O': # first common atom is Oxygen
+                                    if self.DtP1.Distance.Atom2.Symbol == 'H' and self.DtP2.Distance.Atom2.Symbol == 'H':
+                                        # both second atoms hydrogens
+                                        if self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex:
+                                            Common = 2 # second atoms belong to same molecule
+                                        else:
+                                            Common = 3 # second atoms belong to different molecules
+                                if self.DtP1.Distance.Atom1.Symbol == 'H': # first common atom is Hydorogen
+                                    if self.DtP1.Distance.Atom2.Symbol == 'H' and self.DtP2.Distance.Atom2.Symbol == 'H':
+                                        # both second atoms hydrogens
+                                        if self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex:
+                                            Common = 2 # second atoms belong to same molecule
+                                        else:
+                                            Common = 3 # second atoms belong to different molecules
                 else: # distances with different types
                     if (DtP1.Distance.Atom1.AtType == DtP2.Distance.Atom1.AtType) and\
                         (DtP1.Distance.Atom2.AtType == DtP2.Distance.Atom2.AtType):
