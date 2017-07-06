@@ -430,6 +430,9 @@ if __name__ == '__main__':
             i += 1
         i += 1 # next line after &SYSTEM
         j = 0 # order in the system 
+        types_list = []
+        idx_list = []
+        k = -1
         while ((lines[i].find('&END') == -1) & (i < len(lines))):
             if (lines[i][0] == '#'):
                 i += 1
@@ -438,19 +441,20 @@ if __name__ == '__main__':
                 x = lines[i]
                 s = re.split(Separators, x)
                 s = list(filter(bool, s))
-                Atoms.append(class2.Atom(s[0], j, int(s[1]), int(s[2])))
+                symbol = s[0]
+                if symbol not in types_list:
+                    k += 1
+                    types_list.append(symbol)
+                    idx_list.append(k)
+                idx = types_list.index(symbol)
+                Atoms.append(class2.Atom(symbol, j, idx_list[idx], int(s[1])))
                 j += 1
                 i += 1
     else:
         quit()
     
     # determine number of atom types from list
-    nAtTypes = 0        
-    for i in range(0, len(Atoms), 1):
-        if (Atoms[i].AtType > nAtTypes):
-            nAtTypes = Atoms[i].AtType
-    nAtTypes += 1        
-    
+    nAtTypes = len(types_list)       
     nAtoms = len(Atoms)
     Distances = [] # create list of distances from list of atoms
     for i in range(0, nAtoms, 1):
