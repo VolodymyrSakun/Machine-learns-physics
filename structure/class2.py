@@ -154,55 +154,106 @@ class Feature:
             self.nDistances = 2
             # arrange distances
             Swapped = False
-            if DtP1.Distance.Atom1.AtType != DtP2.Distance.Atom1.AtType: # first atoms of different types
-                if DtP1.Distance.Atom1.AtType > DtP2.Distance.Atom1.AtType: 
-                    self.DtP1 = DtP2 # lowest index first
-                    self.DtP2 = DtP1
-                    Swapped = True
-                else:
-                    self.DtP1 = DtP1
+
+            if DtP1.Distance.isIntermolecular and (not DtP2.Distance.isIntermolecular): 
+                # first inter second intra
+                self.DtP1 = DtP2 # intra first
+                self.DtP2 = DtP1
+                Swapped = True   
+            else:
+                if DtP2.Distance.isIntermolecular and (not DtP1.Distance.isIntermolecular):
+                # first intra second inter
+                    self.DtP1 = DtP1 # intra first
                     self.DtP2 = DtP2
-            else: 
-                if DtP1.Distance.Atom2.AtType != DtP2.Distance.Atom2.AtType: 
-                    # first atoms are of same types. sort according to second atom types
-                    if DtP1.Distance.Atom2.AtType > DtP2.Distance.Atom2.AtType:
-                        self.DtP1 = DtP2 # lowest index first
-                        self.DtP2 = DtP1
-                        Swapped = True
-                    else:
-                        self.DtP1 = DtP1 
-                        self.DtP2 = DtP2  
-                else: # first and second types have equal types. sort according to molecular indices of first atoms
-                    if DtP1.Distance.Atom1.MolecularIndex != DtP2.Distance.Atom1.MolecularIndex: 
-                        if DtP1.Distance.Atom1.MolecularIndex > DtP2.Distance.Atom1.MolecularIndex:
-                            self.DtP1 = DtP2 # lowest index first
+                else: # both inter or both intra
+                    if DtP1.Distance.Atom1.AtType != DtP2.Distance.Atom1.AtType: 
+                # first atoms of different types, sort according to first atom types
+                        if DtP1.Distance.Atom1.AtType > DtP2.Distance.Atom1.AtType: 
+                            self.DtP1 = DtP2 # lowest type first
                             self.DtP2 = DtP1
                             Swapped = True
                         else:
                             self.DtP1 = DtP1
-                            self.DtP2 = DtP2  
-                    else: # sort according to molecular indices of second atoms
-                        if DtP1.Distance.Atom2.MolecularIndex != DtP2.Distance.Atom2.MolecularIndex: 
-                            if DtP1.Distance.Atom2.MolecularIndex > DtP2.Distance.Atom2.MolecularIndex:
+                            self.DtP2 = DtP2                    
+                    else: # first atoms of same types
+                        if DtP1.Distance.Atom2.AtType != DtP2.Distance.Atom2.AtType: 
+                    # first atoms are of same types, second atoms different types
+                    # sort according to second atom types
+                            if DtP1.Distance.Atom2.AtType > DtP2.Distance.Atom2.AtType:
                                 self.DtP1 = DtP2 # lowest index first
                                 self.DtP2 = DtP1
                                 Swapped = True
                             else:
                                 self.DtP1 = DtP1 
                                 self.DtP2 = DtP2  
-                        else: # mess
-                            self.DtP1 = DtP1 
+                        else: # first and second types have equal types
+                            self.DtP1 = DtP1 # as it is
                             self.DtP2 = DtP2
+
+#            if DtP1.Distance.Atom1.AtType != DtP2.Distance.Atom1.AtType: 
+#                # first atoms of different types
+#                # sort according to first atom types
+#                if DtP1.Distance.Atom1.AtType > DtP2.Distance.Atom1.AtType: 
+#                    self.DtP1 = DtP2 # lowest type first
+#                    self.DtP2 = DtP1
+#                    Swapped = True
+#                else:
+#                    self.DtP1 = DtP1
+#                    self.DtP2 = DtP2
+#            else: # first atoms of same types
+#                if DtP1.Distance.Atom2.AtType != DtP2.Distance.Atom2.AtType: 
+#                    # first atoms are of same types, second atoms different types
+#                    # sort according to second atom types
+#                    if DtP1.Distance.Atom2.AtType > DtP2.Distance.Atom2.AtType:
+#                        self.DtP1 = DtP2 # lowest index first
+#                        self.DtP2 = DtP1
+#                        Swapped = True
+#                    else:
+#                        self.DtP1 = DtP1 
+#                        self.DtP2 = DtP2  
+#                else: # first and second types have equal types
+#                    if DtP1.Distance.isIntermolecular != DtP2.Distance.isIntermolecular:
+#                        # one inter, other intra
+#                        if DtP1.Distance.isIntermolecular:
+#                            self.DtP1 = DtP1 # intermolecular first
+#                            self.DtP2 = DtP2
+#                        else:
+#                            self.DtP1 = DtP2
+#                            self.DtP2 = DtP1
+#                            Swapped = True
+#                    else: # both inter or intra
+#                        if DtP1.Distance.Atom1.MolecularIndex != DtP2.Distance.Atom1.MolecularIndex: 
+#                            # molecular indices of first atom are different
+#                            if DtP1.Distance.Atom1.MolecularIndex > DtP2.Distance.Atom1.MolecularIndex:
+#                                self.DtP1 = DtP2 # lowest index first
+#                                self.DtP2 = DtP1
+#                                Swapped = True
+#                            else:
+#                                self.DtP1 = DtP1
+#                                self.DtP2 = DtP2  
+#                        else: # sort according to molecular indices of second atoms
+#                            if DtP1.Distance.Atom2.MolecularIndex != DtP2.Distance.Atom2.MolecularIndex: 
+#                                # molecular indices of second atom are different
+#                                if DtP1.Distance.Atom2.MolecularIndex > DtP2.Distance.Atom2.MolecularIndex:
+#                                    self.DtP1 = DtP2 # lowest index first
+#                                    self.DtP2 = DtP1
+#                                    Swapped = True
+#                                else:
+#                                    self.DtP1 = DtP1 
+#                                    self.DtP2 = DtP2  
+#                            else: # mess
+#                                self.DtP1 = DtP1 
+#                                self.DtP2 = DtP2
             # get category based on molecular index
             Found = False
             if (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP1.Distance.Atom2.MolecularIndex) and \
-                (self.DtP2.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex): # categories 1 and 2
-                if self.DtP1.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom1.MolecularIndex: #category 1
+                (self.DtP2.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex):
+                if (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom1.MolecularIndex):
                     CategoryMolecular = 1 # category 1
-                    Found = True
-                else:
+                    Found = True                    
+                if (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex):
                     CategoryMolecular = 2 # category 2
-                    Found = True
+                    Found = True                        
             if (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP1.Distance.Atom2.MolecularIndex): # first distance intra
                 if ((self.DtP2.Distance.Atom1.MolecularIndex == self.DtP1.Distance.Atom1.MolecularIndex) and \
                     (self.DtP2.Distance.Atom2.MolecularIndex != self.DtP1.Distance.Atom1.MolecularIndex)) or \
@@ -229,18 +280,24 @@ class Feature:
                     (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP1.Distance.Atom2.MolecularIndex):
                     CategoryMolecular = 4 # category 4
                     Found = True         
-            if ((self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) and \
-                (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex)) or \
-                ((self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex) and \
-                (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex)): # category 5
-                 CategoryMolecular = 5 # category 5
-                 Found = True                 
             if (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP1.Distance.Atom2.MolecularIndex) and \
                 (self.DtP2.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom2.MolecularIndex):
-                if (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) or \
-                    (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex) or \
-                    (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) or \
-                    (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex): # category 6
+                if ((self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex)) or \
+                    ((self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex)):
+                    CategoryMolecular = 5 # category 5
+                    Found = True                 
+            if (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP1.Distance.Atom2.MolecularIndex) and \
+                (self.DtP2.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom2.MolecularIndex):
+                if ((self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom2.MolecularIndex != self.DtP2.Distance.Atom2.MolecularIndex)) or \
+                    ((self.DtP1.Distance.Atom1.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom2.MolecularIndex != self.DtP2.Distance.Atom1.MolecularIndex)) or \
+                    ((self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom1.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom2.MolecularIndex)) or \
+                    ((self.DtP1.Distance.Atom2.MolecularIndex == self.DtP2.Distance.Atom2.MolecularIndex) and \
+                    (self.DtP1.Distance.Atom1.MolecularIndex != self.DtP2.Distance.Atom1.MolecularIndex)):
                     CategoryMolecular = 6 # category 6
                     Found = True    
             if not Found:
@@ -262,13 +319,13 @@ class Feature:
             # get category based on atomic index
             Found = False
             if (self.DtP1.Distance.Atom1.Index == self.DtP1.Distance.Atom2.Index) and \
-                (self.DtP2.Distance.Atom1.Index == self.DtP2.Distance.Atom2.Index): # categories 1 and 2
-                if self.DtP1.Distance.Atom1.Index != self.DtP2.Distance.Atom1.Index: #category 1
+                (self.DtP2.Distance.Atom1.Index == self.DtP2.Distance.Atom2.Index):
+                if (self.DtP1.Distance.Atom1.Index != self.DtP2.Distance.Atom1.Index):
                     CategoryAtomic = 1 # category 1
-                    Found = True
-                else:
+                    Found = True                    
+                if (self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom1.Index):
                     CategoryAtomic = 2 # category 2
-                    Found = True
+                    Found = True 
             if (self.DtP1.Distance.Atom1.Index == self.DtP1.Distance.Atom2.Index): # first distance intra
                 if ((self.DtP2.Distance.Atom1.Index == self.DtP1.Distance.Atom1.Index) and \
                     (self.DtP2.Distance.Atom2.Index != self.DtP1.Distance.Atom1.Index)) or \
@@ -303,10 +360,14 @@ class Feature:
                  Found = True                 
             if (self.DtP1.Distance.Atom1.Index != self.DtP1.Distance.Atom2.Index) and \
                 (self.DtP2.Distance.Atom1.Index != self.DtP2.Distance.Atom2.Index):
-                if (self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom1.Index) or \
-                    (self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom2.Index) or \
-                    (self.DtP1.Distance.Atom2.Index == self.DtP2.Distance.Atom1.Index) or \
-                    (self.DtP1.Distance.Atom2.Index == self.DtP2.Distance.Atom2.Index): # category 6
+                if ((self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom1.Index) and \
+                    (self.DtP1.Distance.Atom2.Index != self.DtP2.Distance.Atom2.Index)) or \
+                    ((self.DtP1.Distance.Atom1.Index == self.DtP2.Distance.Atom2.Index) and \
+                    (self.DtP1.Distance.Atom2.Index != self.DtP2.Distance.Atom1.Index)) or \
+                    ((self.DtP1.Distance.Atom2.Index == self.DtP2.Distance.Atom1.Index) and \
+                    (self.DtP1.Distance.Atom1.Index != self.DtP2.Distance.Atom2.Index)) or \
+                    ((self.DtP1.Distance.Atom2.Index == self.DtP2.Distance.Atom2.Index) and \
+                    (self.DtP1.Distance.Atom1.Index != self.DtP2.Distance.Atom1.Index)):
                     CategoryAtomic = 6 # category 6
                     Found = True    
             if not Found:
