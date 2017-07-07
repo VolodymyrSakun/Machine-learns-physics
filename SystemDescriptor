@@ -1,78 +1,81 @@
-#F_data = datafile short.x
-#F_data = short.x
+F_data = short two water molecules.x
 #F_data = short three water molecules.x
 #F_data = datafile1 from github gaussian process.x
 #F_data = datafile2.x
 #F_data = datafile3 2 water molecules.x
-F_data = datafile4 3 water molecules small.x
+#F_data = datafile4 3 water molecules small.x
 #F_data = datafile5 3 water molecules big.x
 
 &FEATURES
 &SingleDistances
 SingleDistancesInclude = True
 &SingleDistancesDescription
+O,O,intermolecular: -1
+O,H,intermolecular: -1
+H,H,intermolecular: -1
+O,H,intramolecular: -1
+H,H,intramolecular: -1
 &endSingleDistancesDescription
 &DefaultSingleDistances
-SinglePowers: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15
+SinglePowers: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
 &endSingleDistances
 
 &DoubleDistances
-DoubleDistancesInclude=False
+DoubleDistancesInclude=True
 &DoubleDistancesDescription
-O,O,intermolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
-O,H,intermolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
-H,H,intermolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
-O,H,intramolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
-H,H,intramolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
+O,O,intermolecular: -1
+O,H,intermolecular: -1
+H,H,intermolecular: -1
+O,H,intramolecular: -1
+H,H,intramolecular: -1
 &endDoubleDistancesDescription
 &DefaultDoubleDistances
-DoublePowers: -1,-2,-3,-4,-5
+DoublePowers: -1
 IncludeSameType=True
-IncludeAllExcept=False
-ExcludeAllExcept=True
+IncludeAllExcept=True
+ExcludeAllExcept=False
 &IncludeExcludeList
-O,H,intermolecular; O,H,intermolecular
 &endIncludeExcludeList
 &endDoubleDistances
 
 &Harmonics
-HarmonicsInclude=True
-Order: -3,-2,-1,0,1,2,3
-Degree: 0,1,2,3
+HarmonicsInclude=False
+Order: 0
+Degree: 0
 # symbol of atom to be a center of coordinate system to calculate harmonics
 HarmonicCenter: O
 HarmonicAtoms: O,H
 &HarmonicDescription
-O,O,intermolecular:
+O,O,intermolecular: 
 O,H,intermolecular: -1,-2,-3,-4,-5,-6
-H,H,intermolecular:
-O,H,intramolecular:
-H,H,intramolecular:
+H,H,intermolecular: 
+O,H,intramolecular: 
+H,H,intramolecular: 
 &endHarmonicDescription
 &DefaultHarmonics
 HarmonicPowers: -1,-2
 IncludeHarmonicSameType=True
-IncludeHarmonicAllExcept=False
-ExcludeHarmonicAllExcept=True
+IncludeHarmonicAllExcept=True
+ExcludeHarmonicAllExcept=False
 &IncludeExcludeHarmonicList
-O,H,intermolecular; O,H,intermolecular
+O,O,intermolecular; O,O,intermolecular
 &endIncludeExcludeHarmonicList
 &endHarmonics
 &endFEATURES
 
 &SYSTEM
-# Atom symbol (string), Atom type(integer), Molecule number (integer)
+# Atom symbol (string), Molecule number (integer)
 # water 1
-O,1,0
-H,0,0    
-H,0,0
+O,0
+H,0    
+H,0
 # water 2
-O,1,1
-H,0,1    
-H,0,1
+O,1
+H,1    
+H,1
 # water 3
-O,1,2
-H,0,2    
-H,0,2
+#O,2
+#H,2    
+#H,2
 &END
  
