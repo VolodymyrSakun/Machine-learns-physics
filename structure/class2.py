@@ -121,7 +121,8 @@ class Harmonic:
             sign = 0
         self.HaType = 10000*sign + 1000*abs(self.Order) + 100*self.Degree + 10*self.Center.AtType +self.Atom.AtType
         
-class Feature:
+class Feature2:
+# ALSO WORKS
     nDistances = 0
     nHarmonics = 0
     DtP1 = None
@@ -190,60 +191,7 @@ class Feature:
                             self.DtP1 = DtP1 # as it is
                             self.DtP2 = DtP2
 
-#            if DtP1.Distance.Atom1.AtType != DtP2.Distance.Atom1.AtType: 
-#                # first atoms of different types
-#                # sort according to first atom types
-#                if DtP1.Distance.Atom1.AtType > DtP2.Distance.Atom1.AtType: 
-#                    self.DtP1 = DtP2 # lowest type first
-#                    self.DtP2 = DtP1
-#                    Swapped = True
-#                else:
-#                    self.DtP1 = DtP1
-#                    self.DtP2 = DtP2
-#            else: # first atoms of same types
-#                if DtP1.Distance.Atom2.AtType != DtP2.Distance.Atom2.AtType: 
-#                    # first atoms are of same types, second atoms different types
-#                    # sort according to second atom types
-#                    if DtP1.Distance.Atom2.AtType > DtP2.Distance.Atom2.AtType:
-#                        self.DtP1 = DtP2 # lowest index first
-#                        self.DtP2 = DtP1
-#                        Swapped = True
-#                    else:
-#                        self.DtP1 = DtP1 
-#                        self.DtP2 = DtP2  
-#                else: # first and second types have equal types
-#                    if DtP1.Distance.isIntermolecular != DtP2.Distance.isIntermolecular:
-#                        # one inter, other intra
-#                        if DtP1.Distance.isIntermolecular:
-#                            self.DtP1 = DtP1 # intermolecular first
-#                            self.DtP2 = DtP2
-#                        else:
-#                            self.DtP1 = DtP2
-#                            self.DtP2 = DtP1
-#                            Swapped = True
-#                    else: # both inter or intra
-#                        if DtP1.Distance.Atom1.MolecularIndex != DtP2.Distance.Atom1.MolecularIndex: 
-#                            # molecular indices of first atom are different
-#                            if DtP1.Distance.Atom1.MolecularIndex > DtP2.Distance.Atom1.MolecularIndex:
-#                                self.DtP1 = DtP2 # lowest index first
-#                                self.DtP2 = DtP1
-#                                Swapped = True
-#                            else:
-#                                self.DtP1 = DtP1
-#                                self.DtP2 = DtP2  
-#                        else: # sort according to molecular indices of second atoms
-#                            if DtP1.Distance.Atom2.MolecularIndex != DtP2.Distance.Atom2.MolecularIndex: 
-#                                # molecular indices of second atom are different
-#                                if DtP1.Distance.Atom2.MolecularIndex > DtP2.Distance.Atom2.MolecularIndex:
-#                                    self.DtP1 = DtP2 # lowest index first
-#                                    self.DtP2 = DtP1
-#                                    Swapped = True
-#                                else:
-#                                    self.DtP1 = DtP1 
-#                                    self.DtP2 = DtP2  
-#                            else: # mess
-#                                self.DtP1 = DtP1 
-#                                self.DtP2 = DtP2
+
             # get category based on molecular index
             Found = False
             if (self.DtP1.Distance.Atom1.MolecularIndex == self.DtP1.Distance.Atom2.MolecularIndex) and \
@@ -387,6 +335,146 @@ class Feature:
             if not Found:
                 CategoryAtomic = 'ERROR'
                     
+        p1 = str(abs(self.DtP1.Power))
+        p1 = p1.zfill(DtP1.PowerDigits)
+        p2 = str(abs(self.DtP2.Power))
+        p2 = p2.zfill(DtP2.PowerDigits)
+        t11 = str(self.DtP1.Distance.Atom1.AtType)
+        t11 = t11.zfill(self.DtP1.Distance.Atom1.AtTypeDigits)
+        t12 = str(self.DtP1.Distance.Atom2.AtType)
+        t12 = t12.zfill(self.DtP1.Distance.Atom2.AtTypeDigits)
+        t21 = str(self.DtP2.Distance.Atom1.AtType)
+        t21 = t21.zfill(self.DtP2.Distance.Atom1.AtTypeDigits)
+        t22 = str(self.DtP2.Distance.Atom2.AtType)
+        t22 = t22.zfill(self.DtP2.Distance.Atom2.AtTypeDigits)
+        c1 = str(CategoryMolecular)
+        c2 = str(CategoryAtomic)
+        self.FeType = p1 + p2 + t11 + t12 + t21 + t22 + c1 + c2
+        return
+
+class Feature:
+    nDistances = 0
+    nHarmonics = 0
+    DtP1 = None
+    DtP2 = None
+    FeType = 'None'
+    Harmonic1 = None
+    Harmonic2 = None
+    def __init__(self, DtP1, DtP2=None, Harmonic1=None, Harmonic2=None):
+        def count_unic(d1, d2):
+            l = []
+            l.append(d1[0])
+            l.append(d1[1])
+            l.append(d2[0])
+            l.append(d2[1])
+            l = list(set(l))
+            return len(l)        
+        def count_bonds(d1, d2):
+            if (d1[0] != d1[1]) and (d2[0] != d2[1]):
+                return 0
+            if (d1[0] == d1[1]) and (d2[0] == d2[1]):
+                return 2
+            return 1                
+        if (DtP1 is not None) and (DtP2 is None): # one distance in feature
+            self.nDistances = 1
+            # get category based on molecular index
+            CategoryAtomic = 5 # can only be 5 for single distance
+            # get category based on atomic index
+            if DtP1.Distance.isIntermolecular:
+                CategoryMolecular = 5 # intermolecular
+            else:
+                CategoryMolecular = 2 # intramolecular
+            self.DtP1 = DtP1
+            p1 = str(abs(self.DtP1.Power))
+            p1 = p1.zfill(DtP1.PowerDigits)
+            t1 = str(self.DtP1.Distance.Atom1.AtType)
+            t1 = t1.zfill(self.DtP1.Distance.Atom1.AtTypeDigits)
+            t2 = str(self.DtP1.Distance.Atom2.AtType)
+            t2 = t2.zfill(self.DtP1.Distance.Atom2.AtTypeDigits)
+            c1 = str(CategoryMolecular)
+            c2 = str(CategoryAtomic)
+            self.FeType = p1 + t1 + t2 + c1 + c2
+            return
+        if (DtP1 is not None) and (DtP2 is not None): # two distances in feature
+            self.nDistances = 2
+            # arrange distances
+            Swapped = False
+            if DtP1.Distance.isIntermolecular and (not DtP2.Distance.isIntermolecular): 
+                # first inter second intra
+                self.DtP1 = DtP2 # intra first
+                self.DtP2 = DtP1
+                Swapped = True   
+            else:
+                if DtP2.Distance.isIntermolecular and (not DtP1.Distance.isIntermolecular):
+                # first intra second inter
+                    self.DtP1 = DtP1 # intra first
+                    self.DtP2 = DtP2
+                else: # both inter or both intra
+                    if DtP1.Distance.Atom1.AtType != DtP2.Distance.Atom1.AtType: 
+                # first atoms of different types, sort according to first atom types
+                        if DtP1.Distance.Atom1.AtType > DtP2.Distance.Atom1.AtType: 
+                            self.DtP1 = DtP2 # lowest type first
+                            self.DtP2 = DtP1
+                            Swapped = True
+                        else:
+                            self.DtP1 = DtP1
+                            self.DtP2 = DtP2                    
+                    else: # first atoms of same types
+                        if DtP1.Distance.Atom2.AtType != DtP2.Distance.Atom2.AtType: 
+                    # first atoms are of same types, second atoms different types
+                    # sort according to second atom types
+                            if DtP1.Distance.Atom2.AtType > DtP2.Distance.Atom2.AtType:
+                                self.DtP1 = DtP2 # lowest index first
+                                self.DtP2 = DtP1
+                                Swapped = True
+                            else:
+                                self.DtP1 = DtP1 
+                                self.DtP2 = DtP2  
+                        else: # first and second types have equal types
+                            self.DtP1 = DtP1 # as it is
+                            self.DtP2 = DtP2
+            # get category based on molecular index
+            m = count_unic((DtP1.Distance.Atom1.MolecularIndex, DtP1.Distance.Atom2.MolecularIndex), \
+                           (DtP2.Distance.Atom1.MolecularIndex, DtP2.Distance.Atom2.MolecularIndex))
+            if m == 1:
+                CategoryMolecular = 2
+            else:
+                if m == 4:
+                    CategoryMolecular = 7
+                else:
+                    n = count_bonds((DtP1.Distance.Atom1.MolecularIndex, DtP1.Distance.Atom2.MolecularIndex), \
+                        (DtP2.Distance.Atom1.MolecularIndex, DtP2.Distance.Atom2.MolecularIndex))
+                    if (m == 2) and (n == 1):
+                        CategoryMolecular = 3
+                    if (m == 2) and (n == 2):
+                        CategoryMolecular = 1
+                    if (m == 2) and (n == 0):
+                        CategoryMolecular = 5
+                    if (m == 3) and (n == 1):
+                        CategoryMolecular = 4
+                    if (m == 3) and (n == 0):
+                        CategoryMolecular = 6
+            # get category based on atomic index
+            m = count_unic((DtP1.Distance.Atom1.Index, DtP1.Distance.Atom2.Index), \
+                           (DtP2.Distance.Atom1.Index, DtP2.Distance.Atom2.Index))
+            if m == 1:
+                CategoryAtomic = 2
+            else:
+                if m == 4:
+                    CategoryAtomic = 7
+                else:
+                    n = count_bonds((DtP1.Distance.Atom1.Index, DtP1.Distance.Atom2.Index), \
+                        (DtP2.Distance.Atom1.Index, DtP2.Distance.Atom2.Index))
+                    if m == 2 and n == 1:
+                        CategoryAtomic = 3
+                    if m == 2 and n == 2:
+                        CategoryAtomic = 1
+                    if m == 2 and n == 0:
+                        CategoryAtomic = 5
+                    if m == 3 and n == 1:
+                        CategoryAtomic = 4
+                    if m == 3 and n == 0:
+                        CategoryAtomic = 6
         p1 = str(abs(self.DtP1.Power))
         p1 = p1.zfill(DtP1.PowerDigits)
         p2 = str(abs(self.DtP2.Power))

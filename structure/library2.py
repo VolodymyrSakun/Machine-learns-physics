@@ -1411,21 +1411,21 @@ def ForwardSequential(x_std, y_std, nVariables=10, idx=None):
     return idx
 
 def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
-    Atom_table = pd.DataFrame(np.zeros(shape = (len(Atoms), 5)).astype(int), \
-        columns=['#','Symbol','Index','Type','Molecular Index'], dtype=str)
+    Atom_table = pd.DataFrame(np.zeros(shape = (len(Atoms), 4)).astype(int), \
+        columns=['Symbol','Index','Type','Molecular Index'], dtype=str)
 
-    Dist_table = pd.DataFrame(np.zeros(shape = (len(Distances), 11)).astype(int), \
-        columns=['#','IsIntermolecular','DiType','Atom1 Symbol','Atom1 Index',\
+    Dist_table = pd.DataFrame(np.zeros(shape = (len(Distances), 10)).astype(int), \
+        columns=['IsIntermolecular','DiType','Atom1 Symbol','Atom1 Index',\
         'Atom1 AtType','Atom1 Molecular Index','Atom2 Symbol','Atom2 Index',\
         'Atom2 AtType','Atom2 Molecular Index'], dtype=str)
 
-    Dtp_table = pd.DataFrame(np.zeros(shape = (len(DtP_Double_list), 13)).astype(int), \
-        columns=['#','Power','DtpType','IsIntermolecular','DiType','Atom1 Symbol','Atom1 Index',\
+    Dtp_table = pd.DataFrame(np.zeros(shape = (len(DtP_Double_list), 12)).astype(int), \
+        columns=['Power','DtpType','IsIntermolecular','DiType','Atom1 Symbol','Atom1 Index',\
         'Atom1 AtType','Atom1 Molecular Index','Atom2 Symbol','Atom2 Index',\
         'Atom2 AtType','Atom2 Molecular Index'], dtype=str)
 
-    Feature_table = pd.DataFrame(np.zeros(shape = (len(FeaturesAll), 27)).astype(int), \
-        columns=['#','#Distances','FeType','Power1','DtpType1','IsIntermolecular1',\
+    Feature_table = pd.DataFrame(np.zeros(shape = (len(FeaturesAll), 28)).astype(int), \
+        columns=['#Distances','FeType','Category Molecular','Category Atomic','Power1','DtpType1','IsIntermolecular1',\
         'DiType1','Atom11 Symbol','Atom11 Index','Atom11 AtType','Atom11 Molecular Index',\
         'Atom12 Symbol','Atom12 Index','Atom12 AtType','Atom12 Molecular Index',\
         'Power2','DtpType2','IsIntermolecular2','DiType2','Atom21 Symbol','Atom21 Index',\
@@ -1433,14 +1433,12 @@ def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
         'Atom22 AtType','Atom22 Molecular Index'], dtype=str)
     
     for i in range(0, len(Atoms), 1):
-        Atom_table.loc[i]['#'] = i
         Atom_table.loc[i]['Symbol'] = Atoms[i].Symbol
         Atom_table.loc[i]['Index'] = Atoms[i].Index
         Atom_table.loc[i]['Type'] = Atoms[i].AtType
         Atom_table.loc[i]['Molecular Index'] = Atoms[i].MolecularIndex
         
     for i in range(0, len(Distances), 1):
-        Dist_table.loc[i]['#'] = i
         Dist_table.loc[i]['IsIntermolecular'] = Distances[i].isIntermolecular
         Dist_table.loc[i]['DiType'] = Distances[i].DiType
         Dist_table.loc[i]['Atom1 Symbol'] = Distances[i].Atom1.Symbol
@@ -1453,7 +1451,6 @@ def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
         Dist_table.loc[i]['Atom2 Molecular Index'] = Distances[i].Atom2.MolecularIndex
   
     for i in range(0, len(DtP_Double_list), 1):
-        Dtp_table.loc[i]['#'] = i
         Dtp_table.loc[i]['Power'] = DtP_Double_list[i].Power
         Dtp_table.loc[i]['DtpType'] = DtP_Double_list[i].DtpType
         Dtp_table.loc[i]['IsIntermolecular'] = DtP_Double_list[i].Distance.isIntermolecular
@@ -1469,10 +1466,11 @@ def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
 
 
     for i in range(0, len(FeaturesAll), 1):
-        if FeaturesAll[i].nDistances == 2:
-            Feature_table.loc[i]['#'] = i
+        if FeaturesAll[i].nDistances == 1:
             Feature_table.loc[i]['#Distances'] = FeaturesAll[i].nDistances
             Feature_table.loc[i]['FeType'] = FeaturesAll[i].FeType
+            Feature_table.loc[i]['Category Molecular'] = int(FeaturesAll[i].FeType[-2])
+            Feature_table.loc[i]['Category Atomic'] = int(FeaturesAll[i].FeType[-1])
             Feature_table.loc[i]['Power1'] = FeaturesAll[i].DtP1.Power
             Feature_table.loc[i]['DtpType1'] = FeaturesAll[i].DtP1.DtpType
             Feature_table.loc[i]['IsIntermolecular1'] = FeaturesAll[i].DtP1.Distance.isIntermolecular
@@ -1498,9 +1496,10 @@ def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
             Feature_table.loc[i]['Atom22 AtType'] = ''
             Feature_table.loc[i]['Atom22 Molecular Index'] = ''
         if FeaturesAll[i].nDistances == 2:
-            Feature_table.loc[i]['#'] = i
             Feature_table.loc[i]['#Distances'] = FeaturesAll[i].nDistances
             Feature_table.loc[i]['FeType'] = FeaturesAll[i].FeType
+            Feature_table.loc[i]['Category Molecular'] = int(FeaturesAll[i].FeType[-2])
+            Feature_table.loc[i]['Category Atomic'] = int(FeaturesAll[i].FeType[-1])
             Feature_table.loc[i]['Power1'] = FeaturesAll[i].DtP1.Power
             Feature_table.loc[i]['DtpType1'] = FeaturesAll[i].DtP1.DtpType
             Feature_table.loc[i]['IsIntermolecular1'] = FeaturesAll[i].DtP1.Distance.isIntermolecular
@@ -1526,13 +1525,30 @@ def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
             Feature_table.loc[i]['Atom22 AtType'] = FeaturesAll[i].DtP2.Distance.Atom2.AtType
             Feature_table.loc[i]['Atom22 Molecular Index'] = FeaturesAll[i].DtP2.Distance.Atom2.MolecularIndex
 
-    writeResults = pd.ExcelWriter(FileName, engine='openpyxl')
-    Atom_table.to_excel(writeResults, sheet_name='Atoms')
-    Dist_table.to_excel(writeResults, sheet_name='Distances')
-    Dtp_table.to_excel(writeResults, sheet_name='Distances with Powers')
-    Feature_table.to_excel(writeResults, sheet_name='DD Features')
-    writeResults.save() 
+    writer = pd.ExcelWriter(FileName, engine='xlsxwriter')
+    Atom_table.to_excel(writer, sheet_name='Atoms')
+    Dist_table.to_excel(writer, sheet_name='Distances')
+    Dtp_table.to_excel(writer, sheet_name='Distances with Powers')
+    Feature_table.to_excel(writer, sheet_name='DD Features')
+
+    workbook = writer.book
+#    format1 = workbook.add_format({'bg_color': '#FFC7CE','font_color': '#9C0006'})
+    format1 = workbook.add_format({'align':'center','valign':'vcenter'})
+    format2 = workbook.add_format({'align':'center','valign':'vcenter','font_color': 'red'})
+    worksheet1 = writer.sheets['Atoms']
+    worksheet1.set_column('A:E', 16, format1)
+    worksheet2 = writer.sheets['Distances']
+    worksheet2.set_column('A:K', 16, format1)
+    worksheet3 = writer.sheets['Distances with Powers']
+    worksheet3.set_column('A:M', 16, format1)
+    worksheet4 = writer.sheets['DD Features']    
+    worksheet4.set_column('A:AC', 12, format1)
+    worksheet4.set_column('J:J', 15, format2)
+    worksheet4.set_column('N:N', 15, format2)
+    worksheet4.set_column('V:V', 15, format2)
+    worksheet4.set_column('Z:Z', 15, format2)
+    writer.save() 
 
 
-
-
+#    merge_format = workbook.add_format({'align': 'center'})
+# merge_format = workbook.add_format({'bold':True,'border':6,'align':'center','valign':'vcenter','fg_color': '#D7E4BC',})
