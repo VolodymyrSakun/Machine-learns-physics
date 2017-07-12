@@ -433,7 +433,7 @@ if __name__ == '__main__':
         types_list = []
         idx_list = []
         k = -1
-        while ((lines[i].find('&END') == -1) & (i < len(lines))):
+        while ((lines[i].find('&endSYSTEM') == -1) & (i < len(lines))):
             if (lines[i][0] == '#'):
                 i += 1
                 continue
@@ -503,6 +503,7 @@ if __name__ == '__main__':
             Powers = SingleDescription[k][3:]
             for j in Powers:
                 DtP_Single_list.append(class2.Distance_to_Power(Distances[i], int(j)))
+#                DtP_Single_list.append(class2.Distance_to_Power(Distances[i], float(j)))
     
         for i in DtP_Single_list:
             FeaturesAll.append(class2.Feature(i, DtP2=None))        
@@ -538,13 +539,13 @@ if __name__ == '__main__':
                 DoubleDescription[-1] += DoublePowersDefault
 
     # make list of features with only one distance
-    
         DtP_Double_list = []
         for i in range(0, len(Distances), 1):
             k = DoubleDescriptionDiType.index(Distances[i].DiType)
             Powers = DoubleDescription[k][3:]
             for j in Powers:
                 DtP_Double_list.append(class2.Distance_to_Power(Distances[i], int(j)))
+#                DtP_Double_list.append(class2.Distance_to_Power(Distances[i], float(j)))
         
         IncludeExcludeDiTypes = [] # can be empty
         for i in IncludeExcludeList:
