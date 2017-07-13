@@ -82,7 +82,7 @@ def Scaler_L2(X):
     return X_new
 
 # reads feature set and objects that describes it
-def ReadFeatures(F_features, F_structure_FeaturesAll, F_structure_FeaturesReduced, verbose=False):
+def ReadFeatures(F_features, F_structure_FeaturesAll, F_structure_FeaturesReduced, F_System, verbose=False):
 # F_features - .csv file that contains data stored by Generape combined features.py
 # F_structure_FeaturesAll - .dat file that contains object with all informations about features
 # F_structure_FeaturesReduced - .dat file that contains object with all informations about reduced features
@@ -110,12 +110,16 @@ def ReadFeatures(F_features, F_structure_FeaturesAll, F_structure_FeaturesReduce
     f = open(F_structure_FeaturesAll, "rb")
     FeaturesAll = pickle.load(f)
     f.close()
-    return X, Y, FeaturesAll, FeaturesReduced
+# load system object from file
+    f = open(F_System, "rb")
+    system = pickle.load(f)
+    f.close()    
+    return X, Y, FeaturesAll, FeaturesReduced, system
 
 # select the best subset from elastic net path
 def SelectBestSubsetFromElasticNetPath(x_std, y_std, Method='CV', MSE_threshold=None, R2_threshold=None, \
     L1_ratio=0.01, Eps=1e-3, N_alphas=200, Alphas=None, max_iter=10000, tol=0.0001, \
-    cv=30, n_jobs=-1, selection='random', PlotPath=False, verbose=False):
+    cv=30, n_jobs=-1, selection='random', PlotPath=False, FileName=None, verbose=False):
 # returns list of indices of selected features
 # default setting: use ElasticNetCV assigned by Method
 # x_std - standardized set of features
@@ -197,7 +201,7 @@ def SelectBestSubsetFromElasticNetPath(x_std, y_std, Method='CV', MSE_threshold=
         for i in range(0, coefs.shape[1], 1):
             nonzero_count = np.count_nonzero(coefs[:, i])
             nonzero.append(nonzero_count)
-        plt.figure(1, figsize = (19, 10))
+        fig = plt.figure(1, figsize = (19, 10))
         plt.subplot(211)
         subplot11 = plt.gca()
         plt.plot(alphas, nonzero, ':')
@@ -213,7 +217,9 @@ def SelectBestSubsetFromElasticNetPath(x_std, y_std, Method='CV', MSE_threshold=
         plt.xlabel('Alphas')
         plt.ylabel('MSE')
         plt.title('Mean squared error vs. regularization strength')
-        plt.savefig('Enet_Path', bbox_inches='tight')
+        plt.show()
+        plt.savefig(FileName, bbox_inches='tight')
+        plt.close(fig)
     if (Method == 'CV'):
         return nonzero_idx, alpha
     if (Method == 'grid'):
@@ -353,7 +359,7 @@ def BackwardElimination(X_train, Y_train, X_test, Y_test, FeaturesAll, \
     else:
         if N_of_features_to_select < len(VIP_idx):
             print('Desired number of features cannot be equal or less than number of VIP features')
-            quit()
+            return -1
     if PlotPath and (FileName is None):
         print('Please indicate name of file to store data and / or graphs')
         return -2
@@ -1149,21 +1155,25 @@ def get_fit_score(X_train, X_test, Y_train, Y_test, idx=None):
 
 def plot_rmse(FileName, nonzero_count_list, rmse_OLS_list, rsquared_list):
 # Plot RMSE vs. active coefficients number        
-    plt.figure(100, figsize = (19, 10))
+    fig = plt.figure(100, figsize = (19, 10))
     plt.plot(nonzero_count_list, rmse_OLS_list, ':')
     plt.xlabel('Active coefficients')
     plt.ylabel('Root of mean square error')
     plt.title('Root of mean square error vs Active coefficiants')
     plt.axis('tight')
+    plt.show()
     plt.savefig(FileName + '_RMSE', bbox_inches='tight')
+    plt.close(fig)
     # Plot R2 vs. active coefficiens number
-    plt.figure(101, figsize = (19, 10))
+    fig = plt.figure(101, figsize = (19, 10))
     plt.plot(nonzero_count_list, rsquared_list, ':')
     plt.xlabel('Active coefficients')
     plt.ylabel('R2')
     plt.title('R2 vs Active coefficiants')
     plt.axis('tight')
+    plt.show()
     plt.savefig(FileName + '_R2', bbox_inches='tight')
+    plt.close(fig)
     return
 
 def Fit(x_std, y_std, idx_cpu, active_features, corr_list, VIP_idx=None):# local index
@@ -1576,3 +1586,50 @@ def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
 
 #    merge_format = workbook.add_format({'align': 'center'})
 # merge_format = workbook.add_format({'bold':True,'border':6,'align':'center','valign':'vcenter','fg_color': '#D7E4BC',})
+
+
+
+def rank_features(x_std, y_std, idx):
+    size = len(idx) # size of selected features list
+    Size = x_std.shape[0] # number of observations
+    z = np.zeros(shape=(Size, 1), dtype=float)
+    tmp = np.zeros(shape=(Size, 1), dtype=float)
+    lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=False, n_jobs=1)
+    x_sel = np.zeros(shape=(Size, size), dtype=float)
+    mse_list = list(range(0, size, 1))
+# creating selected features array
+    for i in range(0, size, 1):
+        x_sel[:, i] = x_std[:, idx[i]] # copy selected features from initial set
+    lr.fit(x_sel, y_std)
+    y_pred = lr.predict(x_sel)
+    mse_full = skm.mean_squared_error(y_std, y_pred)
+    for i in range(0, size, 1):
+        tmp[:, 0] = x_sel[:, i] # save column
+        x_sel[:, i] = z[:, 0] # copy zeros to column
+        lr.fit(x_sel, y_std)
+        y_pred = lr.predict(x_sel)
+        mse = skm.mean_squared_error(y_std, y_pred)
+        drop = mse - mse_full # changes of mse after dropping one feature
+        mse_list[i] = drop # bigger drop - more important feature
+        x_sel[:, i] = tmp[:, 0] # restore column
+    swapped = True
+    n = size
+# bubble sort from low to high. less important features first
+    while swapped:
+        swapped = False
+        for i in range(1, n, 1):
+            if mse_list[i-1] > mse_list[i]:
+                swapped = True
+                mse_list.insert(i-1, mse_list[i])
+                del(mse_list[i+1])
+                idx.insert(i-1, idx[i])
+                del(idx[i+1])
+        n - n - 1
+    return idx
+
+
+
+
+
+
+

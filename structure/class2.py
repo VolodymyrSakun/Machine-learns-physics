@@ -647,6 +647,21 @@ class Feature1:
         self.FeType = C + D1 + D2 + H1 + H2
         return
         
+class System:
+    Atoms=None
+    nAtoms=None
+    nAtTypes=None
+    Distances=None
+    nDistances=None
+    nDiTypes=None
+    def __init__(self, Atoms=None, nAtoms=None, nAtTypes=None, Distances=None, nDistances=None, nDiTypes=None):
+        self.Atoms = Atoms
+        self.nAtoms = nAtoms
+        self.nAtTypes = nAtTypes
+        self.Distances = Distances
+        self.nDistances = nDistances
+        self.nDiTypes = nDiTypes
+    
 def print_feature(feature):
     print('Number of distances = ', feature.nDistances)
     print('Feature type = ', feature.FeType)

@@ -22,8 +22,8 @@ class Gene:
     idx = None
     p_Value = None
     rank = None
-    def __init__(self, genes):
-        self.idx = genes
+    def __init__(self, gene):
+        self.idx = gene
         
 class Chromosome:
     Genes = None # list of indices of features
@@ -78,11 +78,15 @@ def get_fitness_pValue(chromosome, x_std, y_std):
     chromosome = rank_chromosome(chromosome) # rank genes in chromosome according to p-Values
     return chromosome
 
-def generate_new_chromosome(chromosome_size, idx):
+def generate_new_chromosome(chromosome_size, idx, VIP_idx=None):
 # idx - list of preseleccted features from which new chromosome will be made
+    if VIP_idx is None:
+        VIP_idx = []
     Gene_list = []
     NofFeatures = len(idx)
-    for i in range(0, chromosome_size, 1):
+    for i in range(0, len(VIP_idx), 1):
+        Gene_list.append(Gene(VIP_idx[i]))
+    for i in range(len(VIP_idx), chromosome_size, 1):
         Found = False
         while not Found:
             rand0 = random.randrange(0, NofFeatures, 1) # get random number of feature
@@ -109,16 +113,22 @@ def generate_new_chromosomeM(chromosome_size, idx, x_std, y_std, C):
     return chromosome
 
 # mutate one gene
-def mutate_one(chromosome, idx, index):
+def mutate_one(chromosome, idx, index, VIP_idx=None):
+    if VIP_idx is None:
+        VIP_idx = []    
 # idx - list of preseleccted features from which mutator will take one gene
     NofFeatures = len(idx)
     rand0 = random.randrange(0, NofFeatures, 1) # index of feature from initial set that will replace unfortunate gene
-    rand = idx[rand0]
-    chromosome.Genes[index].idx = rand # assign new gene fo chromosome
+    rand = idx[rand0] # global
+    # index - local
+    if chromosome.Genes[index].idx not in VIP_idx:
+        chromosome.Genes[index].idx = rand # assign new gene fo chromosome
     return chromosome
 
 # mutate more than one gene
-def mutate_many(chromosome, idx, mutation_interval):
+def mutate_many(chromosome, idx, mutation_interval, VIP_idx=None):
+    if VIP_idx is None:
+        VIP_idx = [] 
     chromosome_size = chromosome.Size
     NofFeatures = len(idx)
     rand1 = random.randrange(mutation_interval[0], mutation_interval[1], 1) # get random number mutations from interval
@@ -126,7 +136,8 @@ def mutate_many(chromosome, idx, mutation_interval):
         rand2 = random.randrange(0, chromosome_size, 1) # index of gene in chromosome to replace
         rand3 = random.randrange(0, NofFeatures, 1) # index of feature from initial set that will replace unfortunate gene
         rand = idx[rand3]
-        chromosome.Genes[rand2].idx = rand # assign new gene fo chromosome
+        if chromosome.Genes[rand2].idx not in VIP_idx:
+            chromosome.Genes[rand2].idx = rand # assign new gene fo chromosome
     return chromosome
 
 def rank_chromosome(chromosome):
@@ -194,20 +205,26 @@ def rank_population(population): # assign Chromosome.Rank for all population
 def get_best(population):
     return population[0]
     
-def crossover_random(chromosome1, chromosome2, idx, CrossoverFractionInterval=[0.6, 0.4]): # will produce a child from two parents
-    chromosome_size = chromosome1.Size
-# randon number in given range [min .. max]
-    rand1 = (CrossoverFractionInterval[1] - CrossoverFractionInterval[0]) * random.random() + CrossoverFractionInterval[0]
-    n1 = int(chromosome_size * rand1) # number of genes to be taken from chromosome 1
-    n2 = chromosome_size - n1 # number of rendom genes to be taken from chromosome 2
+def crossover_random(chromosome1, chromosome2, idx, CrossoverFractionInterval=[0.6, 0.4], VIP_idx=None): 
+# will produce a child from two parents
+    if VIP_idx is None:
+        VIP_idx = []
     Idx = [] # list of genes indices
     Genes_list = []
+    for i in VIP_idx:
+        Genes_list.append(Gene(i)) # copy VIP genes
+    chromosome_size = chromosome1.Size
+    size_left = chromosome_size - len(VIP_idx)
+# randon number in given range [min .. max]
+    rand1 = (CrossoverFractionInterval[1] - CrossoverFractionInterval[0]) * random.random() + CrossoverFractionInterval[0]
+    n1 = int(size_left * rand1) # number of genes to be taken from chromosome 1
+    n2 = chromosome_size - n1 -len(VIP_idx) # number of rendom genes to be taken from chromosome 2
 # append features from first chromosone
     for i in range(0, n1, 1):
         Found = False
         while not Found: # each new gene must be unique
             rand2 = random.randrange(0, chromosome_size, 1)
-            if chromosome1.Genes[rand2].idx not in Idx:
+            if (chromosome1.Genes[rand2].idx not in Idx) and (chromosome1.Genes[rand2].idx not in VIP_idx):
                 Idx.append(chromosome1.Genes[rand2].idx) # append index of gene
                 Found = True
 # append features from second chromosone
@@ -216,7 +233,7 @@ def crossover_random(chromosome1, chromosome2, idx, CrossoverFractionInterval=[0
         nTrials = 0
         while (not Found) and (nTrials < 10):
             rand2 = random.randrange(0, chromosome_size, 1)
-            if chromosome2.Genes[rand2].idx not in Idx:
+            if (chromosome2.Genes[rand2].idx not in Idx) and (chromosome2.Genes[rand2].idx not in VIP_idx):
                 Idx.append(chromosome2.Genes[rand2].idx)
                 Found = True
             nTrials += 1
@@ -224,7 +241,7 @@ def crossover_random(chromosome1, chromosome2, idx, CrossoverFractionInterval=[0
             while not Found:
                 rand = random.randrange(0, len(idx), 1)
                 rand3 = idx[rand]
-                if rand3 not in Idx:
+                if (rand3 not in Idx) and (rand3 not in VIP_idx):
                     Idx.append(rand3)# append new gene from set
                     Found = True
     for i in range(0, len(Idx), 1):
@@ -266,9 +283,9 @@ def crossover_pValue(chromosome1, chromosome2, idx, CrossoverFractionInterval=[0
     child = Chromosome(Genes_list, chromosome_size) # make a child
     return child
 
-def init_population(population, population_size, chromosome_size, idx):
+def init_population(population, population_size, chromosome_size, idx, VIP_idx=None):
     for i in range(0, population_size, 1):
-        population.append(generate_new_chromosome(chromosome_size, idx))
+        population.append(generate_new_chromosome(chromosome_size, idx, VIP_idx=VIP_idx))
     return population
 
 def init_populationM(population, population_size, chromosome_size, idx, x_std, y_std, C):
@@ -276,7 +293,9 @@ def init_populationM(population, population_size, chromosome_size, idx, x_std, y
         population.append(generate_new_chromosomeM(chromosome_size, idx, x_std, y_std, C))
     return population
 
-def tribe_one_generation(Tribe, NumberOfCrossover, MutationProbability, NumberOfGood, idx, MutationInterval, CrossoverFractionInterval, x_std, y_std, Method='Random'):
+def tribe_one_generation(Tribe, NumberOfCrossover, MutationProbability, NumberOfGood, \
+                         idx, MutationInterval, CrossoverFractionInterval, x_std, y_std,\
+                         Method='Random', VIP_idx=None):
     new_Tribe = []
     TribeSize = len(Tribe)
     ChromosomeSize = Tribe[0].Size
@@ -296,12 +315,12 @@ def tribe_one_generation(Tribe, NumberOfCrossover, MutationProbability, NumberOf
                     p2 = rand = random.randrange(0, NumberOfGood, 1)
                     k += 1
             if Method == 'Random':
-                new_Tribe.append(crossover_random(Tribe[p1], Tribe[p2], idx, CrossoverFractionInterval))
+                new_Tribe.append(crossover_random(Tribe[p1], Tribe[p2], idx, CrossoverFractionInterval, VIP_idx=VIP_idx))
             else:
                 new_Tribe.append(crossover_pValue(Tribe[p1], Tribe[p2], idx, CrossoverFractionInterval))
 # add the remaining chromosomes from feature set            
     while len(new_Tribe) < TribeSize:
-        new_Tribe.append(generate_new_chromosome(ChromosomeSize, idx))
+        new_Tribe.append(generate_new_chromosome(ChromosomeSize, idx, VIP_idx=VIP_idx))
 # get fitness 
     if Method == 'Random':
         for j in range(0, TribeSize, 1):
