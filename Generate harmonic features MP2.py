@@ -1,3 +1,5 @@
+# Generates feature set using coordinates from datafile and according to 
+# information in SystemDescriptor
 import os
 import numpy as np
 import pandas as pd
@@ -6,8 +8,10 @@ from structure import class2
 from structure import library2
 from structure import spherical
 from joblib import Parallel, delayed
-import multiprocessing as mp # Pool, freez_support
+import multiprocessing as mp
 import re
+import time
+import shutil
 
 # record_list[0].atoms[0].Atom.Symbol
 # record_list[0].atoms[0].Atom.Index
@@ -201,7 +205,9 @@ if __name__ == '__main__':
     F_HarmonicFeatures = 'Harmonic Features.csv' # output csv file with combined features and energy
     F_HarmonicFeaturesAll = 'HarmonicFeaturesAll.dat' # output data structure which contains all features
     F_HarmonicFeaturesReduced = 'HarmonicFeaturesReduced.dat' # output data structure which contains combined features
-    FileName = 'Harmonic Features Reduced List.xlsx'
+    F_System = 'system.dat' # output data system structure
+    F_Features = 'Harmonic Features Reduced List.xlsx'
+    F_Structure = 'Structure.xlsx'
     # temporary variables. to be replaced
     Separators = '=|,| |:|;|: |'
     
@@ -464,6 +470,10 @@ if __name__ == '__main__':
     for i in Distances:
         if i.DiType not in DiTypeList:
             DiTypeList.append(i.DiType)
+    nDistances = len(Distances)
+    nDiTypes = len(DiTypeList)
+    system = class2.System(Atoms=Atoms, nAtoms=nAtoms, nAtTypes=nAtTypes,\
+                           Distances=Distances, nDistances=nDistances, nDiTypes=nDiTypes)
     FeaturesAll = [] # list of all features
     
     if ProceedSingle:
@@ -707,9 +717,14 @@ if __name__ == '__main__':
     f = open(F_HarmonicFeaturesReduced, "wb")
     pickle.dump(FeaturesReduced, f)
     f.close()
+
+    # save system object into file
+    f = open(F_System, "wb")
+    pickle.dump(system, f)
+    f.close()
     
-    library2.StoreFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced)
-    library2.store_structure('Structure.xlsx', Atoms, Distances, DtP_Double_list, FeaturesAll)
+    library2.StoreFeaturesDescriprion(F_Features, FeaturesAll, FeaturesReduced)
+    library2.store_structure(F_Structure, Atoms, Distances, DtP_Double_list, FeaturesAll)
     
     # Read coordinates from file
     f = open(F_data, "r")
@@ -745,7 +760,7 @@ if __name__ == '__main__':
         i += 1
     
     # split array if too big
-    NpArrayCapacity = 2*1e+8
+    NpArrayCapacity = 1e+8
     Size = len(record_list) # N of observations
     Length = len(FeaturesAll)
     if (Size * Length) > NpArrayCapacity:
@@ -798,6 +813,20 @@ if __name__ == '__main__':
         except:
             pass
             
+    directory = time.strftime("%Y-%m-%d %H-%M-%S", time.gmtime())
+    if not os.path.exists(directory):
+        os.makedirs(directory)    
+    try:
+        shutil.copyfile('SystemDescriptor.', directory + '\\' + 'SystemDescriptor.')
+        shutil.copyfile(F_HarmonicFeatures, directory + '\\' + F_HarmonicFeatures)
+        shutil.copyfile(F_HarmonicFeaturesAll, directory + '\\' + F_HarmonicFeaturesAll)
+        shutil.copyfile(F_HarmonicFeaturesReduced, directory + '\\' + F_HarmonicFeaturesReduced)
+        shutil.copyfile(F_System, directory + '\\' + F_System)
+        shutil.copyfile(F_Features, directory + '\\' + F_Features)
+        shutil.copyfile(F_Structure, directory + '\\' + F_Structure)
+    except:
+        pass
 
     print("DONE")
+    
     
