@@ -1626,7 +1626,8 @@ class BF:
     
     def fit(self, x_std, y_std, X_train, Y_train, X_test, Y_test, FeaturesAll,\
             FeaturesReduced, idx=None, VIP_idx=None, Method='sequential',\
-            Criterion='MSE', GetVIP=False, Max=10, verbose=True):
+            Criterion='MSE', GetVIP=False, BestFitMethod='Fast', MaxLoops=10,\
+            MaxBottom=3, verbose=1):
         if VIP_idx is None:
             VIP_idx = []
         if idx is None:
@@ -1642,7 +1643,7 @@ class BF:
         aIC_list = []
         nonzero_list = []
         features_list = []
-        if verbose:
+        if verbose > 0:
             print('Initial index set before backward elimination')
             print(idx)
             print('Start Backward sequential elimination')
@@ -1650,22 +1651,25 @@ class BF:
         while (len(idx) > (1+len(VIP_idx))) and (len(idx) > 2):
             FeatureSize = len(idx)
             if FeatureSize > self.LastIterationsToStore:
-                if verbose:
+                if verbose > 0:
                     print('Features left: ', FeatureSize)
             idx = RemoveWorstFeature(x_std, y_std, Method='sequential',\
-                Criterion='MSE', idx=idx, VIP_idx=VIP_idx, Sort=True, verbose=True)
+                Criterion='MSE', idx=idx, VIP_idx=VIP_idx, Sort=True, verbose=verbose)
             print('Removed', idx)
             if len(idx) > self.LastIterationsToStore:
                 continue
             if self.UseCorrelationMatrix:
                 idx_corr = ClassifyCorrelatedFeatures(x_std, idx,\
-                    MinCorrelation=self.MinCorr, Model=1, Corr_Matrix=C, verbose=True)
+                    MinCorrelation=self.MinCorr, Model=1, Corr_Matrix=C, verbose=verbose)
             else:    
                 idx_corr = get_full_list(idx, x_std.shape[1])
-            if verbose:
+            if verbose > 0:
                 print('Features left: ', len(idx))
-#            idx_alternative = FindBestSet(x_std, y_std, idx, idx_corr, VIP_idx=VIP_idx, Method='MSE', verbose=True)
-            idx_alternative = FindBestSetTree(x_std, y_std, idx, idx_corr, VIP_idx=VIP_idx, Max=Max, verbose=verbose)
+            if BestFitMethod == 'Fast':
+                idx_alternative = FindBestSet(x_std, y_std, idx, idx_corr, VIP_idx=VIP_idx, Method='MSE', verbose=verbose)
+            else:
+                idx_alternative = FindBestSetTree(x_std, y_std, idx, idx_corr,\
+                    VIP_idx=VIP_idx, MaxLoops=MaxLoops, MaxBottom=MaxBottom, verbose=verbose)
             idx = rank_features(x_std, y_std, idx_alternative, direction='Hi-Lo') # most imprtant features first
             print('Best subset', idx)
             Results_to_xls(writeResults, str(len(idx_alternative)),\
@@ -1700,7 +1704,8 @@ class BF:
                     return VIP_idx
         return
     
-def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=10, verbose=True):
+def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None,\
+    MaxLoops=10, MaxBottom=3, verbose=1):
     
     class Node():
         idx = None
@@ -1732,7 +1737,8 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=
         node.children[child_number] = child # link from parent to child
         return child
 
-    def get_fit(x_std, y_std, active_features, corr_list, index, VIP_idx=None, verbose=verbose):# local index
+    def get_fit(x_std, y_std, active_features, corr_list, index, VIP_idx=None,\
+                verbose=verbose):# local index
         if VIP_idx is None:
             VIP_idx = []
         features = copy.copy(active_features)
@@ -1750,7 +1756,7 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=
         mse_initial = skm.mean_squared_error(y_std, y_pred)
         if global_old in VIP_idx:
             return features, mse_initial, False
-        if verbose:
+        if verbose > 1:
             print('Initial MSE = ', mse_initial)
         replace_list = corr_list[index]
         size_current = len(replace_list)
@@ -1768,21 +1774,21 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=
         idx = np.argmin(mse_array) # local index of best mse
         mse_new = mse_array[idx] # best mse for one feature in corr list
         global_new = idx_array[idx] # new feature 
-        if verbose:
+        if verbose > 1:
             print('Final MSE = ', mse_new)
         if global_new != global_old: # found
             features[index] = global_new
-            if verbose:
+            if verbose > 1:
                 print('Found better fit')
                 print('Initial feature ', global_old, 'replaced by ', global_new)
                 print('Initial MSE = ', mse_initial, 'Final MSE = ', mse_new)
             return features, mse_new, True
         else:
-            if verbose:
+            if verbose > 1:
                 print('Did not find better fit')
             return features, mse_initial, False
    
-    def print_nodes(root):
+    def print_nodes(root, verbose=1):
         if root is None:
             return
         node = root
@@ -1792,7 +1798,8 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=
         TotalUnfinished = 0
         while True:
             if True:
-                print(node.idx, 'Finished ', node.finished, 'Bottom ', node.bottom, 'Level ', node.level)
+                if verbose > 1:
+                    print(node.idx, 'Finished ', node.finished, 'Bottom ', node.bottom, 'Level ', node.level)
             if node.Next is not None:
                 node = node.Next
                 TotalNodes += 1
@@ -1804,10 +1811,11 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=
                     TotalBottom += 1
             else:
                 break
-        print('Total nodes = ', TotalNodes)
-        print('Total bottom = ', TotalBottom)
-        print('Total finished = ', TotalFinished)    
-        print('Total unfinished = ', TotalUnfinished)
+        if verbose > 0:
+            print('Total nodes = ', TotalNodes)
+            print('Total bottom = ', TotalBottom)
+            print('Total finished = ', TotalFinished)    
+            print('Total unfinished = ', TotalUnfinished)
         return
 
     def get_best_mse(root):
@@ -1834,7 +1842,8 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=
     repeat = False
     last_node = None
     k = 0
-    while (node is not None) and k < Max:
+    bot = 0
+    while (node is not None) and (k < MaxLoops) and (bot < MaxBottom):
         bottom = True
         if repeat:
             prev_node = last_node
@@ -1863,7 +1872,10 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=
             last_node = prev_node
             best_mse = 1e100
             best_unfinished = None
+            bot = 0
             while (node is None) :
+                if current_node.bottom:
+                    bot += 1
                 if current_node.Next is None:
                     break # end of list
                 if not current_node.finished: # if note is unfinished
@@ -1874,7 +1886,7 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=
             if best_unfinished is not None:
                 node = best_unfinished
         k += 1
-#    print_nodes(Root) # service function
+    print_nodes(Root, verbose=verbose) # service function
     idx, mse = get_best_mse(Root)
     return idx
 

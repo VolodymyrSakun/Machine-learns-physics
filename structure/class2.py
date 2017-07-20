@@ -16,12 +16,13 @@ class Atom:
     AtTypeDigits = 1 # can be increased
     MolecularIndex = None # which molecule atom belongs to. In other words number of molecule in the system where this atom exists
     Mass = None
-    def __init__(self, symbol, index, tYpe, molecular_index):
+    def __init__(self, symbol, index, tYpe, molecular_index, Mass=None):
         self.Symbol = symbol
         self.Index = index
         self.AtType = tYpe
         self.MolecularIndex = molecular_index
         self.AtTypeDigids = 1
+        self.Mass = Mass
         
 class AtomCoordinates:
     Atom = None
@@ -34,6 +35,43 @@ class AtomCoordinates:
         self.y = Y
         self.z = Z        
         
+class Molecule:
+    Atoms = []
+    Name = None
+    Mass = None
+    CenterOfMass = None
+    def __init__(self, atoms, Name=None):
+        self.Atoms = atoms
+        self.Name = Name
+        mass = 0
+        MissedMass = False
+        for i in range(0, len(self.Atoms), 1):
+            if self.Atoms[i].Atom.Mass is not None:
+                mass += self.Atoms[i].Atom.Mass
+            else:
+                MissedMass = True
+        if not MissedMass:
+            self.Mass = mass
+            self.CenterOfMass = center_of_mass(self.Atoms)
+        else:
+            self.Mass = None
+            self.CenterOfMass = None
+            
+def center_of_mass(atoms):
+    Mi = 0
+    MiXi = 0
+    MiYi = 0
+    MiZi = 0
+    for i in range(0, len(atoms), 1):
+        Mi += atoms[i].Atom.Mass
+        MiXi += atoms[i].Atom.Mass * atoms[i].x
+        MiYi += atoms[i].Atom.Mass * atoms[i].y
+        MiZi += atoms[i].Atom.Mass * atoms[i].z
+    X = MiXi / Mi
+    Y = MiYi / Mi
+    Z = MiZi / Mi
+    return X, Y, Z
+    
 class record:
     atoms = None
     e = None
