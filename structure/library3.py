@@ -1,26 +1,36 @@
-# Library of functions 
+# Library of classes and functions
+# Classes:
+# class ENet
+# ENet.fit
+# class BF
+# BF.fit
+# Functions:
+# RedirectPrintToFile
+# RedirectPrintToConsole
 # argmaxabs
 # argminabs
-# Results_to_xls - inactive
-# Results_to_xls2
-# Results_to_xls3
+# Scaler_L2
+# Results_to_xls
 # BackwardElimination
+# RemoveWorstFeature
 # SelectBestSubsetFromElasticNetPath
 # CalculateVif
 # ReadFeatures
 # DecisionTreeEstimator
 # RandomForestEstimator
 # ClassifyCorrelatedFeatures
+# get_full_list
 # FindAlternativeFit - inactive
 # StoreFeaturesDescriprion
 # get_fit_score
 # plot_rmse
 # Fit
 # FindBestSet
-# FindBestSetMP 
-# FindBestSetMP2
+# FindBestSetMP - inactive
+# FindBestSetMP2 - inactive
 # ForwardSequential
-
+# store_structure
+# rank_features
 
 import numpy as np
 import pandas as pd
@@ -29,7 +39,6 @@ import copy
 import pickle 
 import sys
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
 import statsmodels.regression.linear_model as sm
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
@@ -224,102 +233,6 @@ def SelectBestSubsetFromElasticNetPath(x_std, y_std, Method='CV', MSE_threshold=
         return nonzero_idx, alpha
     if (Method == 'grid'):
         return nonzero_idx, alpha, mse_list, nonzero_count_list
-
-# store in sheet of .xlsx file description of fit with real coefficients
-def Results_to_xls(writeResults, SheetName, selected_features_list, X, Y, FeaturesAll, FeaturesReduced, split_ratio=0.1, rand_state=101):
-# writeResults = pd.ExcelWriter('FileName.xlsx', engine='openpyxl')
-# after calling this function(s) data must be stored in the file by calling writeResults.save()
-# SheetName - name of xlsx sheet
-# selected_features_list - indices of features to proceed
-# X - [n x m] numpy array of not normalized features
-# rows correspond to observations
-# columns correspond to features
-# Y - [n x 1] numpy array, recponse variable
-# FeaturesAll - class1.InvPowDistancesFeature object. Contains all features
-# FeaturesReduced - class1.InvPowDistancesFeature object. Contains combined features
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=split_ratio, random_state=rand_state)
-    Size_train = len(Y_train)
-    Size_test = len(Y_test)
-    NofSelectedFeatures = len(selected_features_list)
-    x_sel_train = np.zeros(shape=(Size_train, 1), dtype=float) # matrix with selected features
-    x_sel_test = np.zeros(shape=(Size_test, 1), dtype=float) # matrix with selected features
-    z_train = np.zeros(shape=(Size_train, 1), dtype=float)
-    z_test = np.zeros(shape=(Size_test, 1), dtype=float)
-    for i in range(0, NofSelectedFeatures, 1):
-        if i == 0:
-            x_sel_train[:, 0] = X_train[:, selected_features_list[i]]
-            x_sel_test[:, 0] = X_test[:, selected_features_list[i]]
-        else:
-            x_sel_train[:, -1] = X_train[:, selected_features_list[i]]
-            x_sel_test[:, -1] = X_test[:, selected_features_list[i]]
-        x_sel_train = np.concatenate((x_sel_train, z_train), axis=1)
-        x_sel_test = np.concatenate((x_sel_test, z_test), axis=1)
-# fit selected features     
-    lr = LinearRegression(fit_intercept=False, normalize=True, copy_X=True, n_jobs=-1)
-    lr.fit(x_sel_train, Y_train)
-    coef = lr.coef_
-    y_pred = lr.predict(x_sel_test)
-    mse = skm.mean_squared_error(Y_test, y_pred)
-    rmse = np.sqrt(mse)
-    r2 = skm.r2_score(Y_test, y_pred)
-    nonzero_count = np.count_nonzero(coef)
-    rSS = 0
-    for i in range(0, Size_test, 1):
-        rSS += (y_pred[i] - Y_test[i])**2
-    aIC = 2 * nonzero_count + Size_test * np.log(rSS)
-# do not forget to check for zeros in coef later    
-    Results = pd.DataFrame(np.zeros(shape = (NofSelectedFeatures, 13)).astype(float), \
-        columns=['Feature index','Bond 1','Power 1','Intermolecular 1','Bond 2','Power 2', \
-        'Intermolecular 2', 'Number of distances in feature','Coefficients','MSE','RMSE','R2','AIC'], dtype=str)
-    max_distances_in_feature = 1
-    for i in range(0, NofSelectedFeatures, 1):
-        index = selected_features_list[i]
-        Results.loc[i]['Feature index'] = index
-        Results.loc[i]['Bond 1'] = FeaturesReduced[index].DtP1.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP1.Distance.Atom2.Symbol
-        Results.loc[i]['Power 1'] = FeaturesReduced[index].DtP1.Power
-        if FeaturesReduced[index].DtP1.Distance.isIntermolecular: # True = Intermolecular False = Intramolecular
-            Results.loc[i]['Intermolecular 1'] = 'Yes'
-        else:
-            Results.loc[i]['Intermolecular 1'] = 'No'
-        if FeaturesReduced[index].nDistances >= 2:
-            Results.loc[i]['Bond 2'] = FeaturesReduced[index].DtP2.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP2.Distance.Atom2.Symbol
-            Results.loc[i]['Power 2'] = FeaturesReduced[index].DtP2.Power
-            if max_distances_in_feature < 2:
-                max_distances_in_feature = 2
-            if FeaturesReduced[index].DtP2.Distance.isIntermolecular: # True = Intermolecular False = Intramolecular
-                Results.loc[i]['Intermolecular 2'] = 'Yes'
-            else:
-                Results.loc[i]['Intermolecular 2'] = 'No'
-        else:
-            Results.loc[i]['Bond 2'] = ' '
-            Results.loc[i]['Power 2'] = ' '
-            Results.loc[i]['Intermolecular 2'] = ' '
-        counter = 0
-        current_feature_type = FeaturesReduced[index].FeType
-        for j in range(0, len(FeaturesAll), 1):
-            if FeaturesAll[j].FeType == current_feature_type:
-                counter += 1
-        Results.loc[i]['Number of distances in feature'] = counter
-        Results.loc[i]['Coefficients'] = coef[i]
-        if i == 0:
-            Results.loc[0]['MSE'] = mse
-            Results.loc[0]['RMSE'] = rmse
-            Results.loc[0]['R2'] = r2
-            Results.loc[0]['AIC'] = aIC
-        else:
-            Results.loc[i]['MSE'] = ''
-            Results.loc[i]['RMSE'] = ''
-            Results.loc[i]['R2'] = ''
-            Results.loc[i]['AIC'] = ''
-    
-    if max_distances_in_feature == 1:
-        del(Results['Bond 2'])
-        del(Results['Power 2'])
-        del(Results['Intermolecular 2'])
-
-    Results.to_excel(writeResults, sheet_name=SheetName)
-    return
-# end of Results_to_xls
 
 def BackwardElimination(X_train, Y_train, X_test, Y_test, FeaturesAll, \
     FeaturesReduced, Method='fast', Criterion='p-Value', N_of_features_to_select=20, \
@@ -611,6 +524,96 @@ def BackwardElimination(X_train, Y_train, X_test, Y_test, FeaturesAll, \
     return idx_return
 # end of BackwardElimination
 
+def RemoveWorstFeature(x, y, Method='fast', Criterion='p-Value',\
+    idx=None, VIP_idx=None, Sort=True, verbose=True):
+# x and y are supposed to be standardized
+    if VIP_idx is None:
+        VIP_idx = []
+# features_index - list of indices of selected features
+    if idx is None:
+        feature_idx = list(range(0, x.shape[1], 1))
+    else:
+        feature_idx = list(idx)
+        del(idx)
+    if len(VIP_idx) >= len(feature_idx): # nothing to remove
+        return -1
+    Size = x.shape[0] # number of observations
+    size = len(feature_idx) # size of selected features list
+    x_sel = np.zeros(shape=(Size, size)) # create working array of features 
+    j = 0
+# copy features defined by features_index from training set to x_sel
+    for i in feature_idx:
+        x_sel[:, j] = x[:, i]
+        j += 1
+    if Method == 'fast':
+        ols = sm.OLS(endog = y, exog = x_sel, hasconst = False).fit()
+        pvalues = ols.pvalues
+        if Sort:
+            swapped = True
+            n = size
+# bubble sort from low to high. less important features with greater p-Value first
+            while swapped:
+                swapped = False
+                for i in range(1, n, 1):
+                    if pvalues[i-1] > pvalues[i]:
+                        swapped = True
+                        pvalues.insert(i-1, pvalues[i])
+                        del(pvalues[i+1])
+                        feature_idx.insert(i-1, feature_idx[i])
+                        del(feature_idx[i+1])
+                n - n - 1   
+        Found = False
+        while not Found:
+            drop = np.argmax(pvalues)
+            index = feature_idx[drop]
+            if index in VIP_idx:
+                pvalues[drop] = -1
+            else:
+                Found = True
+        del(feature_idx[drop])
+        return feature_idx
+    if Method == 'sequential':
+        lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=False, n_jobs=1)
+        z = np.zeros(shape=(Size, 1), dtype=float)
+        tmp = np.zeros(shape=(Size, 1), dtype=float)
+        mse_list = []
+        for i in range(0, size, 1):
+            tmp[:, 0] = x_sel[:, i] # save column
+            x_sel[:, i] = z[:, 0] # copy zeros to column
+            lr.fit(x_sel, y)
+            y_pred = lr.predict(x_sel)
+            mse = skm.mean_squared_error(y, y_pred)
+            mse_list.append(mse)
+            x_sel[:, i] = tmp[:, 0] # restore column
+        if Sort:
+            swapped = True
+            n = size
+# bubble sort from low to high. less important features first
+            while swapped:
+                swapped = False
+                for i in range(1, n, 1):
+                    if mse_list[i-1] > mse_list[i]:
+                        swapped = True
+                        temp1 = mse_list[i-1]
+                        temp2 = feature_idx[i-1]
+                        mse_list[i-1] = mse_list[i]
+                        feature_idx[i-1] = feature_idx[i]
+                        mse_list[i] = temp1
+                        feature_idx[i] = temp2
+                n - n - 1
+        Found = False
+        while not Found:
+            drop = np.argmin(mse_list)
+            index = feature_idx[drop]
+            if index in VIP_idx:
+                mse_list[drop] = 1e+100
+            else:
+                Found = True
+        del(feature_idx[drop])   
+        return feature_idx
+    return
+# end of RemoveWorstFeature
+
 # Calculate variance inflation factor for all features
 def CalculateVif(X):
 # returns dataframe with variance inflation factors
@@ -800,106 +803,10 @@ def FindAlternativeFit(x_std, y_std, features_idx, classified_list, Method='MSE'
 
     return active_features, results
     
-    
-# store in sheet of .xlsx file description of fit with real coefficients
-def Results_to_xls2(writeResults, SheetName, selected_features_list, X_train, Y_train,\
-        X_test, Y_test, FeaturesAll, FeaturesReduced, split_ratio=0.1, rand_state=101):
-# writeResults = pd.ExcelWriter('FileName.xlsx', engine='openpyxl')
-# after calling this function(s) data must be stored in the file by calling writeResults.save()
-# SheetName - name of xlsx sheet
-# selected_features_list - indices of features to proceed
-# X - [n x m] numpy array of not normalized features
-# rows correspond to observations
-# columns correspond to features
-# Y - [n x 1] numpy array, recponse variable
-# FeaturesAll - class1.InvPowDistancesFeature object. Contains all features
-# FeaturesReduced - class1.InvPowDistancesFeature object. Contains combined features
-    Size_train = len(Y_train)
-    Size_test = len(Y_test)
-    NofSelectedFeatures = len(selected_features_list)
-    x_sel_train = np.zeros(shape=(Size_train, 1), dtype=float) # matrix with selected features
-    x_sel_test = np.zeros(shape=(Size_test, 1), dtype=float) # matrix with selected features
-    z_train = np.zeros(shape=(Size_train, 1), dtype=float)
-    z_test = np.zeros(shape=(Size_test, 1), dtype=float)
-    for i in range(0, NofSelectedFeatures, 1):
-        if i == 0:
-            x_sel_train[:, 0] = X_train[:, selected_features_list[i]]
-            x_sel_test[:, 0] = X_test[:, selected_features_list[i]]
-        else:
-            x_sel_train[:, -1] = X_train[:, selected_features_list[i]]
-            x_sel_test[:, -1] = X_test[:, selected_features_list[i]]
-        x_sel_train = np.concatenate((x_sel_train, z_train), axis=1)
-        x_sel_test = np.concatenate((x_sel_test, z_test), axis=1)
-# fit selected features     
-    lr = LinearRegression(fit_intercept=False, normalize=True, copy_X=True, n_jobs=-1)
-    lr.fit(x_sel_train, Y_train)
-    coef = lr.coef_
-    y_pred = lr.predict(x_sel_test)
-    mse = skm.mean_squared_error(Y_test, y_pred)
-    rmse = np.sqrt(mse)
-    r2 = skm.r2_score(Y_test, y_pred)
-    nonzero_count = np.count_nonzero(coef)
-    rSS = 0
-    for i in range(0, Size_test, 1):
-        rSS += (y_pred[i] - Y_test[i])**2
-    aIC = 2 * nonzero_count + Size_test * np.log(rSS)
-# do not forget to check for zeros in coef later    
-    Results = pd.DataFrame(np.zeros(shape = (NofSelectedFeatures, 13)).astype(float), \
-        columns=['Feature index','Bond 1','Power 1','Intermolecular 1','Bond 2','Power 2', \
-        'Intermolecular 2', 'Number of distances in feature','Coefficients','MSE','RMSE','R2','AIC'], dtype=str)
-    max_distances_in_feature = 1
-    for i in range(0, NofSelectedFeatures, 1):
-        index = selected_features_list[i]
-        Results.loc[i]['Feature index'] = index
-        Results.loc[i]['Bond 1'] = FeaturesReduced[index].DtP1.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP1.Distance.Atom2.Symbol
-        Results.loc[i]['Power 1'] = FeaturesReduced[index].DtP1.Power
-        if FeaturesReduced[index].DtP1.Distance.isIntermolecular: # True = Intermolecular False = Intramolecular
-            Results.loc[i]['Intermolecular 1'] = 'Yes'
-        else:
-            Results.loc[i]['Intermolecular 1'] = 'No'
-        if FeaturesReduced[index].nDistances >= 2:
-            Results.loc[i]['Bond 2'] = FeaturesReduced[index].DtP2.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP2.Distance.Atom2.Symbol
-            Results.loc[i]['Power 2'] = FeaturesReduced[index].DtP2.Power
-            if max_distances_in_feature < 2:
-                max_distances_in_feature = 2
-            if FeaturesReduced[index].DtP2.Distance.isIntermolecular: # 1 = Intermolecular 0 = Intramolecular
-                Results.loc[i]['Intermolecular 2'] = 'Yes'
-            else:
-                Results.loc[i]['Intermolecular 2'] = 'No'
-        else:
-            Results.loc[i]['Bond 2'] = ' '
-            Results.loc[i]['Power 2'] = ' '
-            Results.loc[i]['Intermolecular 2'] = ' '
-        counter = 0
-        current_feature_type = FeaturesReduced[index].FeType
-        for j in range(0, len(FeaturesAll), 1):
-            if FeaturesAll[j].FeType == current_feature_type:
-                counter += 1
-        Results.loc[i]['Number of distances in feature'] = counter
-        Results.loc[i]['Coefficients'] = coef[i]
-        if i == 0:
-            Results.loc[0]['MSE'] = mse
-            Results.loc[0]['RMSE'] = rmse
-            Results.loc[0]['R2'] = r2
-            Results.loc[0]['AIC'] = aIC
-        else:
-            Results.loc[i]['MSE'] = ''
-            Results.loc[i]['RMSE'] = ''
-            Results.loc[i]['R2'] = ''
-            Results.loc[i]['AIC'] = ''
-    
-    if max_distances_in_feature == 1:
-        del(Results['Bond 2'])
-        del(Results['Power 2'])
-        del(Results['Intermolecular 2'])
-
-    Results.to_excel(writeResults, sheet_name=SheetName)
-    return
-# end of Results_to_xls
 
 # store in sheet of .xlsx file description of fit with real coefficients
-def Results_to_xls3(writeResults, SheetName, selected_features_list, X_train, Y_train,\
-        X_test, Y_test, FeaturesAll, FeaturesReduced, split_ratio=0.1, rand_state=101):
+def Results_to_xls(writeResults, SheetName, selected_features_list, X_train, Y_train,\
+        X_test, Y_test, FeaturesAll, FeaturesReduced):
 # writeResults = pd.ExcelWriter('FileName.xlsx', engine='openpyxl')
 # after calling this function(s) data must be stored in the file by calling writeResults.save()
 # SheetName - name of xlsx sheet
@@ -1032,7 +939,7 @@ def Results_to_xls3(writeResults, SheetName, selected_features_list, X_train, Y_
 
     Results.to_excel(writeResults, sheet_name=SheetName)
     return
-# end of Results_to_xls3
+# end of Results_to_xls
 
 def StoreFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced):
     writeResults = pd.ExcelWriter(FileName, engine='openpyxl')
@@ -1176,47 +1083,46 @@ def plot_rmse(FileName, nonzero_count_list, rmse_OLS_list, rsquared_list):
     plt.close(fig)
     return
 
-def Fit(x_std, y_std, idx_cpu, active_features, corr_list, VIP_idx=None):# local index
+def Fit(x_std, y_std, active_features, corr_list, VIP_idx=None):# local index
     if VIP_idx is None:
         VIP_idx = []
-    x_sel = np.zeros(shape=(x_std.shape[0], 1), dtype=float)
+    size = len(active_features)
+    Size = x_std.shape[0]
+    x_sel = np.zeros(shape=(Size, size), dtype=float)
     tmp = np.zeros(shape=(x_std.shape[0], 1), dtype=float)
     lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=True, n_jobs=1)
 # creating selected features array
-    for i in active_features:
-        if i == active_features[0]:# first column
-            x_sel[:, 0] = x_std[:, i]
-        else:
-            tmp[:, 0] = x_std[:, i]
-            x_sel = np.concatenate((x_sel, tmp), axis=1) 
-    idx_list = []
-    mse_list = []
-    for i in idx_cpu:# i - local index
+    for i in range(0, size, 1):
+        x_sel[:, i] = x_std[:, active_features[i]]
+    idx_array = np.zeros(shape=(size), dtype=int)
+    mse_array = np.zeros(shape=(size), dtype=float)
+    for i in range(0, size, 1):# i - local index
         k = active_features[i] # global index
         if k in VIP_idx: # do not change this feature. get fit only for one
             lr.fit(x_sel, y_std)
             y_pred = lr.predict(x_sel)
             mse = skm.mean_squared_error(y_std, y_pred)
-            idx_list.append(k) # global index 
-            mse_list.append(mse) # mse
+            idx_array[i] = k # global index 
+            mse_array[i] = mse # mse
         else:        
-            mse_small_list = []
-            idx_small_list = []
-            corr_horiz = corr_list[i]
-            for j in corr_horiz: # j - global index
+            replace_list = corr_list[i]
+            size_current = len(replace_list)
+            mse_array_current = np.zeros(shape=(size_current), dtype=float)
+            idx_array_current = np.zeros(shape=(size_current), dtype=float)
+            for j in range(0, size_current, 1):
                 tmp[:, 0] = x_sel[:, i]
-                x_sel[:, i] = x_std[:, j]
+                x_sel[:, i] = x_std[:, replace_list[j]]
                 lr.fit(x_sel, y_std)
                 y_pred = lr.predict(x_sel)
                 mse = skm.mean_squared_error(y_std, y_pred)
-                mse_small_list.append(mse)
-                idx_small_list.append(j) # global index
+                mse_array_current[j] = mse
+                idx_array_current[j] = replace_list[j] # global index
                 x_sel[:, i] = tmp[:, 0]
-            idx = np.argmin(mse_small_list) # local index of best mse
-            mse = mse_small_list[idx] # best mse for one feature in corr list
-            idx_list.append(idx_small_list[idx]) # global index of best mse
-            mse_list.append(mse)
-    return [idx_list, mse_list]
+            idx = np.argmin(mse_array_current) # local index of best mse
+            mse = mse_array_current[idx] # best mse for one feature in corr list
+            idx_array[i] = idx_array_current[idx] # global index of best mse
+            mse_array[i] = mse
+    return [idx_array, mse_array]
 
 def FindBestSet(x_std, y_std, features_idx, corr_list, VIP_idx=None, Method='MSE', verbose=False):
 # finds alternative fit using classified feature list produced by ClassifyCorrelatedFeatures  
@@ -1231,28 +1137,23 @@ def FindBestSet(x_std, y_std, features_idx, corr_list, VIP_idx=None, Method='MSE
 # Method='MSE' based on minimum value of ordinary list squared fit
 # Method='R2' based on maximum value of R2
     active_features = copy.deepcopy(features_idx)
-    x_sel = np.zeros(shape=(x_std.shape[0], 1), dtype=float)
-    tmp = np.zeros(shape=(x_std.shape[0], 1), dtype=float)
+    Size = x_std.shape[0]
+    size = len(active_features)
+    x_sel = np.zeros(shape=(Size, size), dtype=float)
     # creating selected features array
-    for i in active_features:
-        if i == active_features[0]:# first column
-            x_sel[:, 0] = x_std[:, i]
-        else:
-            tmp[:, 0] = x_std[:, i]
-            x_sel = np.concatenate((x_sel, tmp), axis=1)
+    for i in range(0, size, 1):
+        x_sel[:, i] = x_std[:, active_features[i]]
     # initial fit
-    lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=True, n_jobs=1)
+    lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=False, n_jobs=1)
     lr.fit(x_sel, y_std)
     y_pred = lr.predict(x_sel)
     mse = skm.mean_squared_error(y_std, y_pred)
     best_mse = mse
     Found = True
-    nFeatures = len(active_features)
-    idx_list = list(range(0, nFeatures, 1))
     while Found:
         Found = False
-        output = Fit(x_std, y_std, idx_list, active_features, corr_list, VIP_idx)
-        for j in range(0, len(output[0]), 1):
+        output = Fit(x_std, y_std, active_features, corr_list, VIP_idx=VIP_idx)
+        for j in range(0, size, 1):
             if output[1][j] < best_mse:
                 best_idx_local = j # local index
                 best_idx_global = output[0][j] # global index
@@ -1262,6 +1163,50 @@ def FindBestSet(x_std, y_std, features_idx, corr_list, VIP_idx=None, Method='MSE
             active_features[best_idx_local] = best_idx_global
             if verbose:
                 print('Current Best Fit = ', best_mse)
+    return active_features
+
+def FindBestSet2(x_std, y_std, features_idx, corr_list, VIP_idx=None, Method='MSE', verbose=False):
+# finds alternative fit using classified feature list produced by ClassifyCorrelatedFeatures  
+# returns list of indices of features
+# x_std - [n x m] numpy array of standardized features
+# rows correspond to observations
+# columns correspond to features
+# y_std - [n x 1] numpy array, standardized recponse variable
+# features_idx - indices of selected features
+# classified_list - list of classified features
+# Fit = 1 or 2. Two different approaches
+# Method='MSE' based on minimum value of ordinary list squared fit
+# Method='R2' based on maximum value of R2
+    active_features = copy.deepcopy(features_idx)
+    Size = x_std.shape[0]
+    size = len(active_features)
+    x_sel = np.zeros(shape=(Size, size), dtype=float)
+    # creating selected features array
+    for i in range(0, size, 1):
+        x_sel[:, i] = x_std[:, active_features[i]]
+    # initial fit
+    lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=False, n_jobs=1)
+    lr.fit(x_sel, y_std)
+    y_pred = lr.predict(x_sel)
+    mse = skm.mean_squared_error(y_std, y_pred)
+    best_mse = mse
+    print('Best MSE', mse)
+    Found = True
+    while Found:
+        Found = False
+        output = Fit(x_std, y_std, active_features, corr_list, VIP_idx=VIP_idx)
+        for j in range(0, size, 1):
+            if output[1][j] < best_mse:
+                best_idx_local = j # local index
+                best_idx_global = output[0][j] # global index
+                best_mse = output[1][j]
+                Found = True
+                print(best_idx_local)
+        if Found:
+            active_features[best_idx_local] = best_idx_global
+            if verbose:
+                print('Current Best Fit = ', best_mse)
+#                break # replace first found (least significant feature)
     return active_features
 
 def FindBestSetMP(x_std, y_std, features_idx, corr_list, Method='MSE', verbose=True):
@@ -1566,7 +1511,6 @@ def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
     Feature_table.to_excel(writer, sheet_name='DD Features')
 
     workbook = writer.book
-#    format1 = workbook.add_format({'bg_color': '#FFC7CE','font_color': '#9C0006'})
     format1 = workbook.add_format({'align':'center','valign':'vcenter'})
     format2 = workbook.add_format({'align':'center','valign':'vcenter','font_color': 'red'})
     worksheet1 = writer.sheets['Atoms']
@@ -1583,13 +1527,8 @@ def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
     worksheet4.set_column('Z:Z', 15, format2)
     writer.save() 
 
-
-#    merge_format = workbook.add_format({'align': 'center'})
-# merge_format = workbook.add_format({'bold':True,'border':6,'align':'center','valign':'vcenter','fg_color': '#D7E4BC',})
-
-
-
-def rank_features(x_std, y_std, idx):
+def rank_features(x_std, y_std, idx, direction='Lo-Hi'):
+    # direction='Lo-Hi or direction='Hi-Lo'
     size = len(idx) # size of selected features list
     Size = x_std.shape[0] # number of observations
     z = np.zeros(shape=(Size, 1), dtype=float)
@@ -1600,36 +1539,381 @@ def rank_features(x_std, y_std, idx):
 # creating selected features array
     for i in range(0, size, 1):
         x_sel[:, i] = x_std[:, idx[i]] # copy selected features from initial set
-    lr.fit(x_sel, y_std)
-    y_pred = lr.predict(x_sel)
-    mse_full = skm.mean_squared_error(y_std, y_pred)
     for i in range(0, size, 1):
         tmp[:, 0] = x_sel[:, i] # save column
         x_sel[:, i] = z[:, 0] # copy zeros to column
         lr.fit(x_sel, y_std)
         y_pred = lr.predict(x_sel)
         mse = skm.mean_squared_error(y_std, y_pred)
-        drop = mse - mse_full # changes of mse after dropping one feature
-        mse_list[i] = drop # bigger drop - more important feature
+        mse_list[i] = mse 
         x_sel[:, i] = tmp[:, 0] # restore column
     swapped = True
     n = size
-# bubble sort from low to high. less important features first
-    while swapped:
-        swapped = False
-        for i in range(1, n, 1):
-            if mse_list[i-1] > mse_list[i]:
-                swapped = True
-                mse_list.insert(i-1, mse_list[i])
-                del(mse_list[i+1])
-                idx.insert(i-1, idx[i])
-                del(idx[i+1])
-        n - n - 1
+    if direction=='Lo-Hi':
+# bubble sort from low to high. lower mse first = least important features first
+        while swapped:
+            swapped = False
+            for i in range(1, n, 1):
+                if mse_list[i-1] > mse_list[i]:
+                    swapped = True
+                    mse_list.insert(i-1, mse_list[i])
+                    del(mse_list[i+1])
+                    idx.insert(i-1, idx[i])
+                    del(idx[i+1])
+            n - n - 1
+    else:
+# bubble sort from high to low. Greater mse first = most important features first
+        while swapped:
+            swapped = False
+            for i in range(1, n, 1):
+                if mse_list[i-1] < mse_list[i]:
+                    swapped = True
+                    mse_list.insert(i-1, mse_list[i])
+                    del(mse_list[i+1])
+                    idx.insert(i-1, idx[i])
+                    del(idx[i+1])
+            n - n - 1        
     return idx
 
+class ENet:
+    idx = None
+    F_ENet = 'ENet path.png'
+    L1 = 0.7
+    eps = 1e-3
+    nAlphas = 100
+    alphas = None
+    def __init__(self, F_ENet='ENet path.png', L1=0.7, eps=1e-3, nAlphas=100, alphas=None):
+        self.F_ENet = F_ENet
+        self.L1 = L1
+        self.eps = eps
+        self.nAlphas = nAlphas
+        if alphas is not None:
+            self.alphas = alphas
+        return
+    def fit(self, x, y, VIP_idx=None):
+        if VIP_idx is None:
+            VIP_idx = []
+        idx, alpha, mse, nonz = SelectBestSubsetFromElasticNetPath(x, y,\
+            Method='grid', MSE_threshold=None, R2_threshold=None, L1_ratio=self.L1, Eps=self.eps,\
+            N_alphas=self.nAlphas, Alphas=self.alphas, max_iter=10000, tol=0.0001, cv=None, n_jobs=1, \
+            selection='random', PlotPath=True, FileName=self.F_ENet, verbose=True)
+        for i in VIP_idx: # add missing VIP features 
+            if i not in idx:
+                idx.append(i)
+        self.idx = idx
+        return
+    
+class BF:
+    LastIterationsToStore = 15
+    UseCorrelationMatrix = False
+    MinCorr = None
+    F_Xlsx = 'BF.xlsx'
+    F_Plot = 'Results'
+    Slope = 0.001
+    VIP_number = None
+    
+    def __init__(self, LastIterationsToStore=15, UseCorrelationMatrix=False,\
+        MinCorr=None, F_Xlsx='BF.xlsx', F_Plot = 'Results', Slope = 0.001,\
+        VIP_number=None):
+        self.LastIterationsToStore = LastIterationsToStore
+        self.UseCorrelationMatrix = UseCorrelationMatrix
+        self.MinCorr = MinCorr
+        self.F_Xlsx = F_Xlsx
+        self.F_Plot = F_Plot
+        self.Slope = Slope
+        self.VIP_number = VIP_number
+        return
+    
+    def fit(self, x_std, y_std, X_train, Y_train, X_test, Y_test, FeaturesAll,\
+            FeaturesReduced, idx=None, VIP_idx=None, Method='sequential',\
+            Criterion='MSE', GetVIP=False, Max=10, verbose=True):
+        if VIP_idx is None:
+            VIP_idx = []
+        if idx is None:
+            idx = []
+            for i in range(0, x_std.shape[1], 1):
+                idx.append(i)            
+        if self.UseCorrelationMatrix:
+            C = np.cov(x_std, rowvar=False, bias=True)
+        writeResults = pd.ExcelWriter(self.F_Xlsx, engine='openpyxl')
+        mse_list = []
+        rmse_list = []
+        r2_list = []
+        aIC_list = []
+        nonzero_list = []
+        features_list = []
+        if verbose:
+            print('Initial index set before backward elimination')
+            print(idx)
+            print('Start Backward sequential elimination')
+        idx = rank_features(x_std, y_std, idx, direction='Hi-Lo') # most imprtant features first
+        while (len(idx) > (1+len(VIP_idx))) and (len(idx) > 2):
+            FeatureSize = len(idx)
+            if FeatureSize > self.LastIterationsToStore:
+                if verbose:
+                    print('Features left: ', FeatureSize)
+            idx = RemoveWorstFeature(x_std, y_std, Method='sequential',\
+                Criterion='MSE', idx=idx, VIP_idx=VIP_idx, Sort=True, verbose=True)
+            print('Removed', idx)
+            if len(idx) > self.LastIterationsToStore:
+                continue
+            if self.UseCorrelationMatrix:
+                idx_corr = ClassifyCorrelatedFeatures(x_std, idx,\
+                    MinCorrelation=self.MinCorr, Model=1, Corr_Matrix=C, verbose=True)
+            else:    
+                idx_corr = get_full_list(idx, x_std.shape[1])
+            if verbose:
+                print('Features left: ', len(idx))
+#            idx_alternative = FindBestSet(x_std, y_std, idx, idx_corr, VIP_idx=VIP_idx, Method='MSE', verbose=True)
+            idx_alternative = FindBestSetTree(x_std, y_std, idx, idx_corr, VIP_idx=VIP_idx, Max=Max, verbose=verbose)
+            idx = rank_features(x_std, y_std, idx_alternative, direction='Hi-Lo') # most imprtant features first
+            print('Best subset', idx)
+            Results_to_xls(writeResults, str(len(idx_alternative)),\
+                idx, X_train, Y_train, X_test, Y_test, FeaturesAll, FeaturesReduced)
+            nonzero, mse, rmse, r2, aIC = get_fit_score(X_train, X_test, Y_train, Y_test, idx=idx)
+            mse_list.append(mse)
+            rmse_list.append(rmse)
+            r2_list.append(r2)
+            aIC_list.append(aIC)
+            nonzero_list.append(nonzero)
+            features_list.append(idx)
+        writeResults.save()
+        plot_rmse(self.F_Plot, nonzero_list, rmse_list, r2_list) 
+        if GetVIP:
+            size_list = len(nonzero_list)
+            nonzero_list, mse_list, features_list = Sort(nonzero_list, mse_list, features_list, direction='Lo-Hi')
+            for i in range(0, size_list-1, 1):
+                mse = mse_list[i] # mse supposed to be greater than mse_next
+                mse_next =  mse_list[i+1]
+                delta = mse - mse_next # supposed to be positive
+                fraction = delta / mse_next
+                if (fraction < 0) or (abs(fraction) < self.Slope) or\
+                    (nonzero_list[i] >= self.VIP_number):
+                    VIP_idx = features_list[i]
+                    if fraction < 0:
+                        print('VIP selection criteria: Slope became positive')
+                    if abs(fraction) < self.Slope:
+                        print('VIP selection criteria: Slope less than ', self.Slope)
+                    if nonzero_list[i] >= self.VIP_number:
+                        print('VIP selection criteria: desired number of VIP features = ', self.VIP_number, 'has been reached')
+                    print('List of VIP features: ', VIP_idx)
+                    return VIP_idx
+        return
+    
+def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None, Max=10, verbose=True):
+    
+    class Node():
+        idx = None
+        mse = None
+        parent = None
+        children = []
+        level = None
+        bottom = False
+        finished = False
+        Prev = None
+        Next = None
+        def __init__(self, idx, mse, parent=None):
+            self.idx = idx
+            self.mse = mse
+            self.parent = parent
+            self.children = []
+            self.bottom = False
+            self.finished = False
+            for i in range(0, len(idx), 1):
+                self.children.append(None)
+            if self.parent is None:
+                self.level = 0
+            else:
+                self.level = self.parent.level + 1
+            return
 
+    def add_child(idx, mse, node=None, child_number=None):
+        child = Node(idx, mse, parent=node) # new node
+        node.children[child_number] = child # link from parent to child
+        return child
 
+    def get_fit(x_std, y_std, active_features, corr_list, index, VIP_idx=None, verbose=verbose):# local index
+        if VIP_idx is None:
+            VIP_idx = []
+        features = copy.copy(active_features)
+        global_old = features[index]
+        size = len(features)
+        Size = x_std.shape[0]
+        x_sel = np.zeros(shape=(Size, size), dtype=float)
+        tmp = np.zeros(shape=(x_std.shape[0], 1), dtype=float)
+        lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=False, n_jobs=1)
+    # creating selected features array
+        for i in range(0, size, 1):
+            x_sel[:, i] = x_std[:, features[i]]
+        lr.fit(x_sel, y_std)
+        y_pred = lr.predict(x_sel)
+        mse_initial = skm.mean_squared_error(y_std, y_pred)
+        if global_old in VIP_idx:
+            return features, mse_initial, False
+        if verbose:
+            print('Initial MSE = ', mse_initial)
+        replace_list = corr_list[index]
+        size_current = len(replace_list)
+        idx_array = np.zeros(shape=(size_current), dtype=int)
+        mse_array = np.zeros(shape=(size_current), dtype=float)
+        for i in range(0, size_current, 1): # along replace_list
+            tmp[:, 0] = x_sel[:, index] # save selected column
+            x_sel[:, index] = x_std[:, replace_list[i]]
+            lr.fit(x_sel, y_std)
+            y_pred = lr.predict(x_sel)
+            mse = skm.mean_squared_error(y_std, y_pred)
+            mse_array[i] = mse
+            idx_array[i] = replace_list[i] # global index
+            x_sel[:, index] = tmp[:, 0]
+        idx = np.argmin(mse_array) # local index of best mse
+        mse_new = mse_array[idx] # best mse for one feature in corr list
+        global_new = idx_array[idx] # new feature 
+        if verbose:
+            print('Final MSE = ', mse_new)
+        if global_new != global_old: # found
+            features[index] = global_new
+            if verbose:
+                print('Found better fit')
+                print('Initial feature ', global_old, 'replaced by ', global_new)
+                print('Initial MSE = ', mse_initial, 'Final MSE = ', mse_new)
+            return features, mse_new, True
+        else:
+            if verbose:
+                print('Did not find better fit')
+            return features, mse_initial, False
+   
+    def print_nodes(root):
+        if root is None:
+            return
+        node = root
+        TotalNodes = 0
+        TotalBottom = 0
+        TotalFinished = 0
+        TotalUnfinished = 0
+        while True:
+            if True:
+                print(node.idx, 'Finished ', node.finished, 'Bottom ', node.bottom, 'Level ', node.level)
+            if node.Next is not None:
+                node = node.Next
+                TotalNodes += 1
+                if node.finished:
+                    TotalFinished += 1
+                else:
+                    TotalUnfinished += 1
+                if node.bottom:
+                    TotalBottom += 1
+            else:
+                break
+        print('Total nodes = ', TotalNodes)
+        print('Total bottom = ', TotalBottom)
+        print('Total finished = ', TotalFinished)    
+        print('Total unfinished = ', TotalUnfinished)
+        return
 
+    def get_best_mse(root):
+        if root is None:
+            return
+        node = root
+        mse = root.mse
+        idx = root.idx
+        while True:
+            if node.mse < mse:
+                mse = node.mse
+                idx = node.idx
+            if node.Next is not None:
+                node = node.Next
+            else:
+                break
+        return idx, mse
 
+    idx, mse_initial, Found = get_fit(x_std, y_std, active_features, corr_list, 0, VIP_idx=active_features, verbose=verbose)
+    node = Node(idx, mse_initial)
+    Root = node
+    # solves last feature. 
+    # good to rank features from high to low importance
+    repeat = False
+    last_node = None
+    k = 0
+    while (node is not None) and k < Max:
+        bottom = True
+        if repeat:
+            prev_node = last_node
+            repeat = False
+        else:
+            prev_node = node
+        new_node = None
+        for i in range(0, len(idx), 1):
+            idx = copy.copy(node.idx)
+            found = False
+            idx, mse, found = get_fit(x_std, y_std, idx, corr_list, i, VIP_idx=VIP_idx, verbose=verbose)
+            if found:
+                new_node = add_child(idx, mse, node, i)
+                new_node.Prev = prev_node
+                prev_node.Next = new_node
+                prev_node = new_node
+                bottom = False
+        node.bottom = bottom
+        node.finished = True
+        if new_node is not None:
+            node = new_node   
+        else:
+            repeat = True
+            current_node = Root
+            node = None
+            last_node = prev_node
+            best_mse = 1e100
+            best_unfinished = None
+            while (node is None) :
+                if current_node.Next is None:
+                    break # end of list
+                if not current_node.finished: # if note is unfinished
+                    if current_node.mse < best_mse:
+                        best_mse = current_node.mse # get best msi
+                        best_unfinished = current_node # get best unfinished node
+                current_node = current_node.Next
+            if best_unfinished is not None:
+                node = best_unfinished
+        k += 1
+#    print_nodes(Root) # service function
+    idx, mse = get_best_mse(Root)
+    return idx
+
+def Sort(idx, list1, list2, direction='Lo-Hi'):
+    swapped = True
+    n = len(idx)
+# bubble sort from low to high. less important features first
+    if direction == 'Lo-Hi':
+        while swapped:
+            swapped = False
+            for i in range(1, n, 1):
+                if idx[i-1] > idx[i]:
+                    swapped = True
+                    temp = idx[i-1]
+                    temp1 = list1[i-1]
+                    temp2 = list2[i-1]
+                    idx[i-1] = idx[i]
+                    list1[i-1] = list1[i]
+                    list2[i-1] = list2[i]
+                    idx[i] = temp
+                    list1[i] = temp1
+                    list2[i] = temp2
+            n - n - 1
+    else:
+        while swapped:
+            swapped = False
+            for i in range(1, n, 1):
+                if idx[i-1] < idx[i]:
+                    swapped = True
+                    temp = idx[i-1]
+                    temp1 = list1[i-1]
+                    temp2 = list2[i-1]
+                    idx[i-1] = idx[i]
+                    list1[i-1] = list1[i]
+                    list2[i-1] = list2[i]
+                    idx[i] = temp
+                    list1[i] = temp1
+                    list2[i] = temp2
+            n - n - 1
+    return idx, list1, list2
 
 

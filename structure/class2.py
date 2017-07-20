@@ -15,6 +15,7 @@ class Atom:
     AtType = None # atom type identification number. Example atom symbol 'O' corresponds to number 0
     AtTypeDigits = 1 # can be increased
     MolecularIndex = None # which molecule atom belongs to. In other words number of molecule in the system where this atom exists
+    Mass = None
     def __init__(self, symbol, index, tYpe, molecular_index):
         self.Symbol = symbol
         self.Index = index
@@ -122,7 +123,7 @@ class Harmonic:
         self.HaType = 10000*sign + 1000*abs(self.Order) + 100*self.Degree + 10*self.Center.AtType +self.Atom.AtType
         
 class Feature2:
-# ALSO WORKS
+# ALSO WORKS for single and double distances only
     nDistances = 0
     nHarmonics = 0
     DtP1 = None
@@ -352,6 +353,7 @@ class Feature2:
         self.FeType = p1 + p2 + t11 + t12 + t21 + t22 + c1 + c2
         return
 
+# only for single and double distances
 class Feature:
     nDistances = 0
     nHarmonics = 0
@@ -361,7 +363,7 @@ class Feature:
     Harmonic1 = None
     Harmonic2 = None
     def __init__(self, DtP1, DtP2=None, Harmonic1=None, Harmonic2=None):
-        def count_unic(d1, d2):
+        def count_unique(d1, d2):
             l = []
             l.append(d1[0])
             l.append(d1[1])
@@ -434,8 +436,8 @@ class Feature:
                             self.DtP1 = DtP1 # as it is
                             self.DtP2 = DtP2
             # get category based on molecular index
-            m = count_unic((DtP1.Distance.Atom1.MolecularIndex, DtP1.Distance.Atom2.MolecularIndex), \
-                           (DtP2.Distance.Atom1.MolecularIndex, DtP2.Distance.Atom2.MolecularIndex))
+            m = count_unique((DtP1.Distance.Atom1.MolecularIndex, DtP1.Distance.Atom2.MolecularIndex), \
+                (DtP2.Distance.Atom1.MolecularIndex, DtP2.Distance.Atom2.MolecularIndex))
             if m == 1:
                 CategoryMolecular = 2
             else:
@@ -455,8 +457,8 @@ class Feature:
                     if (m == 3) and (n == 0):
                         CategoryMolecular = 6
             # get category based on atomic index
-            m = count_unic((DtP1.Distance.Atom1.Index, DtP1.Distance.Atom2.Index), \
-                           (DtP2.Distance.Atom1.Index, DtP2.Distance.Atom2.Index))
+            m = count_unique((DtP1.Distance.Atom1.Index, DtP1.Distance.Atom2.Index), \
+                (DtP2.Distance.Atom1.Index, DtP2.Distance.Atom2.Index))
             if m == 1:
                 CategoryAtomic = 2
             else:
@@ -492,6 +494,7 @@ class Feature:
         self.FeType = p1 + p2 + t11 + t12 + t21 + t22 + c1 + c2
         return
                     
+# not active
 class Feature1:
     nDistances = 0
     nHarmonics = 0
