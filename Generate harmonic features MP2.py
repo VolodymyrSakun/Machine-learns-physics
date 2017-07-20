@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pickle 
 from structure import class2
-from structure import library2
+from structure import library3
 from structure import spherical
 from joblib import Parallel, delayed
 import multiprocessing as mp
@@ -337,6 +337,8 @@ if __name__ == '__main__':
                 s = re.split(Separators, x)
                 s = list(filter(bool, s)) # removes empty records
                 IncludeExcludeList.append(s)
+    else:
+        DtP_Double_list = []
     if ProceedHarmonics:
         if ('&HarmonicDescription' in lines):
             for i in range(0, len(lines), 1):
@@ -457,7 +459,7 @@ if __name__ == '__main__':
                 j += 1
                 i += 1
     else:
-        quit()
+        print('Error reading &SYSTEM section from SystemDescriptor')
     
     # determine number of atom types from list
     nAtTypes = len(types_list)       
@@ -723,8 +725,8 @@ if __name__ == '__main__':
     pickle.dump(system, f)
     f.close()
     
-    library2.StoreFeaturesDescriprion(F_Features, FeaturesAll, FeaturesReduced)
-    library2.store_structure(F_Structure, Atoms, Distances, DtP_Double_list, FeaturesAll)
+    library3.StoreFeaturesDescriprion(F_Features, FeaturesAll, FeaturesReduced)
+    library3.store_structure(F_Structure, Atoms, Distances, DtP_Double_list, FeaturesAll)
     
     # Read coordinates from file
     f = open(F_data, "r")
