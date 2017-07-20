@@ -14,7 +14,7 @@ if __name__ == '__main__':
 # Global variables
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
-    UseVIP = False # if true fit will be found in two steps. First step - fit only
+    UseVIP = True # if true fit will be found in two steps. First step - fit only
     # single distances, select most important (VIP) features which will be kept
 # Elastic net parameters    
     L1_Single = 0.7
@@ -24,7 +24,9 @@ if __name__ == '__main__':
     eps = 1e-3
     n_alphas = 100
 # Best Fit parameters
-    MaxDepth = 100 # integer number - greater = slower but better fit
+    BestFitMethod = 'Fast' # can be 'Tree' or 'Fast'
+    MaxLoops = 200 # integer number - greater = slower but better fit
+    MaxBottom = 20 # integer - number of finished branches
     LastIterationsToStoreSingle = 15 # Number of features when Best Fit starts
     LastIterationsToStore = 15 # Same but for double features
     UseCorrelationMatrix = False # specifies if correlation matrix will be used
@@ -136,7 +138,8 @@ if __name__ == '__main__':
         t = time.time()
         VIP_idx = bf.fit(single_x_std, y_std, Single_X_train, Y_train, Single_X_test,\
             Y_test, SingleFeaturesAll, SingleFeaturesReduced, idx=idx,\
-            VIP_idx=None, Method='sequential', Criterion='MSE', GetVIP=True, Max=MaxDepth, verbose=False)
+            VIP_idx=None, Method='sequential', Criterion='MSE', GetVIP=True,\
+            BestFitMethod=BestFitMethod, MaxLoops=MaxLoops, MaxBottom=MaxBottom, verbose=1)
         t_sec = time.time() - t
         print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
     else:
@@ -175,7 +178,8 @@ if __name__ == '__main__':
     t = time.time()
     bf.fit(x_std, y_std, X_train, Y_train, X_test,\
         Y_test, FeaturesAll, FeaturesReduced, idx=idx,\
-        VIP_idx=VIP_idx, Method='sequential', Criterion='MSE', GetVIP=False, Max=MaxDepth, verbose=False)
+        VIP_idx=VIP_idx, Method='sequential', Criterion='MSE', GetVIP=False,\
+        BestFitMethod=BestFitMethod, MaxLoops=MaxLoops, MaxBottom=MaxBottom, verbose=1)
     t_sec = time.time() - t
     print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
         

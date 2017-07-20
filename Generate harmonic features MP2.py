@@ -434,14 +434,14 @@ if __name__ == '__main__':
     if ('&SYSTEM' in lines):
         i = 0 # index of line in file
         Atoms = [] # create list of atom structures from file
-        while ((lines[i].find('&SYSTEM') == -1) & (i < len(lines))):
+        while ((lines[i].find('&SYSTEM') == -1) and (i < len(lines))):
             i += 1
         i += 1 # next line after &SYSTEM
         j = 0 # order in the system 
         types_list = []
         idx_list = []
         k = -1
-        while ((lines[i].find('&endSYSTEM') == -1) & (i < len(lines))):
+        while ((lines[i].find('&endSYSTEM') == -1) and (i < len(lines))):
             if (lines[i][0] == '#'):
                 i += 1
                 continue
