@@ -23,6 +23,7 @@
 import numpy as np
 from math import acos
 from scipy.special import sph_harm
+from structure import class2
 
 # n - degree. 0, 1, 2, 3 ...
 # m - order. ... -3, -2, -1, 0, 1, 2, 3 ...   abs(m) <= n
@@ -228,7 +229,31 @@ def get_real_form3(m, n, theta, phi):
         s = np.sqrt(2) * (-1)**m * sph_harm(m, n, theta, phi).real
     return s.real
 
+def center_of_mass(atoms):
+    Mi = 0
+    MiXi = 0
+    MiYi = 0
+    MiZi = 0
+    for i in range(0, len(atoms), 1):
+        Mi += atoms[i].Atom.Mass
+        MiXi += atoms[i].Atom.Mass * atoms[i].x
+        MiYi += atoms[i].Atom.Mass * atoms[i].y
+        MiZi += atoms[i].Atom.Mass * atoms[i].z
+    X = MiXi / Mi
+    Y = MiYi / Mi
+    Z = MiZi / Mi
+    return X, Y, Z
 
-
+# molecule - class Molecule; new_origin - class Point
+def translate_molecule_to_new_origin(molecule, new_origin):
+    Atoms = []
+    for i in range(0, len(molecule.Atoms), 1):
+        atom = molecule.Atoms[i].Atom
+        X = molecule.Atoms[i].x - new_origin.x
+        Y = molecule.Atoms[i].y - new_origin.y
+        Z = molecule.Atoms[i].z - new_origin.z
+        Atoms.append(class2.AtomCoordinates(atom, X, Y, Z))
+    new_molecule = class2.Molecule(Atoms, Name=molecule.Name)
+    return new_molecule
 
 
