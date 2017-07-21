@@ -745,15 +745,17 @@ if __name__ == '__main__':
     while i < len(data1):
         s = data1[i].split() # line of text separated in list
         if len(s) == 0: # empty line
-            j = 0
-            atoms_list = []
+            i += 1
+            continue
     # record for energy value
         elif (len(s) == 1) and class2.isfloat(s[0]): 
             e = float(s[0])
             rec = class2.record(e, atoms_list)
             record_list.append(rec)
+            j = 0
+            atoms_list = []
         elif (len(s) == 4): 
-            atom_symbol = s[0]
+#            atom_symbol = s[0]
             x = float(s[1])
             y = float(s[2])
             z = float(s[3])
