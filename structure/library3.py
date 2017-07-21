@@ -1672,7 +1672,7 @@ class BF:
                     VIP_idx=VIP_idx, MaxLoops=MaxLoops, MaxBottom=MaxBottom, verbose=verbose)
             idx = rank_features(x_std, y_std, idx_alternative, direction='Hi-Lo') # most imprtant features first
             print('Best subset', idx)
-            Results_to_xls(writeResults, str(len(idx_alternative)),\
+            Results_to_xls(writeResults, str(len(idx)),\
                 idx, X_train, Y_train, X_test, Y_test, FeaturesAll, FeaturesReduced)
             nonzero, mse, rmse, r2, aIC = get_fit_score(X_train, X_test, Y_train, Y_test, idx=idx)
             mse_list.append(mse)

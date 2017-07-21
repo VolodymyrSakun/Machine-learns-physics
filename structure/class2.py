@@ -8,6 +8,7 @@
 
 # max number of different kind of atoms = 9
 import numpy as np
+from structure import spherical
 
 class Atom:
     Symbol = None # atom symbol. Example: O, H, C, Si
@@ -39,7 +40,7 @@ class Molecule:
     Atoms = []
     Name = None
     Mass = None
-    CenterOfMass = None
+    CenterOfMass = None # type of Point
     def __init__(self, atoms, Name=None):
         self.Atoms = atoms
         self.Name = Name
@@ -52,26 +53,12 @@ class Molecule:
                 MissedMass = True
         if not MissedMass:
             self.Mass = mass
-            self.CenterOfMass = center_of_mass(self.Atoms)
+            x, y, z = spherical.center_of_mass(self.Atoms)
+            self.CenterOfMass = spherical.Point(x, y, z)
         else:
             self.Mass = None
             self.CenterOfMass = None
-            
-def center_of_mass(atoms):
-    Mi = 0
-    MiXi = 0
-    MiYi = 0
-    MiZi = 0
-    for i in range(0, len(atoms), 1):
-        Mi += atoms[i].Atom.Mass
-        MiXi += atoms[i].Atom.Mass * atoms[i].x
-        MiYi += atoms[i].Atom.Mass * atoms[i].y
-        MiZi += atoms[i].Atom.Mass * atoms[i].z
-    X = MiXi / Mi
-    Y = MiYi / Mi
-    Z = MiZi / Mi
-    return X, Y, Z
-    
+                
 class record:
     atoms = None
     e = None

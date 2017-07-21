@@ -209,5 +209,3 @@ if __name__ == '__main__':
     if os.path.isfile(F_Plot + '_R2' + '.png'):
         shutil.move(F_Plot + '_R2' + '.png', directory + '\\' + F_Plot + '_R2' + '.png')
 
-
-
