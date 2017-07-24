@@ -5,7 +5,8 @@ import numpy as np
 import time
 import os
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import scale
+# from sklearn.preprocessing import scale
+from sklearn.preprocessing import StandardScaler
 from multiprocessing import cpu_count
 import shutil
 
@@ -14,7 +15,7 @@ if __name__ == '__main__':
 # Global variables
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
-    UseVIP = True # if true fit will be found in two steps. First step - fit only
+    UseVIP = False # if true fit will be found in two steps. First step - fit only
     # single distances, select most important (VIP) features which will be kept
 # Elastic net parameters    
     L1_Single = 0.7
@@ -27,14 +28,14 @@ if __name__ == '__main__':
     BestFitMethod = 'Fast' # can be 'Tree' or 'Fast'
     MaxLoops = 200 # integer number - greater = slower but better fit
     MaxBottom = 20 # integer - number of finished branches
-    LastIterationsToStoreSingle = 15 # Number of features when Best Fit starts
-    LastIterationsToStore = 15 # Same but for double features
+    LastIterationsToStoreSingle = 20 # Number of features when Best Fit starts
+    LastIterationsToStore = 20 # Same but for double features
     UseCorrelationMatrix = False # specifies if correlation matrix will be used
     # for Best Fit algorithm. If False, all features will be used in trials 
     # to find Best Fit. Overwise, only most correlated features will be used.
     # If false, will be slow for big number of features
     MinCorr_Single = 0.8 # minimum correlation for single distances
-    MinCorr = 0.9 # minimum correlation for double distances
+    MinCorr = 0.8 # minimum correlation for double distances
     # needed only if UseCorrelationMatrix=True
     # used for creating list of most correlated features for Best Fit
     # float [0 .. 1]
@@ -50,7 +51,7 @@ if __name__ == '__main__':
     GA_Method = 'Random' # How GA works. Can be 'Random' or 'p_Value'
     n_jobs = 1 # How many cores will be used by GA. -1 = all cores
     TribeSize = 100 # Population per CPU
-    ChromosomeSize = 15
+    ChromosomeSize = 20
     if n_jobs == -1:
         nCPU = cpu_count()
     else:
@@ -74,8 +75,12 @@ if __name__ == '__main__':
 # all response variables Y must be 1D arrays
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=RandomSeed)
     Y_train = Y_train.reshape(-1, 1)
-    x_std = scale(X_train, axis=0, with_mean=True, with_std=True, copy=True)
-    y_std = scale(Y_train, axis=0, with_mean=True, with_std=False, copy=True)
+    x_scale = StandardScaler(copy=True, with_mean=True, with_std=True)
+    y_scale = StandardScaler(copy=True, with_mean=True, with_std=False)
+    x_scale.fit(X_train)
+    y_scale.fit(Y_train)
+    x_std = x_scale.transform(X_train)
+    y_std = y_scale.transform(Y_train)
     Y_train = Y_train.reshape(-1)
     y_std = y_std.reshape(-1)
     
@@ -209,3 +214,9 @@ if __name__ == '__main__':
     if os.path.isfile(F_Plot + '_R2' + '.png'):
         shutil.move(F_Plot + '_R2' + '.png', directory + '\\' + F_Plot + '_R2' + '.png')
 
+
+#    idx = [8,10,1,7,6]
+#    
+#    coef3, nonzero_count3, mse3, rmse3, r23 = library3.get_fit_score3(X_train, Y_train, X_test, Y_test, idx=None)
+#    
+#    coef, nonzero_count, mse, rmse, r2 = library3.get_fit_score(X_train, Y_train, X_test, Y_test, idx=None)
