@@ -201,7 +201,7 @@ class GA:
         Size = x_std.shape[0]
         z = np.zeros(shape=(Size, 1), dtype=float)
         tmp = np.zeros(shape=(Size, 1), dtype=float)
-        lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=False, n_jobs=1)
+        lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=True, n_jobs=1)
         x_sel = np.zeros(shape=(Size, chromosome_size), dtype=float)
 # creating selected features array
         for i in range(0, chromosome_size, 1):

@@ -17,13 +17,17 @@ class Atom:
     AtTypeDigits = 1 # can be increased
     MolecularIndex = None # which molecule atom belongs to. In other words number of molecule in the system where this atom exists
     Mass = None
-    def __init__(self, symbol, index, tYpe, molecular_index, Mass=None):
+    Radius = None
+    Bonds = []
+    def __init__(self, symbol, index, tYpe, molecular_index, Mass=None, Radius=None, Bonds=None):
         self.Symbol = symbol
         self.Index = index
         self.AtType = tYpe
         self.MolecularIndex = molecular_index
         self.AtTypeDigids = 1
         self.Mass = Mass
+        self.Radius = Radius
+        self.Bonds = Bonds
         
 class AtomCoordinates:
     Atom = None
@@ -38,9 +42,10 @@ class AtomCoordinates:
         
 class Molecule:
     Atoms = []
+    Bonds = []
     Name = None
     Mass = None
-    CenterOfMass = None # type of Point
+    CenterOfMass = None # type of spherical.Point
     def __init__(self, atoms, Name=None):
         self.Atoms = atoms
         self.Name = Name

@@ -24,6 +24,8 @@ import numpy as np
 from math import acos
 from scipy.special import sph_harm
 from structure import class2
+import math
+import re
 
 # n - degree. 0, 1, 2, 3 ...
 # m - order. ... -3, -2, -1, 0, 1, 2, 3 ...   abs(m) <= n
@@ -245,7 +247,8 @@ def center_of_mass(atoms):
     return X, Y, Z
 
 # molecule - class Molecule; new_origin - class Point
-def translate_molecule_to_new_origin(molecule, new_origin):
+# change coordinate system to have new origine = new_origin
+def translate_molecule_to_new_coordinate_system(molecule, new_origin):
     Atoms = []
     for i in range(0, len(molecule.Atoms), 1):
         atom = molecule.Atoms[i].Atom
@@ -256,4 +259,287 @@ def translate_molecule_to_new_origin(molecule, new_origin):
     new_molecule = class2.Molecule(Atoms, Name=molecule.Name)
     return new_molecule
 
+# molecule - class Molecule; new_origin - class Point
+# same coordinate system, origin does not change
+def translate_molecule_to_new_center(molecule, new_center):
+    Atoms = []
+    for i in range(0, len(molecule.Atoms), 1):
+        atom = molecule.Atoms[i].Atom
+        X = molecule.Atoms[i].x + new_center.x
+        Y = molecule.Atoms[i].y + new_center.y
+        Z = molecule.Atoms[i].z + new_center.z
+        Atoms.append(class2.AtomCoordinates(atom, X, Y, Z))
+    new_molecule = class2.Molecule(Atoms, Name=molecule.Name)
+    return new_molecule
 
+def get_change_of_cordinates_matrix(e1,e2,e3):
+# e1, e2, e3 - new coordinate system axis
+    M_rotation = np.eye(4)    
+    M_rotation[0,0], M_rotation[0,1], M_rotation[0,2] = e1.x, e1.y, e1.z
+    M_rotation[1,0], M_rotation[1,1], M_rotation[1,2] = e2.x, e2.y, e2.z
+    M_rotation[2,0], M_rotation[2,1], M_rotation[2,2] = e3.x, e3.y, e3.z
+    return M_rotation
+
+def rotate_molecule_axis(molecule, e1, e2, e3):
+    Atoms = []
+    for i in range(0, len(molecule.Atoms), 1):
+        atom = molecule.Atoms[i].Atom
+        M_rotation = get_change_of_cordinates_matrix(e1, e2, e3)
+        old_coordinates = np.array([[molecule.Atoms[i].x], [molecule.Atoms[i].y], [molecule.Atoms[i].z], [1]])
+        new_coordinates = np.dot(M_rotation, old_coordinates)
+        Atoms.append(class2.AtomCoordinates(atom, new_coordinates[0, 0], new_coordinates[1, 0], new_coordinates[2, 0]))
+    new_molecule = class2.Molecule(Atoms, Name=molecule.Name)        
+    return new_molecule
+
+def rotate_point_axes(point, e1, e2, e3):
+    M_rotation = get_change_of_cordinates_matrix(e1, e2, e3)
+    old_coordinates = np.array([[point.x], [point.y], [point.z], [1]])
+    new_coordinates = np.dot(M_rotation, old_coordinates)
+    new_point = Point(new_coordinates[0, 0], new_coordinates[1, 0], new_coordinates[2, 0])
+    return new_point
+
+def get_axis_of_rotation(theta, phi, AngleType='Radian'):
+    if AngleType == 'Degree':
+        theta = theta * math.pi/180
+        phi = phi * math.pi/180
+    x = math.sin(phi) * math.cos(theta)
+    y = math.sin(phi) * math.sin(theta)
+    z = math.cos(phi) 
+    v = Vector(x, y, z)
+    unit_vector = UnitVector(v)
+    return unit_vector
+    
+def rotate_point_about_axis(axis, psi, point, AngleType='Radian'):
+    if AngleType == 'Degree':
+        psi = psi * math.pi/180
+    a = axis.x
+    b = axis.y
+    c = axis.z
+    d = np.sqrt(b**2 + c**2) # length of the projection onto the yz plane
+    Rx = np.eye(4)
+    RxInverse = np.eye(4)
+    Ry = np.eye(4)
+    RyInverse = np.eye(4)
+    Rz = np.eye(4)
+    Rx[1, 1] = c/d # cos(t)
+    Rx[1, 2] = -b/d # -sin(t)
+    Rx[2, 1] = b/d # sin(t)
+    Rx[2, 2] = c/d # cos(t)   
+    RxInverse[1, 1] = c/d # cos(t)
+    RxInverse[1, 2] = b/d # sin(t)
+    RxInverse[2, 1] = -b/d # -sin(t)
+    RxInverse[2, 2] = c/d # cos(t)     
+    Ry[0, 0] = d
+    Ry[0, 2] = -a
+    Ry[2, 0] = a
+    Ry[2, 2] = d
+    RyInverse[0, 0] = d
+    RyInverse[0, 2] = a
+    RyInverse[2, 0] = -a
+    RyInverse[2, 2] = d
+    Rz[0, 0] = math.cos(psi)
+    Rz[0, 1] = -math.sin(psi)    
+    Rz[1, 0] = math.sin(psi)
+    Rz[1, 1] = math.cos(psi)    
+    old_coordinates = np.array([[point.x], [point.y], [point.z], [1]])
+    new_coordinates = RxInverse.dot(RyInverse).dot(Rz).dot(Ry).dot(Rx).dot(old_coordinates)
+    new_point = Point(new_coordinates[0, 0], new_coordinates[1, 0], new_coordinates[2, 0])
+    return new_point
+    
+def rotate_point_angles(theta, phi, psi, point, AngleType='Radian'):
+    if AngleType == 'Degree':
+        theta = theta * math.pi/180
+        phi = phi * math.pi/180
+        psi = psi * math.pi/180
+    rotation_axis = get_axis_of_rotation(theta, phi, AngleType='Radian')
+    new_point = rotate_point_about_axis(rotation_axis, psi, point, AngleType='Radian')
+    return new_point
+    
+def rotate_molecule_angles(molecule, theta, phi, psi, AngleType='Radian'):
+    if AngleType == 'Degree':
+        theta = theta * math.pi/180
+        phi = phi * math.pi/180
+        psi = psi * math.pi/180
+    Atoms = []
+    for i in range(0, len(molecule.Atoms), 1):
+        atom = molecule.Atoms[i].Atom
+        point = Point(molecule.Atoms[i].x, molecule.Atoms[i].y, molecule.Atoms[i].z)
+        new_point = rotate_point_angles(theta, phi, psi, point, AngleType='Radian')
+        Atoms.append(class2.AtomCoordinates(atom, new_point.x, new_point.y, new_point.z))
+    new_molecule = class2.Molecule(Atoms, Name=molecule.Name)        
+    return new_molecule
+    
+def get_inertia_tensor(molecule):
+    Ixx = 0
+    Iyy = 0
+    Izz = 0
+    Ixy = 0
+    Iyz = 0
+    Ixz = 0
+    for i in range(0, len(molecule.Atoms), 1):
+        Ixx += (molecule.Atoms[i].y**2 + molecule.Atoms[i].z**2) * molecule.Atoms[i].Atom.Mass
+        Iyy += (molecule.Atoms[i].x**2 + molecule.Atoms[i].z**2) * molecule.Atoms[i].Atom.Mass
+        Izz += (molecule.Atoms[i].x**2 + molecule.Atoms[i].y**2) * molecule.Atoms[i].Atom.Mass
+        Ixy += -(molecule.Atoms[i].x * molecule.Atoms[i].y * molecule.Atoms[i].Atom.Mass)
+        Iyx = Ixy
+        Iyz += -(molecule.Atoms[i].y * molecule.Atoms[i].z * molecule.Atoms[i].Atom.Mass)
+        Izy = Iyz
+        Ixz += -(molecule.Atoms[i].x * molecule.Atoms[i].z * molecule.Atoms[i].Atom.Mass)
+        Izx = Ixz
+    I = np.zeros(shape=(3, 3), dtype=float)
+    I[0, 0] = Ixx
+    I[0, 1] = Ixy
+    I[0, 2] = Ixz
+    I[1, 0] = Iyx
+    I[1, 1] = Iyy
+    I[1, 2] = Iyz
+    I[2, 0] = Izx
+    I[2, 1] = Izy
+    I[2, 2] = Izz
+    return I
+
+def get_atom_coordinates(molecule):
+    nAtoms = len(molecule.Atoms)
+    A = np.zeros(shape=(nAtoms, 3), dtype=float)
+    for i in range(0, nAtoms, 1):
+        A[i, 0] = molecule.Atoms[i].x
+        A[i, 1] = molecule.Atoms[i].y
+        A[i, 2] = molecule.Atoms[i].z
+    return A
+
+def align_molecule(molecule):
+    molecule = translate_molecule_to_new_coordinate_system(molecule, molecule.CenterOfMass)    
+    I = get_inertia_tensor(molecule)
+    w, v = np.linalg.eig(I)
+    e1 = Vector(v[0, 0], v[1, 0], v[2, 0])
+    e2 = Vector(v[0, 1], v[1, 1], v[2, 1])
+    e3 = Vector(v[0, 2], v[1, 2], v[2, 2]) 
+    molecule = rotate_molecule_axis(molecule, e1, e2, e3)
+    return molecule
+    
+def spherical_to_cartesian(R, theta, phi, AngleType='Radian'):
+    if AngleType == 'Degree':
+        theta = theta * math.pi/180
+        phi = phi * math.pi/180
+    x = R * math.sin(phi) * math.cos(theta)
+    y = R * math.sin(phi) * math.sin(theta)
+    z = R * math.cos(phi) 
+    p = Point(x, y, z)
+    return p
+    
+
+def f1(molecule, arg1, arg2, arg3, theta, phi, psi, CoordinateSystem='Cartesian', AngleType='Radian'):
+# CoordinateSystem can be 'Cartesian' or 'Spherical'
+# if CoordinateSystem='Cartesian' arg1 = x coordinate of center of mass of molecule
+# arg2 = y coordinate of center of mass of molecule
+# arg3 = z coordinate of center of mass of molecule
+# if CoordinateSystem='Spherical' arg1 = R (distance from origin to center of mass of molecule)
+# arg2 = theta - angle between projection of vector R on XY plane and X axis
+# arg3 = phi - angle between Vector R and Z axis
+    if AngleType == 'Degree':
+        theta = theta * math.pi/180
+        phi = phi * math.pi/180
+        psi = psi * math.pi/180
+    if CoordinateSystem == 'Spherical':
+        if AngleType == 'Degree':
+            arg2 = arg2 * math.pi/180
+            arg3 = arg3 * math.pi/180
+        COM_coordinates = spherical_to_cartesian(arg1, arg2, arg3, AngleType='Radian')
+    if CoordinateSystem == 'Cartesian':
+        COM_coordinates = Point(arg1, arg2, arg3)
+    molecule0 = align_molecule(molecule) # molecule aligned at 0,0,0
+    molecule1 = rotate_molecule_angles(molecule0, theta, phi, psi, AngleType='Radian')
+    molecule1 = translate_molecule_to_new_center(molecule1, COM_coordinates)
+    A0 = get_atom_coordinates(molecule0)
+    A1 = get_atom_coordinates(molecule1)
+    A = np.concatenate((A0, A1), axis=0)
+    return A        
+            
+def check_overlap(molecule1, molecule2):
+# returns True if atoms occupy same space, otherwise returns False
+    for i in range(0, len(molecule1.Atoms), 1):
+        for j in range(0, len(molecule2.Atoms), 1):
+            v = vector_from_coordinates(molecule1.Atoms[i].x, molecule1.Atoms[i].y,\
+                molecule1.Atoms[i].z, molecule2.Atoms[j].x, molecule2.Atoms[j].y,\
+                molecule2.Atoms[j].z)
+            if v.length > (molecule1.Atoms[i].Atom.Radius + molecule2.Atoms[j].Atom.Radius):
+                return True
+    return False
+    
+def ReadMolecules(F='MoleculesDescriptor.'):
+    F = F # file with info about system structure
+    Separators = '=|,| |:|;|: |'
+# read descriptor from file
+    with open(F) as f:
+        lines = f.readlines()
+    f.close()
+    lines = [x.strip() for x in lines] # x is string
+    i = 0
+    nMolecule = 0
+    Atoms = []
+    while i < len(lines):
+        x = lines[i]
+        if len(x) == 0:
+            del(lines[i])
+            continue
+        if x[0] == '#':
+            del(lines[i])
+            continue
+        i += 1
+    i = 0
+    j = 0
+    types_list = []
+    idx_list = []
+    MoleculeNames = []
+    k = 0
+    while i < len(lines):    
+        x = lines[i]
+        if (x.find('Molecule') != -1):
+            x = lines[i]
+            s = re.split(Separators, x)
+            MoleculeNames.append(s[1])
+            i += 1
+            while i < len(lines):
+                x = lines[i]
+                if x.find('endMolecule') != -1:
+                    break
+                s = re.split(Separators, x)
+                s = list(filter(bool, s))
+                symbol = s[0]
+                bond_idx = s.index("Bond")
+                mass_idx = s.index("Mass")   
+                radius_idx = s.index("Radius")  
+                bond_idx += 1
+                Bonds = []
+                while bond_idx < mass_idx:
+                    Bonds.append(s[bond_idx])
+                    bond_idx += 1
+                mass_idx += 1
+                Mass = float(s[mass_idx])
+                radius_idx += 1
+                Radius = float(s[radius_idx])
+                X = float(s[radius_idx+1])
+                Y = float(s[radius_idx+2])
+                Z = float(s[radius_idx+3])
+                if symbol not in types_list:
+                    types_list.append(symbol)
+                    idx_list.append(k)
+                    k += 1
+                idx = types_list.index(symbol)
+                atom = class2.Atom(symbol, j, idx_list[idx], nMolecule, Mass, Radius, Bonds)
+                Atoms.append(class2.AtomCoordinates(atom, X, Y, Z))
+                j += 1
+                i += 1
+            nMolecule += 1
+        i += 1
+    Molecules = []
+    for i in range(0, nMolecule, 1):
+        MoleculeAtoms = []
+        for j in range(0, len(Atoms), 1):
+            if Atoms[j].Atom.MolecularIndex == i:
+                MoleculeAtoms.append(Atoms[j])
+        Molecules.append(class2.Molecule(MoleculeAtoms, Name=MoleculeNames[i]))
+    return Molecules
+    
+    
+   
