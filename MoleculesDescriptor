@@ -1,6 +1,6 @@
 F_data = Coordinates only.x
 Molecule=Water
-# Atom symbol, Bonds, Atomic radius, Atom mass, x, y, z
+# Atom symbol, Bonds, Mass, Atomic radius, x, y, z
 O1,Bond=H1,H2,Mass=15.999,Radius=0.6,0,0,0
 H1,Bond=O1,Mass=1.008,Radius=0.25,0.58584290449803,0.75799214458286,0
 H2,Bond=O1,Mass=1.008,Radius=0.25,0.58584290449803,-0.75799214458286,0
