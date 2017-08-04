@@ -4,6 +4,8 @@ Molecules = spherical.ReadMolecules()
 
 Water0 = spherical.align_molecule(Molecules[0])
 Ethane0 = spherical.align_molecule(Molecules[1])
+A = spherical.f1(Ethane0, 5, 5, 5, 45, 45, 45, CoordinateSystem='Cartesian', AngleType='Degree') 
+
 theta = 45
 phi = 45
 psi = 180
@@ -39,7 +41,6 @@ ax.scatter(E2[:, 0], E2[:, 1], E2[:, 2], zdir='z', c='y', depthshade=False)
 ax.plot([0, rotation_axis.x], [0, rotation_axis.y], [0, rotation_axis.z])
 plt.show()
 
-A = spherical.f1(Ethane0, 5, 5, 5, 45, 45, 45, CoordinateSystem='Cartesian', AngleType='Degree') 
 
 
 
