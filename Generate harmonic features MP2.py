@@ -206,6 +206,7 @@ if __name__ == '__main__':
     F_HarmonicFeaturesAll = 'HarmonicFeaturesAll.dat' # output data structure which contains all features
     F_HarmonicFeaturesReduced = 'HarmonicFeaturesReduced.dat' # output data structure which contains combined features
     F_System = 'system.dat' # output data system structure
+    F_record_list = 'records.dat'
     F_Features = 'Harmonic Features Reduced List.xlsx'
     F_Structure = 'Structure.xlsx'
     # temporary variables. to be replaced
@@ -755,13 +756,17 @@ if __name__ == '__main__':
             j = 0
             atoms_list = []
         elif (len(s) == 4): 
-#            atom_symbol = s[0]
             x = float(s[1])
             y = float(s[2])
             z = float(s[3])
             atoms_list.append(class2.AtomCoordinates(Atoms[j], x, y, z))
             j += 1
         i += 1
+    
+    # save record_list into file
+    f = open(F_record_list, "wb")
+    pickle.dump(record_list, f)
+    f.close()
     
     # split array if too big
     NpArrayCapacity = 1e+8

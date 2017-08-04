@@ -1,11 +1,9 @@
-
 from structure import library3
 from structure.genetic3 import GA
 import numpy as np
 import time
 import os
 from sklearn.model_selection import train_test_split
-# from sklearn.preprocessing import scale
 from sklearn.preprocessing import StandardScaler
 from multiprocessing import cpu_count
 import shutil
@@ -15,7 +13,7 @@ if __name__ == '__main__':
 # Global variables
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
-    UseVIP = False # if true fit will be found in two steps. First step - fit only
+    UseVIP = True # if true fit will be found in two steps. First step - fit only
     # single distances, select most important (VIP) features which will be kept
 # Elastic net parameters    
     L1_Single = 0.7
@@ -26,10 +24,10 @@ if __name__ == '__main__':
     n_alphas = 100
 # Best Fit parameters
     BestFitMethod = 'Fast' # can be 'Tree' or 'Fast'
-    MaxLoops = 200 # integer number - greater = slower but better fit
-    MaxBottom = 20 # integer - number of finished branches
-    LastIterationsToStoreSingle = 20 # Number of features when Best Fit starts
-    LastIterationsToStore = 20 # Same but for double features
+    MaxLoops = 10000 # integer number - greater = slower but better fit
+    MaxBottom = 2000 # integer - number of finished branches
+    LastIterationsToStoreSingle = 15 # Number of features when Best Fit starts
+    LastIterationsToStore = 15 # Same but for double features
     UseCorrelationMatrix = False # specifies if correlation matrix will be used
     # for Best Fit algorithm. If False, all features will be used in trials 
     # to find Best Fit. Overwise, only most correlated features will be used.
@@ -41,7 +39,7 @@ if __name__ == '__main__':
     # float [0 .. 1]
     F_Out_Single = 'Single BF.xlsx'
     F_ENet_Single = 'Single ENet path.png'
-    F_Plot_Single = 'Single Plot'
+    F_Plot_Single = 'Single_Plot'
     F_Out = 'BF.xlsx'
     F_ENet = 'ENet path.png'
     F_Plot = 'Plot'
@@ -51,7 +49,7 @@ if __name__ == '__main__':
     GA_Method = 'Random' # How GA works. Can be 'Random' or 'p_Value'
     n_jobs = 1 # How many cores will be used by GA. -1 = all cores
     TribeSize = 100 # Population per CPU
-    ChromosomeSize = 20
+    ChromosomeSize = 15
     if n_jobs == -1:
         nCPU = cpu_count()
     else:
@@ -197,26 +195,22 @@ if __name__ == '__main__':
         shutil.copyfile('Structure.xlsx', directory + '\\' + 'Structure.xlsx')
     if os.path.isfile('Harmonic Features Reduced List.xlsx'): 
         shutil.copyfile('Harmonic Features Reduced List.xlsx', directory + '\\' + 'Harmonic Features Reduced List.xlsx')
+    if os.path.isfile('Coefficients.dat'):
+        shutil.copyfile('Coefficients.dat', directory + '\\' + 'Coefficients.dat')
     if os.path.isfile(F_Out_Single):
         shutil.move(F_Out_Single, directory + '\\' + F_Out_Single)
     if os.path.isfile(F_ENet_Single):
         shutil.move(F_ENet_Single, directory + '\\' + F_ENet_Single)
-    if os.path.isfile(F_Plot_Single + '_RMSE' + '.png'):
-        shutil.move(F_Plot_Single + '_RMSE' + '.png', directory + '\\' + F_Plot_Single + '_RMSE' + '.png')
-    if os.path.isfile(F_Plot_Single + '_R2' + '.png'):
-        shutil.move(F_Plot_Single + '_R2' + '.png', directory + '\\' + F_Plot_Single + '_R2' + '.png')
     if os.path.isfile(F_Out):
         shutil.move(F_Out, directory + '\\' + F_Out)    
     if os.path.isfile(F_ENet):
         shutil.move(F_ENet, directory + '\\' + F_ENet)
-    if os.path.isfile(F_Plot + '_RMSE' + '.png'):
-        shutil.move(F_Plot + '_RMSE' + '.png', directory + '\\' + F_Plot + '_RMSE' + '.png')
-    if os.path.isfile(F_Plot + '_R2' + '.png'):
-        shutil.move(F_Plot + '_R2' + '.png', directory + '\\' + F_Plot + '_R2' + '.png')
+    files = os.listdir("./")
+    for file in files:
+        if file.startswith(F_Plot) or file.startswith(F_Plot_Single):
+            if os.path.isfile(file):
+                shutil.move(file, directory + '\\' + file)
+                continue
 
-
-#    idx = [8,10,1,7,6]
-#    
-#    coef3, nonzero_count3, mse3, rmse3, r23 = library3.get_fit_score3(X_train, Y_train, X_test, Y_test, idx=None)
-#    
-#    coef, nonzero_count, mse, rmse, r2 = library3.get_fit_score(X_train, Y_train, X_test, Y_test, idx=None)
+            
+            
