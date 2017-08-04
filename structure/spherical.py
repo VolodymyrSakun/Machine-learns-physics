@@ -427,7 +427,6 @@ def spherical_to_cartesian(R, theta, phi, AngleType='Radian'):
     p = Point(x, y, z)
     return p
     
-
 def f1(molecule, arg1, arg2, arg3, theta, phi, psi, CoordinateSystem='Cartesian', AngleType='Radian'):
 # CoordinateSystem can be 'Cartesian' or 'Spherical'
 # if CoordinateSystem='Cartesian' arg1 = x coordinate of center of mass of molecule

@@ -522,7 +522,7 @@ def BackwardElimination(X_train, Y_train, X_test, Y_test, FeaturesAll, \
 # end of BackwardElimination
 
 def RemoveWorstFeature(x, y, Method='fast', Criterion='p-Value',\
-    idx=None, VIP_idx=None, Sort=True, verbose=True):
+    idx=None, VIP_idx=None, sort=True, verbose=True):
 # x and y are supposed to be standardized
     if VIP_idx is None:
         VIP_idx = []
@@ -545,20 +545,9 @@ def RemoveWorstFeature(x, y, Method='fast', Criterion='p-Value',\
     if Method == 'fast':
         ols = sm.OLS(endog = y, exog = x_sel, hasconst = False).fit()
         pvalues = ols.pvalues
-        if Sort:
-            swapped = True
-            n = size
+        if sort:
 # bubble sort from low to high. less important features with greater p-Value first
-            while swapped:
-                swapped = False
-                for i in range(1, n, 1):
-                    if pvalues[i-1] > pvalues[i]:
-                        swapped = True
-                        pvalues.insert(i-1, pvalues[i])
-                        del(pvalues[i+1])
-                        feature_idx.insert(i-1, feature_idx[i])
-                        del(feature_idx[i+1])
-                n - n - 1   
+            pvalues = Sort(pvalues, direction='Lo-Hi')
         Found = False
         while not Found:
             drop = np.argmax(pvalues)
@@ -582,22 +571,9 @@ def RemoveWorstFeature(x, y, Method='fast', Criterion='p-Value',\
             mse = skm.mean_squared_error(y, y_pred)
             mse_list.append(mse)
             x_sel[:, i] = tmp[:, 0] # restore column
-        if Sort:
-            swapped = True
-            n = size
+        if sort:
 # bubble sort from low to high. less important features first
-            while swapped:
-                swapped = False
-                for i in range(1, n, 1):
-                    if mse_list[i-1] > mse_list[i]:
-                        swapped = True
-                        temp1 = mse_list[i-1]
-                        temp2 = feature_idx[i-1]
-                        mse_list[i-1] = mse_list[i]
-                        feature_idx[i-1] = feature_idx[i]
-                        mse_list[i] = temp1
-                        feature_idx[i] = temp2
-                n - n - 1
+            mse_list, feature_idx = Sort(mse_list, feature_idx, direction='Lo-Hi')
         Found = False
         while not Found:
             drop = np.argmin(mse_list)
@@ -717,7 +693,7 @@ def ClassifyCorrelatedFeatures(X, features_idx, MinCorrelation, Model=1, Corr_Ma
     
 # store in sheet of .xlsx file description of fit with real coefficients
 def Results_to_xls(writeResults, SheetName, selected_features_list, FeaturesAll,\
-        FeaturesReduced, function, *args, **kwargs):
+        FeaturesReduced, data_to_xls):
 # writeResults = pd.ExcelWriter('FileName.xlsx', engine='openpyxl')
 # after calling this function(s) data must be stored in the file by calling writeResults.save()
 # SheetName - name of xlsx sheet
@@ -729,11 +705,20 @@ def Results_to_xls(writeResults, SheetName, selected_features_list, FeaturesAll,
 # FeaturesAll - class1.InvPowDistancesFeature object. Contains all features
 # FeaturesReduced - class1.InvPowDistancesFeature object. Contains combined features
     NofSelectedFeatures = len(selected_features_list)
-    coef, nonzero, mse, rmse, r2 = function(*args, **kwargs) # args: X_train, Y_train, X_test, Y_test, kwargs: idx=selected_features_list
-    Results = pd.DataFrame(np.zeros(shape = (NofSelectedFeatures, 21)).astype(float), \
-        columns=['Feature index','Feature type','Bond 1','Power 1','Intermolecular 1','Distance 1 type','Bond 2','Power 2', \
-        'Intermolecular 2','Distance 2 type','Order 1','Degree 1','HaType 1','Order 2','Degree 2','HaType 2',\
-        'Number of distances in feature','Coefficients','MSE','RMSE','R2'], dtype=str)
+    mse_train = data_to_xls[0][2]
+    rmse_train = data_to_xls[0][3]
+    r2_train = data_to_xls[0][4]
+    if len(data_to_xls) > 1:
+        coef = data_to_xls[1][0]
+        mse_test = data_to_xls[1][2]
+        rmse_test = data_to_xls[1][3]
+        r2_test = data_to_xls[1][4]
+    Results = pd.DataFrame(np.zeros(shape = (NofSelectedFeatures, 24)).astype(float), \
+        columns=['Feature index','Feature type','Bond 1','Power 1','Intermolecular 1',\
+        'Distance 1 type','Bond 2','Power 2', 'Intermolecular 2','Distance 2 type',\
+        'Order 1','Degree 1','HaType 1','Order 2','Degree 2','HaType 2',\
+        'Number of distances in feature','Coefficients','MSE Train','RMSE Train',\
+        'R2 Train','MSE Test','RMSE Test','R2 Test'], dtype=str)
     max_distances_in_feature = 1
     max_harmonics_in_feature = 0
     for i in range(0, NofSelectedFeatures, 1):
@@ -796,13 +781,19 @@ def Results_to_xls(writeResults, SheetName, selected_features_list, FeaturesAll,
         Results.loc[i]['Number of distances in feature'] = counter
         Results.loc[i]['Coefficients'] = coef[i]
         if i == 0:
-            Results.loc[0]['MSE'] = mse
-            Results.loc[0]['RMSE'] = rmse
-            Results.loc[0]['R2'] = r2
+            Results.loc[0]['MSE Train'] = mse_train
+            Results.loc[0]['RMSE Train'] = rmse_train
+            Results.loc[0]['R2 Train'] = r2_train
+            Results.loc[0]['MSE Test'] = mse_test
+            Results.loc[0]['RMSE Test'] = rmse_test
+            Results.loc[0]['R2 Test'] = r2_test
         else:
-            Results.loc[i]['MSE'] = ''
-            Results.loc[i]['RMSE'] = ''
-            Results.loc[i]['R2'] = ''
+            Results.loc[i]['MSE Train'] = ''
+            Results.loc[i]['RMSE Train'] = ''
+            Results.loc[i]['R2 Train'] = ''
+            Results.loc[i]['MSE Test'] = ''
+            Results.loc[i]['RMSE Test'] = ''
+            Results.loc[i]['R2 Test'] = ''
     if max_distances_in_feature == 1:
         del(Results['Bond 2'])
         del(Results['Power 2'])
@@ -816,7 +807,6 @@ def Results_to_xls(writeResults, SheetName, selected_features_list, FeaturesAll,
         del(Results['Order 1'])
         del(Results['Degree 1'])
         del(Results['HaType 1'])
-
     Results.to_excel(writeResults, sheet_name=SheetName)
     return
 # end of Results_to_xls
@@ -905,8 +895,27 @@ def StoreFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced):
     writeResults.save()  
     return
 
+# Get fit score for training set only
+def get_train_fit_score(X_train, Y_train, idx=None):
+    if idx is None:
+        x_sel = X_train
+    else: # copy only selected indices
+        size = len(idx)
+        x_sel = np.zeros(shape=(X_train.shape[0], size), dtype=float) # matrix with selected features
+        for i in range(0, size, 1):
+            x_sel[:, i] = X_train[:, idx[i]]
+    lr = LinearRegression(fit_intercept=False, normalize=True, copy_X=True, n_jobs=1)
+    lr.fit(x_sel, Y_train)
+    coef = lr.coef_
+    y_pred = lr.predict(x_sel)
+    mse = skm.mean_squared_error(Y_train, y_pred)
+    rmse = np.sqrt(mse)
+    r2 = skm.r2_score(Y_train, y_pred)
+    nonzero_count = np.count_nonzero(coef)
+    return coef, nonzero_count, mse, rmse, r2
+
 # LinearRegression
-def get_fit_score(X_train, Y_train, X_test, Y_test, idx=None):
+def get_fit_score(X_train, Y_train, X_test, Y_test, idx=None, Test=True):
     if idx is None:
         x_sel_train = X_train
         x_sel_test = X_test
@@ -920,10 +929,15 @@ def get_fit_score(X_train, Y_train, X_test, Y_test, idx=None):
     lr = LinearRegression(fit_intercept=False, normalize=True, copy_X=True, n_jobs=1)
     lr.fit(x_sel_train, Y_train)
     coef = lr.coef_
-    y_pred = lr.predict(x_sel_test)
-    mse = skm.mean_squared_error(Y_test, y_pred)
+    if Test:
+        y_pred = lr.predict(x_sel_test)
+        mse = skm.mean_squared_error(Y_test, y_pred)
+        r2 = skm.r2_score(Y_test, y_pred)
+    else:
+        y_pred = lr.predict(x_sel_train)
+        mse = skm.mean_squared_error(Y_train, y_pred)
+        r2 = skm.r2_score(Y_train, y_pred)
     rmse = np.sqrt(mse)
-    r2 = skm.r2_score(Y_test, y_pred)
     nonzero_count = np.count_nonzero(coef)
     return coef, nonzero_count, mse, rmse, r2
 
@@ -991,8 +1005,8 @@ def get_fit_score3(X_train, Y_train, X_test, Y_test, idx=None):
         orig_coef[i] = coef[i] / np.sqrt(x_var[idx[i]])
     return orig_coef, nonzero_count, mse, rmse, r2
 
-# use only training set
-def get_fit_score4(X_train, Y_train, X_test, Y_test, idx=None):
+# use only training set with manual standardization
+def get_fit_score4(X_train, Y_train, idx=None):
     x_scale = StandardScaler(copy=True, with_mean=True, with_std=True)
     y_scale = StandardScaler(copy=True, with_mean=True, with_std=False)
     x_scale.fit(X_train)
@@ -1025,10 +1039,10 @@ def get_fit_score4(X_train, Y_train, X_test, Y_test, idx=None):
         orig_coef[i] = coef[i] / np.sqrt(x_var[idx[i]])
     return orig_coef, nonzero_count, mse, rmse, r2
 
-def plot_rmse(FileName, nonzero_count_list, rmse_OLS_list, rsquared_list):
+def plot_rmse(FileName, nonzero_count_list, rmse_list, r2_list):
 # Plot RMSE vs. active coefficients number        
     fig = plt.figure(100, figsize = (19, 10))
-    plt.plot(nonzero_count_list, rmse_OLS_list, ':')
+    plt.plot(nonzero_count_list, rmse_list, ':')
     plt.xlabel('Active coefficients')
     plt.ylabel('Root of mean square error')
     plt.title('Root of mean square error vs Active coefficiants')
@@ -1038,7 +1052,7 @@ def plot_rmse(FileName, nonzero_count_list, rmse_OLS_list, rsquared_list):
     plt.close(fig)
     # Plot R2 vs. active coefficiens number
     fig = plt.figure(101, figsize = (19, 10))
-    plt.plot(nonzero_count_list, rsquared_list, ':')
+    plt.plot(nonzero_count_list, r2_list, ':')
     plt.xlabel('Active coefficients')
     plt.ylabel('R2')
     plt.title('R2 vs Active coefficiants')
@@ -1468,32 +1482,12 @@ def rank_features(x_std, y_std, idx, direction='Lo-Hi'):
         mse = skm.mean_squared_error(y_std, y_pred)
         mse_list[i] = mse 
         x_sel[:, i] = tmp[:, 0] # restore column
-    swapped = True
-    n = size
     if direction=='Lo-Hi':
 # bubble sort from low to high. lower mse first = least important features first
-        while swapped:
-            swapped = False
-            for i in range(1, n, 1):
-                if mse_list[i-1] > mse_list[i]:
-                    swapped = True
-                    mse_list.insert(i-1, mse_list[i])
-                    del(mse_list[i+1])
-                    idx.insert(i-1, idx[i])
-                    del(idx[i+1])
-            n - n - 1
+        mse_list, idx = Sort(mse_list, idx, direction='Lo-Hi')
     else:
 # bubble sort from high to low. Greater mse first = most important features first
-        while swapped:
-            swapped = False
-            for i in range(1, n, 1):
-                if mse_list[i-1] < mse_list[i]:
-                    swapped = True
-                    mse_list.insert(i-1, mse_list[i])
-                    del(mse_list[i+1])
-                    idx.insert(i-1, idx[i])
-                    del(idx[i+1])
-            n - n - 1        
+        mse_list, idx = Sort(mse_list, idx, direction='Hi-Lo')
     return idx
 
 class ENet:
@@ -1532,15 +1526,17 @@ class BF:
     F_Plot = 'Results'
     Slope = 0.001
     VIP_number = None
+    F_Coef = 'Coefficients.dat'
     
     def __init__(self, LastIterationsToStore=15, UseCorrelationMatrix=False,\
-        MinCorr=None, F_Xlsx='BF.xlsx', F_Plot = 'Results', Slope = 0.001,\
-        VIP_number=None):
+        MinCorr=None, F_Xlsx='BF.xlsx', F_Plot = 'Results', F_Coef = 'Coefficients.dat',\
+        Slope = 0.001, VIP_number=None):
         self.LastIterationsToStore = LastIterationsToStore
         self.UseCorrelationMatrix = UseCorrelationMatrix
         self.MinCorr = MinCorr
         self.F_Xlsx = F_Xlsx
         self.F_Plot = F_Plot
+        self.F_Coef = F_Coef
         self.Slope = Slope
         self.VIP_number = VIP_number
         return
@@ -1558,9 +1554,14 @@ class BF:
         if self.UseCorrelationMatrix:
             C = np.cov(x_std, rowvar=False, bias=True)
         writeResults = pd.ExcelWriter(self.F_Xlsx, engine='openpyxl')
-        mse_list = []
-        rmse_list = []
-        r2_list = []
+        idx_list = []
+        coef_list = []
+        mse_test_list = []
+        mse_train_list = []
+        rmse_test_list = []
+        rmse_train_list = []
+        r2_test_list = []
+        r2_train_list = []
         nonzero_list = []
         features_list = []
         if verbose > 0:
@@ -1568,23 +1569,15 @@ class BF:
             print(idx)
             print('Start Backward sequential elimination')
         idx = rank_features(x_std, y_std, idx, direction='Hi-Lo') # most imprtant features first
-        while (len(idx) > (1+len(VIP_idx))) and (len(idx) > 1):
+        while (len(idx) > (0+len(VIP_idx))) and (len(idx) > 1):
             FeatureSize = len(idx)
-            Results_to_xls(writeResults, str(FeatureSize), idx, FeaturesAll, FeaturesReduced,\
-                get_fit_score, X_train, Y_train, X_test, Y_test, idx=idx)
-            coef, nonzero, mse, rmse, r2 = get_fit_score(X_train, Y_train, X_test, Y_test, idx=idx)
-            mse_list.append(mse)
-            rmse_list.append(rmse)
-            r2_list.append(r2)
-            nonzero_list.append(nonzero)
-            features_list.append(idx)
-            idx = RemoveWorstFeature(x_std, y_std, Method='sequential',\
-                Criterion='MSE', idx=idx, VIP_idx=VIP_idx, Sort=True, verbose=verbose)
-            print('Remaining set:', idx)
             if FeatureSize > self.LastIterationsToStore:
                 if verbose > 0:
                     print('Features left: ', FeatureSize)
-                continue
+                    idx = RemoveWorstFeature(x_std, y_std, Method='sequential',\
+                        Criterion='MSE', idx=idx, VIP_idx=VIP_idx, sort=True, verbose=verbose)
+                    print('Remaining set:', idx)
+                    continue
             if self.UseCorrelationMatrix:
                 idx_corr = ClassifyCorrelatedFeatures(x_std, idx,\
                     MinCorrelation=self.MinCorr, Model=1, Corr_Matrix=C, verbose=verbose)
@@ -1599,16 +1592,37 @@ class BF:
                     VIP_idx=VIP_idx, MaxLoops=MaxLoops, MaxBottom=MaxBottom, verbose=verbose)
             idx = rank_features(x_std, y_std, idx_alternative, direction='Hi-Lo') # most imprtant features first
             print('Best subset', idx)
+            _, _, mse_train, rmse_train, r2_train = get_fit_score(X_train, Y_train, X_test, Y_test, idx=idx, Test=False)
+            coef, nonzero, mse_test, rmse_test, r2_test = get_fit_score(X_train, Y_train, X_test, Y_test, idx=idx, Test=True)
+            data_to_xls = []
+            data_to_xls.append((coef, nonzero, mse_train, rmse_train, r2_train)) # score based on train set
+            data_to_xls.append((coef, nonzero, mse_test, rmse_test, r2_test)) # score based on test set
+            Results_to_xls(writeResults, str(FeatureSize), idx, FeaturesAll, FeaturesReduced,\
+                data_to_xls)
+            coef_list.append(coef)
+            idx_list.append(idx)
+            mse_test_list.append(mse_test)
+            mse_train_list.append(mse_train)
+            rmse_test_list.append(rmse_test)
+            rmse_train_list.append(rmse_train)
+            r2_test_list.append(r2_test)
+            r2_train_list.append(r2_train)
+            nonzero_list.append(nonzero)
+            features_list.append(idx)
+            idx = RemoveWorstFeature(x_std, y_std, Method='sequential',\
+                Criterion='MSE', idx=idx, VIP_idx=VIP_idx, sort=True, verbose=verbose)
+            print('Remaining set:', idx)
         writeResults.save()
-        plot_rmse(self.F_Plot, nonzero_list, rmse_list, r2_list) 
+        plot_rmse(self.F_Plot + '_Test', nonzero_list, rmse_test_list, r2_test_list) 
+        plot_rmse(self.F_Plot + '_Train', nonzero_list, rmse_train_list, r2_train_list) 
         if GetVIP:
             size_list = len(nonzero_list)
             print('Before sorting')
             print('List of VIP features: ', VIP_idx)
             print('nonzero list:', nonzero_list)
-            print('mse list:', mse_list)
+            print('mse list:', mse_test_list)
             print('Full list', features_list )
-            nonzero_list, mse_list, features_list = Sort(nonzero_list, mse_list, features_list, direction='Lo-Hi')
+            nonzero_list, mse_list, features_list = Sort(nonzero_list, mse_train_list, features_list, direction='Lo-Hi')
             for i in range(0, size_list-1, 1):
                 mse = mse_list[i] # mse supposed to be greater than mse_next
                 mse_next =  mse_list[i+1]
@@ -1631,6 +1645,14 @@ class BF:
                     print('Full list', features_list )
                     
                     return VIP_idx
+        else:
+            coef_to_store = []
+            for i in range(0, len(nonzero_list), 1):    
+                coef_to_store.append((nonzero_list[i], idx_list[i], coef_list[i]))
+# save coefficients list into file
+            f = open(self.F_Coef, "wb")
+            pickle.dump(coef_to_store, f)
+            f.close() 
         return
     
 def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None,\
@@ -1819,42 +1841,24 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None,\
     idx, mse = get_best_mse(Root)
     return idx
 
-def Sort(idx, list1, list2, direction='Lo-Hi'):
-    swapped = True
-    n = len(idx)
-# bubble sort from low to high. less important features first
+# first list in *args governs sorting, others depend on first list 
+def Sort(*args, direction='Lo-Hi'):
+    idx = copy.deepcopy(args)
+    n = len(idx[0])
     if direction == 'Lo-Hi':
-        while swapped:
-            swapped = False
-            for i in range(1, n, 1):
-                if idx[i-1] > idx[i]:
-                    swapped = True
-                    temp = idx[i-1]
-                    temp1 = list1[i-1]
-                    temp2 = list2[i-1]
-                    idx[i-1] = idx[i]
-                    list1[i-1] = list1[i]
-                    list2[i-1] = list2[i]
-                    idx[i] = temp
-                    list1[i] = temp1
-                    list2[i] = temp2
-            n - n - 1
+        Dir = 1
     else:
-        while swapped:
-            swapped = False
-            for i in range(1, n, 1):
-                if idx[i-1] < idx[i]:
-                    swapped = True
-                    temp = idx[i-1]
-                    temp1 = list1[i-1]
-                    temp2 = list2[i-1]
-                    idx[i-1] = idx[i]
-                    list1[i-1] = list1[i]
-                    list2[i-1] = list2[i]
-                    idx[i] = temp
-                    list1[i] = temp1
-                    list2[i] = temp2
-            n - n - 1
-    return idx, list1, list2
-
-
+        Dir = -1
+# bubble sort according to direction
+    while n != 0:
+        newn = 0
+        for i in range(1, n, 1):
+            difference = (idx[0][i-1] - idx[0][i])*Dir
+            if difference > 0:
+                newn = i
+                for j in range(0, len(idx), 1):
+                    temp = idx[j][i-1]
+                    idx[j][i-1] = idx[j][i] 
+                    idx[j][i] = temp
+        n = newn
+    return idx

@@ -72,11 +72,11 @@ class record:
         self.atoms = atoms
 
 def isfloat(value):
-  try:
-    float(value)
-    return True
-  except:
-    return False
+    try:
+        float(value)
+        return True
+    except:
+        return False
         
 class Distance:
     Atom1 = None
