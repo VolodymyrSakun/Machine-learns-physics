@@ -1841,6 +1841,12 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None,\
     idx, mse = get_best_mse(Root)
     return idx
 
+def Swap(a, b):
+    tmp = a
+    a = b
+    b = tmp
+    return a, b
+
 # first list in *args governs sorting, others depend on first list 
 def Sort(*args, direction='Lo-Hi'):
     idx = copy.deepcopy(args)
@@ -1857,8 +1863,6 @@ def Sort(*args, direction='Lo-Hi'):
             if difference > 0:
                 newn = i
                 for j in range(0, len(idx), 1):
-                    temp = idx[j][i-1]
-                    idx[j][i-1] = idx[j][i] 
-                    idx[j][i] = temp
+                    idx[j][i], idx[j][i-1] = Swap(idx[j][i], idx[j][i-1])
         n = newn
     return idx

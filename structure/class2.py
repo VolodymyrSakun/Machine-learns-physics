@@ -9,6 +9,7 @@
 # max number of different kind of atoms = 9
 import numpy as np
 from structure import spherical
+from structure import library3
 
 class Atom:
     Symbol = None # atom symbol. Example: O, H, C, Si
@@ -42,20 +43,42 @@ class AtomCoordinates:
         
 class Molecule:
     Atoms = []
+    AtomIndex = []
+    nAtoms = None
     Bonds = []
     Name = None
     Mass = None
     CenterOfMass = None # type of spherical.Point
     def __init__(self, atoms, Name=None):
         self.Atoms = atoms
+        self.nAtoms = len(self.Atoms)
         self.Name = Name
+        self.Bonds = []
         mass = 0
         MissedMass = False
+        l1 = []
+        l2 = []
         for i in range(0, len(self.Atoms), 1):
+            l1.append(self.Atoms[i].Atom.Index)
+            l2.append(self.Atoms[i].Atom.Symbol)
             if self.Atoms[i].Atom.Mass is not None:
                 mass += self.Atoms[i].Atom.Mass
             else:
                 MissedMass = True
+        self.AtomIndex = l1
+        for i in range(0, len(self.Atoms), 1):
+            atom1_index = self.Atoms[i].Atom.Index
+            atom2_symbols = self.Atoms[i].Atom.Bonds # list 1..4 usually
+            for j in range(0, len(atom2_symbols), 1):
+                symbol = atom2_symbols[j]
+                atom2_index = l1[l2.index(symbol)]
+                if atom1_index > atom2_index:
+                    a1, a2 = library3.Swap(atom1_index, atom2_index)
+                else:
+                    a1, a2 = atom1_index, atom2_index
+                new_bond = (a1, a2)
+                if new_bond not in self.Bonds:
+                    self.Bonds.append(new_bond)
         if not MissedMass:
             self.Mass = mass
             x, y, z = spherical.center_of_mass(self.Atoms)
