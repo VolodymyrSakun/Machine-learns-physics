@@ -1,18 +1,30 @@
 from structure import class2
 import numpy as np
 import pickle 
+import re
 import sklearn.metrics as skm
 
-#F_data = short two water molecules.x
-#F_data = short three water molecules.x
-F_data = 'datafile1 from github gaussian process.x'
-#F_data = datafile2.x
-#F_data = datafile3 2 water molecules.x
-#F_data = datafile4 3 water molecules small.x
-#F_data = datafile5 3 water molecules big.x
+F = 'SystemDescriptor.' # file with info about system structure
+nVariables = 7
 
-nVariables = 5
+# read descriptor from file
+with open(F) as f:
+    lines = f.readlines()
+f.close()
+lines = [x.strip() for x in lines] # x is string
 
+for i in range(0, len(lines), 1):
+    x = lines[i]
+    if len(x) == 0:
+        continue
+    if x[0] == '#':
+        continue
+    if (x.find('F_data') != -1):        
+        s = re.split('F_data = |F_data=|', x)
+        s = list(filter(bool, s))
+        f_name = s
+        F_data = f_name[0]
+            
 # load reduced features and energy from file
 f = open('HarmonicFeaturesReduced.dat', "rb")
 FeaturesReduced = pickle.load(f)
@@ -116,7 +128,7 @@ E0 = np.zeros(shape=(Size,), dtype=float)
 E = np.zeros(shape=(Size,), dtype=float)
 for i in range(0, Size, 1):
     print(i)
-    E[i] = get_energy(Coef_tuple, FeaturesAll, FeaturesReduced, record_list, i, 12)
+    E[i] = get_energy(Coef_tuple, FeaturesAll, FeaturesReduced, record_list, i, nVariables)
     E0[i] = record_list[i].e
 
 mse_lr = skm.mean_squared_error(E0, E)

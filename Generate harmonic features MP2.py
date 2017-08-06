@@ -833,6 +833,7 @@ if __name__ == '__main__':
         shutil.copyfile(F_System, directory + '\\' + F_System)
         shutil.copyfile(F_Features, directory + '\\' + F_Features)
         shutil.copyfile(F_Structure, directory + '\\' + F_Structure)
+        shutil.copyfile(F_record_list, directory + '\\' + F_record_list)
     except:
         pass
 
