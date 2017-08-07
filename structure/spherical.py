@@ -401,11 +401,13 @@ def get_inertia_tensor(molecule):
 def get_atom_coordinates(molecule):
     nAtoms = len(molecule.Atoms)
     A = np.zeros(shape=(nAtoms, 3), dtype=float)
+    R = np.zeros(shape=(nAtoms), dtype=float)
     for i in range(0, nAtoms, 1):
         A[i, 0] = molecule.Atoms[i].x
         A[i, 1] = molecule.Atoms[i].y
         A[i, 2] = molecule.Atoms[i].z
-    return A
+        R[i] = molecule.Atoms[i].Atom.Radius
+    return A, R
 
 def align_molecule(molecule):
     molecule = translate_molecule_to_new_coordinate_system(molecule, molecule.CenterOfMass)    
@@ -449,8 +451,8 @@ def f1(molecule, arg1, arg2, arg3, theta, phi, psi, CoordinateSystem='Cartesian'
     molecule0 = align_molecule(molecule) # molecule aligned at 0,0,0
     molecule1 = rotate_molecule_angles(molecule0, theta, phi, psi, AngleType='Radian')
     molecule1 = translate_molecule_to_new_center(molecule1, COM_coordinates)
-    A0 = get_atom_coordinates(molecule0)
-    A1 = get_atom_coordinates(molecule1)
+    A0, _ = get_atom_coordinates(molecule0)
+    A1, _ = get_atom_coordinates(molecule1)
     A = np.concatenate((A0, A1), axis=0)
     return A        
             
@@ -540,5 +542,33 @@ def ReadMolecules(F='MoleculesDescriptor.'):
         Molecules.append(class2.Molecule(MoleculeAtoms, Name=MoleculeNames[i]))
     return Molecules
     
-    
+def Molecule_to_plot(molecule):
+    x1 = []
+    x2 = []
+    y1 = []
+    y2 = []
+    z1 = []
+    z2 = []
+    for i in range(0, len(molecule.Bonds), 1):
+        i1 = molecule.AtomIndex.index(molecule.Bonds[i][0])
+        i2 = molecule.AtomIndex.index(molecule.Bonds[i][1])
+        x1.append(molecule.Atoms[i1].x)
+        x2.append(molecule.Atoms[i2].x)
+        y1.append(molecule.Atoms[i1].y)
+        y2.append(molecule.Atoms[i2].y)
+        z1.append(molecule.Atoms[i1].z)
+        z2.append(molecule.Atoms[i2].z)
+    return x1, x2, y1, y2, z1, z2
    
+def plot_molecule(Plot, molecule, dot_color='red', bond_color='blue'):
+    S, R = get_atom_coordinates(molecule)
+    for i in range(0, S.shape[0], 1):
+        Plot.scatter(S[i, 0], S[i, 1], S[i, 2], s=R[i]*100, zdir='z', color=dot_color, depthshade=False)
+    x1, x2, y1, y2, z1, z2 = Molecule_to_plot(molecule)
+    for i in range(0, len(x1), 1):
+        if i == 0:
+            Plot.plot([x1[i], x2[i]], [y1[i], y2[i]], [z1[i], z2[i]], label=molecule.Name, color=bond_color, linewidth=1)
+        else:
+            Plot.plot([x1[i], x2[i]], [y1[i], y2[i]], [z1[i], z2[i]], color=bond_color, linewidth=1)
+    return
+
