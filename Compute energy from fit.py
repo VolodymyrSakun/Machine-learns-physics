@@ -5,7 +5,7 @@ import re
 import sklearn.metrics as skm
 
 F = 'SystemDescriptor.' # file with info about system structure
-nVariables = 7
+nVariables = 9 # How many variables participate in fit
 
 # read descriptor from file
 with open(F) as f:
@@ -127,7 +127,8 @@ Size = len(record_list)
 E0 = np.zeros(shape=(Size,), dtype=float)
 E = np.zeros(shape=(Size,), dtype=float)
 for i in range(0, Size, 1):
-    print(i)
+    if i % 100 == 0:
+        print(i)
     E[i] = get_energy(Coef_tuple, FeaturesAll, FeaturesReduced, record_list, i, nVariables)
     E0[i] = record_list[i].e
 
@@ -135,6 +136,9 @@ mse_lr = skm.mean_squared_error(E0, E)
 rmse = np.sqrt(mse_lr)
 r2 = skm.r2_score(E0, E)
 
+print('MSE = ', mse_lr)
+print('RMSE = ', rmse)
+print('R2 = ', r2)
 
 
 

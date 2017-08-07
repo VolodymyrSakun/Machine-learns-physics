@@ -23,11 +23,11 @@ if __name__ == '__main__':
     eps = 1e-3
     n_alphas = 100
 # Best Fit parameters
-    BestFitMethod = 'Tree' # can be 'Tree' or 'Fast'
+    BestFitMethod = 'Fast' # can be 'Tree' or 'Fast'
     MaxLoops = 10000 # integer number - greater = slower but better fit
     MaxBottom = 100 # integer - number of finished branches
-    LastIterationsToStoreSingle = 10 # Number of features when Best Fit starts
-    LastIterationsToStore = 10 # Same but for double features
+    LastIterationsToStoreSingle = 20 # Number of features when Best Fit starts
+    LastIterationsToStore = 20 # Same but for double features
     UseCorrelationMatrix = False # specifies if correlation matrix will be used
     # for Best Fit algorithm. If False, all features will be used in trials 
     # to find Best Fit. Overwise, only most correlated features will be used.
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     GA_Method = 'Random' # How GA works. Can be 'Random' or 'p_Value'
     n_jobs = 1 # How many cores will be used by GA. -1 = all cores
     TribeSize = 100 # Population per CPU
-    ChromosomeSize = 10
+    ChromosomeSize = 20
     if n_jobs == -1:
         nCPU = cpu_count()
     else:
