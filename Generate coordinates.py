@@ -61,19 +61,25 @@ bx.legend()
 # generate coordinates
 RandomSeed = 101
 Radius = 10 # Radius of sphere where water molecules will be placed
-nMolecules = 4 # number of molecules in the system
+nMolecules = 3 # number of molecules in the system
 nRecords = 10000 # number of records
+max_trials = 1000
 # random.seed(RandomSeed)
 random.seed()
 Molecules = []
-Saturated = 0
 records = []
-for rec in range(0, nRecords, 1):
-    if rec % 100 == 0:
+rec = 0
+empty_loop = 0
+Saturated = 0
+additional_gap = 17 # to be added to r1 + r2
+
+while (rec <  nRecords) and (empty_loop < max_trials):
+    if (rec % 10 == 0) and (Saturated == 0):
         print(rec)
-    while (len(Molecules) < nMolecules) and (Saturated < 1000):
+    Saturated = 0
+    while (len(Molecules) < nMolecules) and (Saturated < max_trials):
         theta = 2*pi*random.random()
-        phi = 2*pi*random.random()
+        phi = pi*random.random()
         psi = 2*pi*random.random()
         x = 2 * Radius * (random.random() - 0.5)
         y = 2 * Radius * (random.random() - 0.5)
@@ -93,7 +99,7 @@ for rec in range(0, nRecords, 1):
                     y2 = l.y
                     z2 = l.z
                     r2 = l.Atom.Radius
-                    critical_distance = r1 + r2
+                    critical_distance = r1 + r2 + additional_gap
                     distance = np.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2)            
                     if distance < critical_distance:
                         Good = False
@@ -107,17 +113,23 @@ for rec in range(0, nRecords, 1):
             Molecules.append(Water2)
             Saturated = 0
     record = []
-    for j in Molecules:
-        for k in j.Atoms:
-            S = k.Atom.Symbol
-            x = str(k.x)
-            y = str(k.y)
-            z = str(k.z)
-            line = S + ': ' + x + '\t' + y + '\t' + z + '\n'
-            record.append(line)
-    record.append('\n')
-    for line in record:
-        records.append(line)
+    if Saturated == 0:
+        for j in Molecules:
+            for k in j.Atoms:
+                S = k.Atom.Symbol
+                x = str(k.x)
+                y = str(k.y)
+                z = str(k.z)
+                line = S + ': ' + x + '\t' + y + '\t' + z + '\n'
+                record.append(line)
+        record.append('\n')
+        for line in record:
+            records.append(line)
+        rec += 1
+        empty_loop = 0
+    else:
+        empty_loop += 1
+    Molecules = []
 
 f = open('Coord.x', "w")
 f.writelines(records)

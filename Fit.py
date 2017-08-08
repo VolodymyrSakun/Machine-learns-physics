@@ -11,6 +11,7 @@ import shutil
 
 if __name__ == '__main__':
 # Global variables
+    DesiredNumberVariables = 15
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
     UseVIP = False # if true fit will be found in two steps. First step - fit only
@@ -25,15 +26,15 @@ if __name__ == '__main__':
 # Best Fit parameters
     BestFitMethod = 'Fast' # can be 'Tree' or 'Fast'
     MaxLoops = 10000 # integer number - greater = slower but better fit
-    MaxBottom = 100 # integer - number of finished branches
-    LastIterationsToStoreSingle = 20 # Number of features when Best Fit starts
-    LastIterationsToStore = 20 # Same but for double features
+    MaxBottom = 200 # integer - number of finished branches
+    LastIterationsToStoreSingle = DesiredNumberVariables # Number of features when Best Fit starts
+    LastIterationsToStore = DesiredNumberVariables # Same but for double features
     UseCorrelationMatrix = False # specifies if correlation matrix will be used
     # for Best Fit algorithm. If False, all features will be used in trials 
     # to find Best Fit. Overwise, only most correlated features will be used.
     # If false, will be slow for big number of features
-    MinCorr_Single = 0.8 # minimum correlation for single distances
-    MinCorr = 0.8 # minimum correlation for double distances
+    MinCorr_Single = 0.95 # minimum correlation for single distances
+    MinCorr = 0.95 # minimum correlation for double distances
     # needed only if UseCorrelationMatrix=True
     # used for creating list of most correlated features for Best Fit
     # float [0 .. 1]
@@ -49,7 +50,7 @@ if __name__ == '__main__':
     GA_Method = 'Random' # How GA works. Can be 'Random' or 'p_Value'
     n_jobs = 1 # How many cores will be used by GA. -1 = all cores
     TribeSize = 100 # Population per CPU
-    ChromosomeSize = 20
+    ChromosomeSize = DesiredNumberVariables
     if n_jobs == -1:
         nCPU = cpu_count()
     else:
@@ -78,6 +79,7 @@ if __name__ == '__main__':
     x_scale.fit(X_train)
     y_scale.fit(Y_train)
     x_std = x_scale.transform(X_train)
+#    x_std = library3.Scaler_L2(X_train)
     y_std = y_scale.transform(Y_train)
     Y_train = Y_train.reshape(-1)
     y_std = y_std.reshape(-1)
