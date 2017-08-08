@@ -659,8 +659,6 @@ def ClassifyCorrelatedFeatures(X, features_idx, MinCorrelation, Model=1, Corr_Ma
                     return True
         return False
     
-    if verbose:
-        print('Calculate correlation matrix')
     if Corr_Matrix is not None:
         C = Corr_Matrix
     else:
@@ -1303,7 +1301,6 @@ def ForwardSequential(x_std, y_std, nVariables=10, idx=None):
     x_selected = np.zeros(shape=(Size, len(idx)), dtype=float) # matrix with selected features
     for i in range(0, len(idx), 1):
         x_selected[:, i] = x_std[:, idx[i]]
-    z = np.zeros(shape=(Size, 1), dtype=float)
     j = len(idx)
     while j < nVariables:
         print(j)
@@ -1322,6 +1319,38 @@ def ForwardSequential(x_std, y_std, nVariables=10, idx=None):
         idx.append(idx_mse_min)
         x_selected[:, -1] = x_std[:, idx_mse_min]
         j += 1
+    return idx
+
+def AddBestFeature(x_std, y_std, idx=None):
+    size = x_std.shape[1] # number of features
+    Size = x_std.shape[0] # number of records
+    lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=True, n_jobs=1)
+    if (idx is None) or (len(idx) == 0): # determine best feature if initial fit does not exist
+        x_selected = np.zeros(shape=(Size, 1), dtype=float) # matrix with selected features
+        mse_array = np.zeros(shape=(size), dtype=float)
+        for i in range(0, size, 1):
+            x_selected[:, 0] = x_std[:, i]
+            lr.fit(x_selected, y_std)
+            y_pred = lr.predict(x_selected)
+            mse = skm.mean_squared_error(y_std, y_pred)
+            mse_array[i] = mse
+        idx = [] #indices of selected features
+        idx.append(np.argmin(mse_array)) # get most important feature with smallest MSE
+        return idx
+    x_selected = np.zeros(shape=(Size, len(idx)+1), dtype=float) # array with selected features
+    for i in range(0, len(idx), 1):
+        x_selected[:, i] = x_std[:, idx[i]]
+    mse_array = np.ones(shape=(size), dtype=float)
+    for i in range(0, size, 1):
+        if i in idx:
+            mse_array[i] = 1e+100
+            continue
+        x_selected[:, -1] = x_std[:, i]
+        lr.fit(x_selected, y_std)
+        y_pred = lr.predict(x_selected)
+        mse = skm.mean_squared_error(y_std, y_pred)
+        mse_array[i] = mse
+    idx.append(np.argmin(mse_array)) # index of feature with smallest MSE
     return idx
 
 def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
@@ -1465,6 +1494,8 @@ def store_structure(FileName, Atoms, Distances, DtP_Double_list, FeaturesAll):
 def rank_features(x_std, y_std, idx, direction='Lo-Hi'):
     # direction='Lo-Hi or direction='Hi-Lo'
     size = len(idx) # size of selected features list
+    if size <= 1:
+        return idx
     Size = x_std.shape[0] # number of observations
     z = np.zeros(shape=(Size, 1), dtype=float)
     tmp = np.zeros(shape=(Size, 1), dtype=float)

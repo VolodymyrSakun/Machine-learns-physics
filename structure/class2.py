@@ -50,7 +50,7 @@ class Molecule:
     Mass = None
     CenterOfMass = None # type of spherical.Point
     def __init__(self, atoms, Name=None):
-        self.Atoms = atoms
+        self.Atoms = atoms # class AtomCoordinates
         self.nAtoms = len(self.Atoms)
         self.Name = Name
         self.Bonds = []
