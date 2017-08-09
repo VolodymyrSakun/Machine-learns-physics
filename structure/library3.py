@@ -28,6 +28,9 @@
 # ForwardSequential
 # store_structure
 # rank_features
+# FindBestSetTree
+# Swap
+# Sort
 
 import numpy as np
 import pandas as pd

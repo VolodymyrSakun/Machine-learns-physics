@@ -10,6 +10,7 @@
 # mutate_one
 # mutate_many
 # rank_chromosome - inactive
+# set_fitness_for_genes - inactive
 # rank_population
 # get_best
 # crossover_random
@@ -23,11 +24,12 @@ from sklearn.linear_model import LinearRegression
 import sklearn.metrics as skm
 import statsmodels.regression.linear_model as sm
 import random
-from structure import library2
+from structure import library3
 from multiprocessing import cpu_count
 from joblib import Parallel, delayed
 from time import time
 from copy import deepcopy
+
 
 class GA:
     idx = None
@@ -366,7 +368,8 @@ class GA:
     
         return new_Tribe
     
-    def fit(self, x, y, Idx=None, VIP_idx=None, Method='Random'):
+    def fit(self, x, y, Idx=None, VIP_idx=None, Method='Random', Fine=None, C=None,\
+            UseCorrelationMatrix=False, MinCorr=0.95, MaxLoops=1000, MaxBottom=100):
         # Method - How GA works. Can be 'Random' or 'p_Value'
         if VIP_idx is None:
             VIP_idx = []
@@ -422,6 +425,32 @@ class GA:
                 new_Population = GA.rank_population(NewPopulation)
         # get best chromosome for initial population
                 BetterChromosome = GA.get_best(new_Population)
+                if Fine is not None:
+                    idx = [] # get indices from BetterChromosome
+                    for j in BetterChromosome.Genes:
+                        idx.append(j.idx)
+                    if C is None:
+                        C = np.cov(x, rowvar=False, bias=True)
+                    if UseCorrelationMatrix:
+                        idx_corr = library3.ClassifyCorrelatedFeatures(x, idx,\
+                            MinCorrelation=MinCorr, Model=1, Corr_Matrix=C,\
+                            verbose=False)
+                    else:    
+                        idx_corr = library3.get_full_list(idx, x.shape[1])                    
+                    if Fine == 'Fast':
+                        idx = library3.FindBestSet(x, y, idx, idx_corr,\
+                            VIP_idx=VIP_idx, Method='MSE', verbose=False)
+                    if Fine == 'Tree':
+                        idx = library3.FindBestSetTree(x, y, idx, idx_corr,\
+                            VIP_idx=VIP_idx, MaxLoops=MaxLoops, MaxBottom=MaxBottom,\
+                            verbose=0)
+                    idx = library3.rank_features(x, y, idx, direction='Hi-Lo') # most imprtant features first
+                    Gene_list = [] # reconstruct Chromosome
+                    for i in range(0, self.ChromosomeSize, 1):
+                        Gene_list.append(GA.Gene(idx[i]))
+                    chromosome = GA.Chromosome(Gene_list, self.ChromosomeSize)
+                    BetterChromosome = GA.get_fitness(chromosome, x, y)
+                    print(idx)
                 if BetterChromosome.MSE < BestChromosome.MSE:
                     BestChromosome = BetterChromosome
                     TimeLastImprovement = time()
