@@ -71,7 +71,7 @@ records = []
 rec = 0
 empty_loop = 0
 Saturated = 0
-additional_gap = 17 # to be added to r1 + r2
+additional_gap = 0 # to be added to r1 + r2
 
 while (rec <  nRecords) and (empty_loop < max_trials):
     if (rec % 10 == 0) and (Saturated == 0):

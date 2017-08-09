@@ -11,7 +11,7 @@ import shutil
 
 if __name__ == '__main__':
 # Global variables
-    DesiredNumberVariables = 15
+    DesiredNumberVariables = 20
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
     UseVIP = False # if true fit will be found in two steps. First step - fit only
@@ -33,8 +33,8 @@ if __name__ == '__main__':
     # for Best Fit algorithm. If False, all features will be used in trials 
     # to find Best Fit. Overwise, only most correlated features will be used.
     # If false, will be slow for big number of features
-    MinCorr_Single = 0.95 # minimum correlation for single distances
-    MinCorr = 0.95 # minimum correlation for double distances
+    MinCorr_Single = 0.9 # minimum correlation for single distances
+    MinCorr = 0.9 # minimum correlation for double distances
     # needed only if UseCorrelationMatrix=True
     # used for creating list of most correlated features for Best Fit
     # float [0 .. 1]
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     FractionOfCrossover = 1 # int(fraction NumberOfGood / NumberOfCrossover)
     NumberOfCrossover = int(NumberOfGood / FractionOfCrossover) # number of crossover / mutation together
     CrossoverFractionInterval = [0.6, 0.4] # how many genes will be taken from first and second best chromosomes (fraction)
-    IterationPerRecord = 10 # Display results of current fit after N iterations
+    IterationPerRecord = 1 # Display results of current fit after N iterations
     StopTime = 300 # How long in seconds GA works without improvement
     RandomSeed = 101
     
@@ -170,7 +170,9 @@ if __name__ == '__main__':
         IterationPerRecord=IterationPerRecord, StopTime=StopTime, RandomSeed=RandomSeed, verbose=True) 
         t = time.time()
         print('Genetic Algorithm for all features')
-        ga.fit(x_std, y_std, Idx=None, VIP_idx=VIP_idx, Method=GA_Method) 
+        C = np.cov(x_std, rowvar=False, bias=True)
+        ga.fit(x_std, y_std, Idx=None, VIP_idx=VIP_idx, Method=GA_Method, Fine=None, C=C,\
+            UseCorrelationMatrix=True, MinCorr=0.95, MaxLoops=1000, MaxBottom=100) 
         t_sec = time.time() - t
         print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
         idx = ga.idx 
