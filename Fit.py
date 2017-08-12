@@ -1,5 +1,5 @@
-from structure import library3
-from structure.genetic3 import GA
+from project1 import library
+from project1.genetic import GA
 import numpy as np
 import time
 import os
@@ -11,7 +11,7 @@ import shutil
 
 if __name__ == '__main__':
 # Global variables
-    DesiredNumberVariables = 20
+    DesiredNumberVariables = 10
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
     UseVIP = False # if true fit will be found in two steps. First step - fit only
@@ -25,11 +25,11 @@ if __name__ == '__main__':
     n_alphas = 100
 # Best Fit parameters
     BestFitMethod = 'Fast' # can be 'Tree' or 'Fast'
-    MaxLoops = 10000 # integer number - greater = slower but better fit
-    MaxBottom = 200 # integer - number of finished branches
+    MaxLoops = 1000 # integer number - greater = slower but better fit
+    MaxBottom = 50 # integer - number of finished branches
     LastIterationsToStoreSingle = DesiredNumberVariables # Number of features when Best Fit starts
     LastIterationsToStore = DesiredNumberVariables # Same but for double features
-    UseCorrelationMatrix = False # specifies if correlation matrix will be used
+    UseCorrelationMatrix = True # specifies if correlation matrix will be used
     # for Best Fit algorithm. If False, all features will be used in trials 
     # to find Best Fit. Overwise, only most correlated features will be used.
     # If false, will be slow for big number of features
@@ -63,13 +63,14 @@ if __name__ == '__main__':
     FractionOfCrossover = 1 # int(fraction NumberOfGood / NumberOfCrossover)
     NumberOfCrossover = int(NumberOfGood / FractionOfCrossover) # number of crossover / mutation together
     CrossoverFractionInterval = [0.6, 0.4] # how many genes will be taken from first and second best chromosomes (fraction)
-    IterationPerRecord = 1 # Display results of current fit after N iterations
+    IterationPerRecord = 10 # Display results of current fit after N iterations
     StopTime = 300 # How long in seconds GA works without improvement
     RandomSeed = 101
     
 # Read features and structures from files stored by "Generate combined features"
-    X, Y, FeaturesAll, FeaturesReduced, system = library3.ReadFeatures('Harmonic Features.csv', \
-        'HarmonicFeaturesAll.dat', 'HarmonicFeaturesReduced.dat', 'system.dat', verbose=False)
+    X, Y, FeaturesAll, FeaturesReduced, system, _ = library.ReadFeatures(F_features='Harmonic Features.csv', \
+        F_FeaturesAll='HarmonicFeaturesAll.dat', F_FeaturesReduced='HarmonicFeaturesReduced.dat',\
+        F_System='system.dat', F_Records=None, verbose=False)
 # split data in order to separate training set and test set
 # all response variables Y must be 1D arrays
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=RandomSeed)
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     x_scale.fit(X_train)
     y_scale.fit(Y_train)
     x_std = x_scale.transform(X_train)
-#    x_std = library3.Scaler_L2(X_train)
+#    x_std = library.Scaler_L2(X_train) # scaler from LinearRegression
     y_std = y_scale.transform(Y_train)
     Y_train = Y_train.reshape(-1)
     y_std = y_std.reshape(-1)
@@ -111,7 +112,7 @@ if __name__ == '__main__':
                 single_x_std[:, j] = x_std[:, i]
                 j += 1
         if FirstAlgorithm == 'ENet':
-            enet = library3.ENet(F_ENet=F_ENet_Single, L1=0.7, eps=1e-3, nAlphas=100, alphas=None)
+            enet = library.ENet(F_ENet=F_ENet_Single, L1=0.7, eps=1e-3, nAlphas=100, alphas=None)
             t = time.time()
             print('Elastic Net Fit for single features only')
             print('L1 portion = ', enet.L1)
@@ -137,7 +138,7 @@ if __name__ == '__main__':
             print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
         if UseCorrelationMatrix:
             print('MinCorrelation = ', MinCorr_Single)
-        bf = library3.BF(LastIterationsToStore=LastIterationsToStoreSingle, UseCorrelationMatrix=UseCorrelationMatrix,\
+        bf = library.BF(LastIterationsToStore=LastIterationsToStoreSingle, UseCorrelationMatrix=UseCorrelationMatrix,\
                 MinCorr=MinCorr_Single, F_Xlsx=F_Out_Single, F_Plot = F_Plot_Single,\
                 Slope = 0.001, VIP_number=VIP_number)
         t = time.time()
@@ -151,7 +152,7 @@ if __name__ == '__main__':
         VIP_idx = []
 # proceed all features        
     if FirstAlgorithm == 'ENet':
-        enet = library3.ENet(F_ENet=F_ENet, L1=0.7, eps=1e-3, nAlphas=100, alphas=None)
+        enet = library.ENet(F_ENet=F_ENet, L1=0.7, eps=1e-3, nAlphas=100, alphas=None)
         t = time.time()
         print('Elastic Net Fit for all features')
         print('L1 portion = ', enet.L1)
@@ -179,7 +180,7 @@ if __name__ == '__main__':
         print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
     if UseCorrelationMatrix:
         print('MinCorrelation = ', MinCorr)
-    bf = library3.BF(LastIterationsToStore=LastIterationsToStore, UseCorrelationMatrix=UseCorrelationMatrix,\
+    bf = library.BF(LastIterationsToStore=LastIterationsToStore, UseCorrelationMatrix=UseCorrelationMatrix,\
             MinCorr=MinCorr, F_Xlsx=F_Out, F_Plot = F_Plot,\
             Slope = 0.001, VIP_number=None)
     t = time.time()
