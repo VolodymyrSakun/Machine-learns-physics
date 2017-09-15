@@ -7,6 +7,7 @@ import pickle
 from project1 import structure
 from project1 import library
 from project1 import spherical
+from project1 import IOfunctions
 from joblib import Parallel, delayed
 import multiprocessing as mp
 import re
@@ -51,14 +52,63 @@ import shutil
 # FeaturesAll[0].DtP2.Distance.Atom2.AtType
 # FeaturesAll[0].DtP2.Distance.Atom2.MolecularIndex
 
-def StoreFeatures(F_out_features, first, last, FeaturesAll, FeaturesReduced, record_list, Atoms):
+def StoreEnergy(F_Response, record_list):
+    Size = len(record_list)
+    energy = np.zeros(shape=(Size, 1), dtype=float)
+    for i in range(0, Size, 1):
+        energy[i, 0] = record_list[i].e # energy    
+    Table = pd.DataFrame(energy, columns=['response'], dtype=float)
+    f = open(F_Response, 'w')
+    Table.to_csv(f, index=False)
+    f.close()
+    return
+
+"""
+def StoreDistances(F_Distances, record_list):
+    Size = len(record_list)
+    nAtoms = len(record_list[0].atoms)
+    nDistances = int(nAtoms**2 / 2 - nAtoms / 2)
+    distances_array = np.zeros(shape=(Size, nDistances), dtype=float)
+# only distance for exp function
+    for i in range(0, Size, 1):
+        l = 0
+        for k in range(0, nAtoms, 1):
+            for j in range(k+1, nAtoms, 1):        
+                r = np.sqrt((record_list[i].atoms[k].x - record_list[i].atoms[j].x)**2 +\
+                            (record_list[i].atoms[k].y - record_list[i].atoms[j].y)**2 +\
+                            (record_list[i].atoms[k].z - record_list[i].atoms[j].z)**2)            
+                distances_array[i, l] = r
+                l += 1    
+# save distances
+    Table = pd.DataFrame(distances_array, dtype=float)
+    f = open(F_Distances, 'w')
+    Table.to_csv(f, index=False)
+    f.close()
+    return
+"""
+
+def StoreDistances(F_Distances, record_list, Distances):
+    Size = len(record_list)
+    nDistances = len(Distances)
+    distances_array = np.zeros(shape=(Size, nDistances), dtype=float)
+    for i in range(0, Size, 1):
+        for j in range(0, nDistances, 1):
+            r = np.sqrt((record_list[i].atoms[Distances[j].Atom1.Index].x - record_list[i].atoms[Distances[j].Atom2.Index].x)**2 +\
+                        (record_list[i].atoms[Distances[j].Atom1.Index].y - record_list[i].atoms[Distances[j].Atom2.Index].y)**2 +\
+                        (record_list[i].atoms[Distances[j].Atom1.Index].z - record_list[i].atoms[Distances[j].Atom2.Index].z)**2)            
+            distances_array[i, j] = r
+# save distances
+    Table = pd.DataFrame(distances_array, dtype=float)
+    f = open(F_Distances, 'w')
+    Table.to_csv(f, index=False)
+    f.close()
+    return
+
+def StoreFeatures(F_LinearFeatures, first, last, FeaturesAll, FeaturesReduced, record_list, Atoms):
 # Storing energy
     NofFeaturesReduced = len(FeaturesReduced)
     NofFeatures = len(FeaturesAll)
-    energy = np.zeros(shape=(last - first, 1), dtype=float)
-    for i in range(first, last, 1):
-        energy[i-first, 0] = record_list[i].e # energy
-# calculating and storing distances    
+# calculating and storing distances  
     features_array = np.zeros(shape=(last-first, len(FeaturesAll)), dtype=float) 
     for j in range(0, len(FeaturesAll), 1):
         for i in range(first, last, 1):
@@ -70,7 +120,6 @@ def StoreFeatures(F_out_features, first, last, FeaturesAll, FeaturesReduced, rec
                             (record_list[i].atoms[atom1_index].y - record_list[i].atoms[atom2_index].y)**2 +\
                             (record_list[i].atoms[atom1_index].z - record_list[i].atoms[atom2_index].z)**2)            
                 r = d**FeaturesAll[j].DtP1.Power # distance to correcponding power
-
             if (FeaturesAll[j].nDistances == 2) and (FeaturesAll[j].Harmonic1 is None) and (FeaturesAll[j].Harmonic2 is None):
 # features with two distances without harmonics
                 atom11_index = FeaturesAll[j].DtP1.Distance.Atom1.Index
@@ -176,40 +225,49 @@ def StoreFeatures(F_out_features, first, last, FeaturesAll, FeaturesReduced, rec
                 features_array_reduced[:, k] += features_array[:, j]
 
 # removing NaN from dataset
-    mask = ~np.any(np.isnan(features_array_reduced), axis=1)
-    features_array_reduced = features_array_reduced[mask]
-    energy = energy[mask]
+#    mask = ~np.any(np.isnan(features_array_reduced), axis=1)
+#    features_array_reduced = features_array_reduced[mask]
+#    energy = energy[mask]
 # save reduced features and energy into file
     Table = pd.DataFrame(features_array_reduced, dtype=float)
-    Table['energy'] = energy
-    f = open(F_out_features, 'a')
+    f = open(F_LinearFeatures, 'a')
     if first == 0:
         Table.to_csv(f, index=False)
     else:
         Table.to_csv(f, index=False, header=False)
     f.close()
-
     return
 # end of StoreFeatures
 
 if __name__ == '__main__':
-    F = 'SystemDescriptor.' # file with info about system structure
-    F_HarmonicFeatures = 'Harmonic Features.csv' # output csv file with combined features and energy
-    F_HarmonicFeaturesAll = 'HarmonicFeaturesAll.dat' # output data structure which contains all features
-    F_HarmonicFeaturesReduced = 'HarmonicFeaturesReduced.dat' # output data structure which contains combined features
+    F_SystemDescriptor = 'SystemDescriptor.' # file with info about system structure
+    F_Response = 'Response.csv' # response variable (y)
+    F_LinearFeatures = 'LinearFeatures.csv' # output csv file with combined features and energy
+    F_Distances = 'Distances.csv' # output csv file. distances
+    F_NonlinearFeatures = 'NonlinearFeatures.dat'
+    F_LinearFeaturesAll = 'LinearFeaturesAll.dat' # output data structure which contains all features
+    F_LinearFeaturesReduced = 'LinearFeaturesReduced.dat' # output data structure which contains combined features
     F_System = 'system.dat' # output data system structure
     F_record_list = 'records.dat'
-    F_Features = 'Harmonic Features Reduced List.xlsx'
+    F_LinearFeaturesList = 'Linear Features Reduced List.xlsx'
+    F_NonlinearFeaturesList = 'Nonlinear Features List.xlsx'
     F_Structure = 'Structure.xlsx'
     Separators = '=|,| |:|;|: |'   
-    try:
-        os.remove(F_HarmonicFeatures) # erase old files if exist
-        os.remove(F_HarmonicFeaturesAll) 
-        os.remove(F_HarmonicFeaturesReduced) 
+    try:        
+        os.remove(F_Response)
+        os.remove(F_LinearFeatures) # erase old files if exist
+        os.remove(F_Distances)
+        os.remove(F_NonlinearFeatures)
+        os.remove(F_LinearFeaturesAll) 
+        os.remove(F_LinearFeaturesReduced) 
+        os.remove(F_System)
+        os.remove(F_record_list)
+        os.remove(F_LinearFeaturesList)
+        os.remove(F_Structure)
     except:
         pass    
     # read descriptor from file
-    with open(F) as f:
+    with open(F_SystemDescriptor) as f:
         lines = f.readlines()
     f.close()
     lines = [x.strip() for x in lines] # x is string
@@ -431,27 +489,80 @@ if __name__ == '__main__':
         j = 0 # order in the system 
         types_list = []
         idx_list = []
-        k = -1
+        molecules_idx_list = []
+        molecules = []
+        k = 0
+        one_molecule_atoms = []
+        old_molecule_index = None
         while ((lines[i].find('&endSYSTEM') == -1) and (i < len(lines))):
             if (lines[i][0] == '#'):
                 i += 1
                 continue
-            else:
-                x = lines[i]
+            x = lines[i]
+            if (x.find('&Molecule') != -1):
                 s = re.split(Separators, x)
-                s = list(filter(bool, s))
-                symbol = s[0]
-                if symbol not in types_list:
-                    k += 1
-                    types_list.append(symbol)
-                    idx_list.append(k)
-                idx = types_list.index(symbol)
-                Atoms.append(structure.Atom(symbol, j, idx_list[idx], int(s[1])))
-                j += 1
+                del(s[0]) # 'Molecule'
+                s0 = s[0]
+                for l in range(1, len(s), 1):
+                    s0 = s0 + ' ' + s[l]
+                MoleculeName = s0
                 i += 1
+                continue
+            s = re.split(Separators, x)
+            s = list(filter(bool, s))
+            symbol = s[0]
+            if symbol not in types_list:
+                types_list.append(symbol)
+                idx_list.append(k)
+                k += 1
+            idx = types_list.index(symbol)    
+            try:
+                molecule_index = int(s[1])
+                if molecule_index not in molecules_idx_list: # next molecule
+                    molecules_idx_list.append(molecule_index)
+                    if j == 0: # first atom
+                        old_molecule_index = molecule_index
+                        one_molecule_atoms.append(structure.Atom(symbol, j, idx_list[idx], old_molecule_index))
+                        j += 1 # to next index
+                        i += 1 # to next line
+                        continue
+                    for l in one_molecule_atoms: # store atoms from previous molecule
+                        Atoms.append(l)
+                    molecules.append(structure.Molecule(one_molecule_atoms, Name=MoleculeName))
+                    one_molecule_atoms = []
+                    old_molecule_index = molecule_index
+                    one_molecule_atoms.append(structure.Atom(symbol, j, idx_list[idx], old_molecule_index))
+                    old_molecule_index = molecule_index
+                    j += 1
+                else: # same molecule
+                    one_molecule_atoms.append(structure.Atom(symbol, j, idx_list[idx], old_molecule_index))
+                    j += 1
+            except:
+                print('Error reading file')
+                break
+            i += 1
+        nMolecules = len(molecules_idx_list)
+        for l in one_molecule_atoms:
+            Atoms.append(l)
+        molecules.append(structure.Molecule(one_molecule_atoms, Name=MoleculeName))
     else:
         print('Error reading &SYSTEM section from SystemDescriptor')
-    
+                
+    Prototypes = IOfunctions.ReadMoleculeDescription(F_SystemDescriptor) # read molecule prototypes 
+    MoleculeNames = []
+    for i in Prototypes:
+        MoleculeNames.append(i.Name)
+    for i in molecules:
+        if i.Name in MoleculeNames:
+            idx = MoleculeNames.index(i.Name)
+            i.Mass = Prototypes[idx].Mass
+            for j in range(0, len(i.Atoms), 1):
+                i.Atoms[j].Atom.Mass = Prototypes[idx].Atoms[j].Atom.Mass
+                i.Atoms[j].Atom.Radius = Prototypes[idx].Atoms[j].Atom.Radius
+                i.Atoms[j].Atom.Bonds = Prototypes[idx].Atoms[j].Atom.Bonds
+                i.Atoms[j].Atom.Bonds = library.replace_numbers(i.AtomIndex, Prototypes[idx].AtomIndex, i.Atoms[j].Atom.Bonds)
+    for i in molecules:
+        i._refresh() # update data from prototype
     # determine number of atom types from list
     nAtTypes = len(types_list)       
     nAtoms = len(Atoms)
@@ -465,8 +576,15 @@ if __name__ == '__main__':
             DiTypeList.append(i.DiType)
     nDistances = len(Distances)
     nDiTypes = len(DiTypeList)
-    system = structure.System(Atoms=Atoms, nAtoms=nAtoms, nAtTypes=nAtTypes,\
-                           Distances=Distances, nDistances=nDistances, nDiTypes=nDiTypes)
+    system = structure.System(Atoms=Atoms, Molecules=molecules, Prototypes=Prototypes,\
+        nAtoms=nAtoms, nAtTypes=nAtTypes, nMolecules=nMolecules, Distances=Distances,\
+        nDistances=nDistances, nDiTypes=nDiTypes)
+
+    FeaturesNonlinear = []    
+    for i in range(0, nDistances, 1):
+        FeaturesNonlinear.append(structure.FeatureNonlinear(i, Distances[i], FeType='exp', nDistances=1, nConstants=2))
+        
+        
     FeaturesAll = [] # list of all features
     
     if ProceedSingle:
@@ -701,13 +819,18 @@ if __name__ == '__main__':
     NofFeatures = len(FeaturesAll) # Total number of features
     NofFeaturesReduced = len(FeaturesReduced)
     
+    # save list FeaturesNonlinear into file
+    f = open(F_NonlinearFeatures, "wb")
+    pickle.dump(FeaturesNonlinear, f)
+    f.close()
+    
     # save list FeaturesAll into file
-    f = open(F_HarmonicFeaturesAll, "wb")
+    f = open(F_LinearFeaturesAll, "wb")
     pickle.dump(FeaturesAll, f)
     f.close()
     
     # save list FeaturesReduced into file
-    f = open(F_HarmonicFeaturesReduced, "wb")
+    f = open(F_LinearFeaturesReduced, "wb")
     pickle.dump(FeaturesReduced, f)
     f.close()
 
@@ -716,8 +839,9 @@ if __name__ == '__main__':
     pickle.dump(system, f)
     f.close()
     
-    library.StoreFeaturesDescriprion(F_Features, FeaturesAll, FeaturesReduced)
-    library.store_structure(F_Structure, Atoms, Distances, DtP_Double_list, FeaturesAll)
+    library.StoreNonlinearFeaturesDescriprion(F_NonlinearFeaturesList, FeaturesNonlinear) # xlsx
+    library.StoreLinearFeaturesDescriprion(F_LinearFeaturesList, FeaturesAll, FeaturesReduced) # xlsx
+    library.store_structure(F_Structure, Atoms, Distances, DtP_Double_list, FeaturesAll) # xlsx
     
     # Read coordinates from file
     f = open(F_data, "r")
@@ -794,12 +918,13 @@ if __name__ == '__main__':
             size_list.append((first, last))
             size_list_str.append(str(first) + '-' + str(last-1) + '.csv')
             i += 1
-    
+    StoreDistances(F_Distances, record_list, Distances)
+    StoreEnergy(F_Response, record_list)
     ran = list(range(0, len(size_list_str), 1))
     jobs = (delayed(StoreFeatures)(size_list_str[i], size_list[i][0], size_list[i][1], FeaturesAll, FeaturesReduced, record_list, Atoms) for i in ran)
     N = Parallel(n_jobs=nCPU)(jobs)
     print('Storing results in one file')
-    f = open(F_HarmonicFeatures, "w")
+    f = open(F_LinearFeatures, "w")
     for i in range(0, len(size_list_str), 1):
         fin = open(size_list_str[i], "r")
         S = fin.readlines()
@@ -816,17 +941,20 @@ if __name__ == '__main__':
     if not os.path.exists(directory):
         os.makedirs(directory)    
     try:
-        shutil.copyfile('SystemDescriptor.', directory + '\\' + 'SystemDescriptor.')
-        shutil.copyfile(F_HarmonicFeatures, directory + '\\' + F_HarmonicFeatures)
-        shutil.copyfile(F_HarmonicFeaturesAll, directory + '\\' + F_HarmonicFeaturesAll)
-        shutil.copyfile(F_HarmonicFeaturesReduced, directory + '\\' + F_HarmonicFeaturesReduced)
+        shutil.copyfile(F_SystemDescriptor, directory + '\\' + F_SystemDescriptor)
+        shutil.copyfile(F_Response, directory + '\\' + F_Response)
+        shutil.copyfile(F_LinearFeatures, directory + '\\' + F_LinearFeatures)
+        shutil.copyfile(F_Distances, directory + '\\' + F_Distances)
+        shutil.copyfile(F_LinearFeaturesAll, directory + '\\' + F_LinearFeaturesAll)
+        shutil.copyfile(F_NonlinearFeatures, directory + '\\' + F_NonlinearFeatures)
+        shutil.copyfile(F_LinearFeaturesReduced, directory + '\\' + F_LinearFeaturesReduced)
         shutil.copyfile(F_System, directory + '\\' + F_System)
-        shutil.copyfile(F_Features, directory + '\\' + F_Features)
-        shutil.copyfile(F_Structure, directory + '\\' + F_Structure)
         shutil.copyfile(F_record_list, directory + '\\' + F_record_list)
+        shutil.copyfile(F_LinearFeaturesList, directory + '\\' + F_LinearFeaturesList)
+        shutil.copyfile(F_Structure, directory + '\\' + F_Structure)
+        shutil.copyfile(F_NonlinearFeaturesList, directory + '\\' + F_NonlinearFeaturesList)
     except:
         pass
 
     print("DONE")
-    
-    
+

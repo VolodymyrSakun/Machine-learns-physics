@@ -1,21 +1,24 @@
 from project1 import library
 from project1.genetic import GA
+from project1 import IOfunctions
+from project1 import regression
 import numpy as np
 import time
 import os
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from multiprocessing import cpu_count
 import shutil
-
+import copy
+import pickle 
+from sklearn.utils import shuffle
 
 if __name__ == '__main__':
 # Global variables
-    DesiredNumberVariables = 10
+    DesiredNumberVariables = 7
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
     UseVIP = False # if true fit will be found in two steps. First step - fit only
     # single distances, select most important (VIP) features which will be kept
+    test_size = 0.3 # fraction of test size
 # Elastic net parameters    
     L1_Single = 0.7
     eps_single = 1e-3
@@ -24,67 +27,93 @@ if __name__ == '__main__':
     eps = 1e-3
     n_alphas = 100
 # Best Fit parameters
-    BestFitMethod = 'Fast' # can be 'Tree' or 'Fast'
-    MaxLoops = 1000 # integer number - greater = slower but better fit
-    MaxBottom = 50 # integer - number of finished branches
-    LastIterationsToStoreSingle = DesiredNumberVariables # Number of features when Best Fit starts
-    LastIterationsToStore = DesiredNumberVariables # Same but for double features
-    UseCorrelationMatrix = True # specifies if correlation matrix will be used
+#    BestFitMethod = 'Fast' # can be 'Tree' or 'Fast'
+#    MaxLoops = 1000 # integer number - greater = slower but better fit
+#    MaxBottom = 50 # integer - number of finished branches
+    UseCorrelationMutation=True
+    MinCorrMutation=0.9
+    UseCorrelationBestFit=True
+    MinCorrBestFit=0.8
     # for Best Fit algorithm. If False, all features will be used in trials 
     # to find Best Fit. Overwise, only most correlated features will be used.
     # If false, will be slow for big number of features
     MinCorr_Single = 0.9 # minimum correlation for single distances
-    MinCorr = 0.9 # minimum correlation for double distances
+    MinCorr = 0.8 # minimum correlation for double distances
     # needed only if UseCorrelationMatrix=True
     # used for creating list of most correlated features for Best Fit
     # float [0 .. 1]
-    F_Out_Single = 'Single BF.xlsx'
-    F_ENet_Single = 'Single ENet path.png'
-    F_Plot_Single = 'Single_Plot'
-    F_Out = 'BF.xlsx'
-    F_ENet = 'ENet path.png'
-    F_Plot = 'Plot'
+    F_Out_Single = 'Single BE.xlsx'
+    F_ENet_Single = 'Single ENet path'
+    F_GA_Single = 'Single GA path'
+    F_BE_Single = 'Single BE path'
+    F_Out = 'BE.xlsx'
+    F_ENet = 'ENet path'
+    F_GA = 'GA path'
+    F_ga_structure = 'GA_structure.dat'
     Slope = 0.001 # stopping criterion for VIP features. Slope of RMSE graph
     VIP_number = 5 # stopping criterion for VIP features. Desired number of VIP features
 # GA parameters
-    GA_Method = 'Random' # How GA works. Can be 'Random' or 'p_Value'
-    n_jobs = 1 # How many cores will be used by GA. -1 = all cores
-    TribeSize = 100 # Population per CPU
+    PopulationSize = 20 # Population
     ChromosomeSize = DesiredNumberVariables
-    if n_jobs == -1:
-        nCPU = cpu_count()
-    else:
-        nCPU = n_jobs
-    PopulationSize = TribeSize*nCPU # Total population
     MutationProbability = 0.3 # probability of mutation
     MutationInterval = [1, 3] # will be randomly chosen between min and max-1
-    EliteFraction = 0.3 # fracrion of good chromosomes that will be used for crossover
-    NumberOfGood = int(EliteFraction * TribeSize)
-    FractionOfCrossover = 1 # int(fraction NumberOfGood / NumberOfCrossover)
-    NumberOfCrossover = int(NumberOfGood / FractionOfCrossover) # number of crossover / mutation together
+    EliteFraction = 0.4 # fracrion of good chromosomes that will be used for crossover
+    MutationCrossoverFraction = 0.3
     CrossoverFractionInterval = [0.6, 0.4] # how many genes will be taken from first and second best chromosomes (fraction)
-    IterationPerRecord = 10 # Display results of current fit after N iterations
-    StopTime = 300 # How long in seconds GA works without improvement
+    IterationPerRecord = 1 # Display results of current fit after N iterations
+    StopTime = 600 # How long in seconds GA works without improvement
+    nIter = 1000 # How many populations will be used before GA stops
     RandomSeed = 101
+    LinearSolver = 'sklearn' # 'sklearn', 'scipy', 'statsmodels'
+    cond=1e-03 # for scipy solver
+    lapack_driver='gelsy' # 'gelsd', 'gelsy', 'gelss', for scipy solver
+    NonlinearFunction = 'exp'
+    UseNonlinear = True # if true, only linear regression will be used
+    CrossoverMethod = 'Random' # 'Random' or 'Best'
+    MutationMethod = 'Correlated' # 'Random' or 'Correlated'
+    verbose = True
+
     
 # Read features and structures from files stored by "Generate combined features"
-    X, Y, FeaturesAll, FeaturesReduced, system, _ = library.ReadFeatures(F_features='Harmonic Features.csv', \
-        F_FeaturesAll='HarmonicFeaturesAll.dat', F_FeaturesReduced='HarmonicFeaturesReduced.dat',\
-        F_System='system.dat', F_Records=None, verbose=False)
+    X_nonlin, X_lin, Y, FeaturesNonlinear, FeaturesAll, FeaturesReduced, system, _ = IOfunctions.ReadFeatures(\
+        F_Nonlinear='Distances.csv', F_linear='LinearFeatures.csv', F_Response='Response.csv',\
+        F_NonlinearFeatures = 'NonlinearFeatures.dat', F_FeaturesAll='LinearFeaturesAll.dat',\
+        F_FeaturesReduced='LinearFeaturesReduced.dat', F_System='system.dat', F_Records=None, verbose=False)
 # split data in order to separate training set and test set
 # all response variables Y must be 1D arrays
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=RandomSeed)
-    Y_train = Y_train.reshape(-1, 1)
-    x_scale = StandardScaler(copy=True, with_mean=True, with_std=True)
-    y_scale = StandardScaler(copy=True, with_mean=True, with_std=False)
-    x_scale.fit(X_train)
-    y_scale.fit(Y_train)
-    x_std = x_scale.transform(X_train)
-#    x_std = library.Scaler_L2(X_train) # scaler from LinearRegression
-    y_std = y_scale.transform(Y_train)
-    Y_train = Y_train.reshape(-1)
-    y_std = y_std.reshape(-1)
-    
+    X_nonlin, X_lin, Y = shuffle(X_nonlin, X_lin, Y, random_state=RandomSeed)
+    if (X_nonlin is not None) and (X_lin is None):
+        UseNonlinear = True
+        print('Linear features are not provides. Use non-linear regression only')
+        X_nonlin, Y = shuffle(X_nonlin, Y, random_state=RandomSeed)
+        X_train_nonlin, X_test_nonlin, Y_train, Y_test = train_test_split(X_nonlin, Y, test_size=test_size, random_state=RandomSeed)
+        X_train_lin = None
+        X_test_lin = None
+    if ((X_nonlin is None) and (X_lin is not None)) or (not UseNonlinear):
+        UseNonlinear = False
+        if not UseNonlinear:
+            print('Activated linear features only')
+        else:
+            print('Non-linear features are not provided. Use linear regression only')
+        X_lin, Y = shuffle(X_lin, Y, random_state=RandomSeed)
+        X_train_lin, X_test_lin, Y_train, Y_test = train_test_split(X_lin, Y, test_size=test_size, random_state=RandomSeed)
+        X_train_nonlin = None
+        X_test_nonlin = None
+    if ((X_nonlin is not None) and (X_lin is not None)) and UseNonlinear:
+        print('Linear and non-linear features are provided')        
+        X_nonlin, X_lin, Y = shuffle(X_nonlin, X_lin, Y, random_state=RandomSeed)
+        X = np.empty(shape=(X_lin.shape[0], X_nonlin.shape[1]+X_lin.shape[1]), dtype=float)
+        X[:, 0:X_nonlin.shape[1]] = X_nonlin[:, :] # non-linear features first
+        X[:, X_nonlin.shape[1]:X.shape[1]] = X_lin[:, :]
+        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=test_size, random_state=RandomSeed)
+        X_train_nonlin = X_train[:, 0:X_nonlin.shape[1]]
+        X_train_lin = X_train[:, X_nonlin.shape[1]:X.shape[1]]
+        X_test_nonlin = X_test[:, 0:X_nonlin.shape[1]]
+        X_test_lin = X_test[:, X_nonlin.shape[1]:X.shape[1]]
+        Y_train = Y_train.reshape(-1)
+        Y_test = Y_test.reshape(-1)
+        del(X_train)
+        del(X_test)        
     if UseVIP:
         if system.nAtoms == 6: # two water molecules system
             VIP_number = 5
@@ -95,102 +124,202 @@ if __name__ == '__main__':
         for i in range(0, len(FeaturesAll), 1):
             if FeaturesAll[i].nDistances == 1:
                 SingleFeaturesAll.append(FeaturesAll[i])
-        count_singles = 0
         SingleFeaturesReduced = []
         for i in range(0, len(FeaturesReduced), 1):
             if FeaturesReduced[i].nDistances == 1:
-                count_singles += 1
                 SingleFeaturesReduced.append(FeaturesReduced[i])
-        Single_X_train = np.zeros(shape=(X_train.shape[0], len(SingleFeaturesReduced)), dtype=float)
-        Single_X_test = np.zeros(shape=(X_test.shape[0], len(SingleFeaturesReduced)), dtype=float)
-        single_x_std = np.zeros(shape=(x_std.shape[0], len(SingleFeaturesReduced)), dtype=float)
+        Single_X_train = np.zeros(shape=(X_train_lin.shape[0], len(SingleFeaturesReduced)), dtype=float)
+        Single_X_test = np.zeros(shape=(X_test_lin.shape[0], len(SingleFeaturesReduced)), dtype=float)
         j = 0
         for i in range(0, len(FeaturesReduced), 1):
             if FeaturesReduced[i].nDistances == 1:
-                Single_X_train[:, j] = X_train[:, i]
-                Single_X_test[:, j] = X_test[:, i]
-                single_x_std[:, j] = x_std[:, i]
+                Single_X_train[:, j] = X_train_lin[:, i]
+                Single_X_test[:, j] = X_test_lin[:, i]
                 j += 1
-        if FirstAlgorithm == 'ENet':
-            enet = library.ENet(F_ENet=F_ENet_Single, L1=0.7, eps=1e-3, nAlphas=100, alphas=None)
-            t = time.time()
-            print('Elastic Net Fit for single features only')
+        t = time.time()       
+        ga = GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
+            MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
+            EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
+            CrossoverFractionInterval=CrossoverFractionInterval, IterationPerRecord=IterationPerRecord,\
+            StopTime=StopTime, RandomSeed=RandomSeed, verbose=verbose,\
+            UseCorrelationMutation=UseCorrelationMutation, MinCorrMutation=MinCorrMutation,\
+            UseCorrelationBestFit=UseCorrelationBestFit, MinCorrBestFit=MinCorrBestFit)
+    # linear only for now
+        idx = list(range(0, Single_X_train.shape[1], 1))
+        results = regression.fit_linear(idx, Single_X_train, Y_train, x_test=Single_X_test, y_test=Y_test,\
+            MSEall_train=None, MSEall_test=None, normalize=True, LinearSolver='sklearn')
+        ga.MSEall_train = results['MSE Train']
+        ga.MSEall_test = results['MSE Test']    
+
+        if (FirstAlgorithm == 'ENet'):
+            print('Only linear features will be considered')
+            Alphas = np.logspace(-7, -3.5, num=100, endpoint=True, base=10.0, dtype=None)
+            enet = regression.ENet(L1=0.7, eps=1e-3, nAlphas=100, alphas=Alphas, random_state=None)
+            print('Elastic Net Fit for all features')
             print('L1 portion = ', enet.L1)
             print('Epsilon = ', enet.eps)
             print('Number of alphas =', enet.nAlphas)
-            print('Number of features go to elastic net regularisation = ', len(SingleFeaturesReduced))
-            enet.fit(single_x_std, y_std, VIP_idx=None)
+            print('Number of features go to elastic net regularisation = ', len(FeaturesReduced))
+            enet.fit(Single_X_train, Y_train, VIP_idx=None, Criterion='Mallow', normalize=True,\
+                max_iter=1000, tol=0.0001, cv=None, n_jobs=1, selection='random', verbose=True)
+            enet.plot_path(1, FileName=F_ENet_Single)
             idx = enet.idx
+            Gene_list = []
+            for i in idx:
+                Gene_list.append(GA.Gene(i, Type=0))
+            chromosome = ga.Chromosome(Gene_list)
+            chromosome.erase_score()
+            # chromosome contains only linear indices
+            # use standardized for training set and regular for testing
+            chromosome.score(x_nonlin_train=None, x_lin_train=Single_X_train,\
+                y_train=Y_train, x_nonlin_test=None, x_lin_test=Single_X_test,\
+                y_test=Y_test, NonlinearFunction=ga.NonlinearFunction,\
+                LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)
+            if ga.LinearSolver == 'statsmodels':
+                chromosome.rank_sort_pValue()
+            else:
+                chromosome.rank(x_nonlin=X_train_nonlin, x_lin=Single_X_train,\
+                    y=Y_train, NonlinearFunction=ga.NonlinearFunction,\
+                    LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)
+                chromosome.sort(order='Most important first')  
+                ga.n_lin = Single_X_train.shape[1]
             t_sec = time.time() - t
             print("\n", 'Elastic Net worked ', t_sec, 'sec')  
             print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
         if FirstAlgorithm == 'GA':
-            ga = GA(n_jobs=n_jobs, TribeSize=TribeSize, ChromosomeSize=ChromosomeSize,\
-            MutationProbability=MutationProbability, MutationInterval=MutationInterval, EliteFraction=EliteFraction,\
-            FractionOfCrossover=FractionOfCrossover, CrossoverFractionInterval=CrossoverFractionInterval,\
-            IterationPerRecord=IterationPerRecord, StopTime=StopTime, RandomSeed=RandomSeed, verbose=True) 
-            t = time.time()
-            print('Genetic Algorithm for single features only')
-            ga.fit(single_x_std, y_std, Idx=None, VIP_idx=None, Method=GA_Method) 
+            print('Genetic Algorithm for all features')
+            ga.fit(x_nonlin_train=X_train_nonlin, x_lin_train=Single_X_train, y_train=Y_train,\
+                x_nonlin_test=X_test_nonlin, x_lin_test=Single_X_test, y_test=Y_test,\
+                idx_nonlin=None, idx_lin=None, VIP_idx_nonlin=None,\
+                VIP_idx_lin=None, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
+                UseNonlinear=UseNonlinear, LinearSolver=LinearSolver,\
+                cond=cond, lapack_driver=lapack_driver, NonlinearFunction=NonlinearFunction,\
+                nIter = 1000)
             t_sec = time.time() - t
             print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
-            idx = ga.idx 
-            print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
-        if UseCorrelationMatrix:
-            print('MinCorrelation = ', MinCorr_Single)
-        bf = library.BF(LastIterationsToStore=LastIterationsToStoreSingle, UseCorrelationMatrix=UseCorrelationMatrix,\
-                MinCorr=MinCorr_Single, F_Xlsx=F_Out_Single, F_Plot = F_Plot_Single,\
-                Slope = 0.001, VIP_number=VIP_number)
-        t = time.time()
-        VIP_idx = bf.fit(single_x_std, y_std, Single_X_train, Y_train, Single_X_test,\
-            Y_test, SingleFeaturesAll, SingleFeaturesReduced, idx=idx,\
-            VIP_idx=None, Method='sequential', Criterion='MSE', GetVIP=True,\
-            BestFitMethod=BestFitMethod, MaxLoops=MaxLoops, MaxBottom=MaxBottom, verbose=1)
+            chromosome = ga.BestChromosome        
+            print("\n", 'Features left for Backward Elimination and Search Alternative = ',\
+                  chromosome.Size)
+            ga.PlotChromosomes(2, ga.BestChromosomes, XAxis='time', YAxis='R2 Train',\
+                PlotType='Scatter', F=F_GA)
+        while chromosome.Size > 1:
+            if chromosome.Size <= ga.ChromosomeSize:
+                chromosome = ga.BestFit(chromosome, x_nonlin=X_train_nonlin, x_lin=Single_X_train,\
+                    y=Y_train, verbose=True) # returns ranked and sorted chromosome
+# get score for test set                
+                chromosome.score(x_nonlin_train=X_train_nonlin, x_lin_train=Single_X_train,\
+                    y_train=Y_train, x_nonlin_test=X_test_nonlin, x_lin_test=Single_X_test,\
+                    y_test=Y_test, NonlinearFunction=ga.NonlinearFunction,\
+                    LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver) 
+                chromosome.Origin = 'Best Fit'
+                chromosome_copy = copy.deepcopy(chromosome)
+                chromosome_copy.print_score()
+                ga.DecreasingChromosomes.append(chromosome_copy)
+            chromosome = ga.RemoveWorstGene(chromosome, x_nonlin=X_train_nonlin,\
+                x_lin=Single_X_train, y=Y_train, verbose=True)
         t_sec = time.time() - t
+        ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Test',\
+            PlotType='Line', F='Single')
+        ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Test',\
+            PlotType='Line', F='Single')
+        ga.PlotChromosomes(5, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='Mallow statistics Train',\
+            PlotType='Line', F='Single')
         print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
+        
+
     else:
-        VIP_idx = []
-# proceed all features        
-    if FirstAlgorithm == 'ENet':
-        enet = library.ENet(F_ENet=F_ENet, L1=0.7, eps=1e-3, nAlphas=100, alphas=None)
-        t = time.time()
+        VIP_idx_nonlin = []
+        VIP_idx_lin = []
+# proceed all features 
+    t = time.time()       
+    ga = GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
+        MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
+        EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
+        CrossoverFractionInterval=CrossoverFractionInterval, IterationPerRecord=IterationPerRecord,\
+        StopTime=StopTime, RandomSeed=RandomSeed, verbose=verbose,\
+        UseCorrelationMutation=UseCorrelationMutation, MinCorrMutation=MinCorrMutation,\
+        UseCorrelationBestFit=UseCorrelationBestFit, MinCorrBestFit=MinCorrBestFit)
+# linear only for now
+    idx = list(range(0, X_train_lin.shape[1], 1))
+    ga.n_lin = X_train_lin.shape[1]
+    results = regression.fit_linear(idx, X_train_lin, Y_train, x_test=X_test_lin, y_test=Y_test,\
+        MSEall_train=None, MSEall_test=None, normalize=True, LinearSolver='sklearn')
+    ga.MSEall_train = results['MSE Train']
+    ga.MSEall_test = results['MSE Test']    
+    if (FirstAlgorithm == 'ENet'):
+        print('Only linear features will be considered')
+        Alphas = np.logspace(-7, -3.5, num=100, endpoint=True, base=10.0, dtype=None)
+        enet = regression.ENet(L1=0.7, eps=1e-3, nAlphas=100, alphas=Alphas, random_state=None)
         print('Elastic Net Fit for all features')
         print('L1 portion = ', enet.L1)
         print('Epsilon = ', enet.eps)
         print('Number of alphas =', enet.nAlphas)
         print('Number of features go to elastic net regularisation = ', len(FeaturesReduced))
-        enet.fit(x_std, y_std, VIP_idx=VIP_idx)
+        enet.fit(X_train_lin, Y_train, VIP_idx=VIP_idx_lin, Criterion='Mallow', normalize=True,\
+            max_iter=1000, tol=0.0001, cv=None, n_jobs=1, selection='random', verbose=True)
+        enet.plot_path(1, FileName=F_ENet)
         idx = enet.idx
+        Gene_list = []
+        for i in idx:
+            Gene_list.append(GA.Gene(i, Type=0))
+        chromosome = ga.Chromosome(Gene_list)
+        chromosome.erase_score()
+        # chromosome contains only linear indices
+        # use standardized for training set and regular for testing
+        chromosome.score(x_nonlin_train=None, x_lin_train=X_train_lin,\
+            y_train=Y_train, x_nonlin_test=None, x_lin_test=X_test_lin,\
+            y_test=Y_test, NonlinearFunction=ga.NonlinearFunction,\
+            LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)
+        chromosome.rank_sort(x_nonlin=X_train_nonlin, x_lin=X_train_lin, y=Y_train, NonlinearFunction=ga.NonlinearFunction,\
+            LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)
         t_sec = time.time() - t
         print("\n", 'Elastic Net worked ', t_sec, 'sec')  
         print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
     if FirstAlgorithm == 'GA':
-        ga = GA(n_jobs=n_jobs, TribeSize=TribeSize, ChromosomeSize=ChromosomeSize,\
-        MutationProbability=MutationProbability, MutationInterval=MutationInterval, EliteFraction=EliteFraction,\
-        FractionOfCrossover=FractionOfCrossover, CrossoverFractionInterval=CrossoverFractionInterval,\
-        IterationPerRecord=IterationPerRecord, StopTime=StopTime, RandomSeed=RandomSeed, verbose=True) 
-        t = time.time()
         print('Genetic Algorithm for all features')
-        C = np.cov(x_std, rowvar=False, bias=True)
-        ga.fit(x_std, y_std, Idx=None, VIP_idx=VIP_idx, Method=GA_Method, Fine=None, C=C,\
-            UseCorrelationMatrix=True, MinCorr=0.95, MaxLoops=1000, MaxBottom=100) 
+        ga.fit(x_nonlin_train=X_train_nonlin, x_lin_train=X_train_lin, y_train=Y_train,\
+            x_nonlin_test=X_test_nonlin, x_lin_test=X_test_lin, y_test=Y_test,\
+            idx_nonlin=None, idx_lin=None, VIP_idx_nonlin=VIP_idx_nonlin,\
+            VIP_idx_lin=VIP_idx_lin, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
+            UseNonlinear=UseNonlinear, LinearSolver=LinearSolver,\
+            cond=cond, lapack_driver=lapack_driver, NonlinearFunction=NonlinearFunction,\
+            nIter = 1000)
         t_sec = time.time() - t
         print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
-        idx = ga.idx 
-        print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
-    if UseCorrelationMatrix:
-        print('MinCorrelation = ', MinCorr)
-    bf = library.BF(LastIterationsToStore=LastIterationsToStore, UseCorrelationMatrix=UseCorrelationMatrix,\
-            MinCorr=MinCorr, F_Xlsx=F_Out, F_Plot = F_Plot,\
-            Slope = 0.001, VIP_number=None)
-    t = time.time()
-    bf.fit(x_std, y_std, X_train, Y_train, X_test,\
-        Y_test, FeaturesAll, FeaturesReduced, idx=idx,\
-        VIP_idx=VIP_idx, Method='sequential', Criterion='MSE', GetVIP=False,\
-        BestFitMethod=BestFitMethod, MaxLoops=MaxLoops, MaxBottom=MaxBottom, verbose=1)
+        chromosome = ga.BestChromosome        
+        print("\n", 'Features left for Backward Elimination and Search Alternative = ',\
+              chromosome.Size)
+        ga.PlotChromosomes(2, ga.BestChromosomes, XAxis='time', YAxis='R2 Train',\
+            PlotType='Scatter', F=F_GA)
+    while chromosome.Size > 1:
+        if chromosome.Size <= ga.ChromosomeSize:
+            chromosome = ga.BestFit(chromosome, x_nonlin=X_train_nonlin, x_lin=X_train_lin,\
+                y=Y_train, verbose=True)
+# calculate both train and test set score
+            chromosome.score(x_nonlin_train=X_train_nonlin, x_lin_train=X_train_lin,\
+                y_train=Y_train, x_nonlin_test=X_test_nonlin, x_lin_test=X_test_lin,\
+                y_test=Y_test, NonlinearFunction=ga.NonlinearFunction,\
+                LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver) 
+            chromosome.Origin = 'Best Fit'
+            chromosome_copy = copy.deepcopy(chromosome)
+            chromosome_copy.print_score()
+            ga.DecreasingChromosomes.append(chromosome_copy)
+# chromosome must be sorted before             
+        chromosome = ga.RemoveWorstGene(chromosome, x_nonlin=X_train_nonlin,\
+            x_lin=X_train_lin, y=Y_train, verbose=True)
     t_sec = time.time() - t
+    ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Test',\
+        PlotType='Line', F='Default')
+    ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Test',\
+        PlotType='Line', F='Default')
+    ga.PlotChromosomes(5, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='Mallow statistics Train',\
+        PlotType='Line', F='Default')
     print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
-        
+    ga.Results_to_xlsx(F_Out, ga.DecreasingChromosomes, FeaturesNonlinear=FeaturesNonlinear,\
+            FeaturesAll=FeaturesAll, FeaturesReduced=FeaturesReduced)
+    f = open(F_ga_structure, "wb") # save GA structure
+    pickle.dump(ga, f)
+    f.close() 
     directory = time.strftime("%Y-%m-%d %H-%M-%S", time.gmtime())
     if not os.path.exists(directory):
         os.makedirs(directory)    
@@ -198,24 +327,23 @@ if __name__ == '__main__':
         shutil.copyfile('SystemDescriptor.', directory + '\\' + 'SystemDescriptor.')
     if os.path.isfile('Structure.xlsx'):    
         shutil.copyfile('Structure.xlsx', directory + '\\' + 'Structure.xlsx')
-    if os.path.isfile('Harmonic Features Reduced List.xlsx'): 
-        shutil.copyfile('Harmonic Features Reduced List.xlsx', directory + '\\' + 'Harmonic Features Reduced List.xlsx')
-    if os.path.isfile('Coefficients.dat'):
-        shutil.copyfile('Coefficients.dat', directory + '\\' + 'Coefficients.dat')
+    if os.path.isfile('Linear Features Reduced List.xlsx'): 
+        shutil.copyfile('Linear Features Reduced List.xlsx', directory + '\\' +\
+                        'Linear Features Reduced List.xlsx')
+    if os.path.isfile('Nonlinear Features List.xlsx'): 
+        shutil.copyfile('Nonlinear Features List.xlsx', directory + '\\' +\
+                        'Nonlinear Features List.xlsx')
     if os.path.isfile(F_Out_Single):
         shutil.move(F_Out_Single, directory + '\\' + F_Out_Single)
-    if os.path.isfile(F_ENet_Single):
-        shutil.move(F_ENet_Single, directory + '\\' + F_ENet_Single)
     if os.path.isfile(F_Out):
         shutil.move(F_Out, directory + '\\' + F_Out)    
-    if os.path.isfile(F_ENet):
-        shutil.move(F_ENet, directory + '\\' + F_ENet)
-    files = os.listdir("./")
-    for file in files:
-        if file.startswith(F_Plot) or file.startswith(F_Plot_Single):
-            if os.path.isfile(file):
-                shutil.move(file, directory + '\\' + file)
-                continue
+    if os.path.isfile(F_ga_structure):
+        shutil.move(F_ga_structure, directory + '\\' + F_ga_structure)
+# move all *.png images        
+    l = os.listdir('./')
+    for name in l:
+        if name.endswith('.png'):
+            if os.path.isfile(name):
+                shutil.move(name, directory)
 
-            
-            
+           

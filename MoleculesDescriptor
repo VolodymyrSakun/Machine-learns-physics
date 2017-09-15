@@ -1,23 +1,23 @@
-F_data = Coordinates only.x
-Molecule=Water
-# Atom symbol, Bonds, Mass, Atomic radius, x, y, z
-O1,Bond=H1,H2,Mass=15.999,Radius=0.6,0,0,0
-H1,Bond=O1,Mass=1.008,Radius=0.25,0.58584290449803,0.75799214458286,0
-H2,Bond=O1,Mass=1.008,Radius=0.25,0.58584290449803,-0.75799214458286,0
-endMolecule
-Molecule=Carbon Dioxide
-# Atom symbol, Bonds, Mass, Atomic radius, x, y, z
-C1,Bond=O1,O2,Mass=12.011,Radius=0.7,0,0,0
-O1,Bond=C1,Mass=15.999,Radius=0.6,1.16,0,0
-O2,Bond=C1,Mass=15.999,Radius=0.6,-1.16,0,0
-endMolecule
-Molecule=Ethane
-C1,Bond=C2,H3,H4,H5,Mass=12.011,Radius=0.7,0,0,0.7680
-C2,Bond=C1,H6,H7,H8,Mass=12.011,Radius=0.7,0,0,-0.7680
-H3,Bond=C1,Mass=1.008,Radius=0.25,-1.0192,0,1.1573
-H4,Bond=C1,Mass=1.008,Radius=0.25,0.5096,0.8826,1.1573
-H5,Bond=C1,Mass=1.008,Radius=0.25,0.5096,-0.8826,1.1573
-H6,Bond=C2,Mass=1.008,Radius=0.25,1.0192,0,-1.1573
-H7,Bond=C2,Mass=1.008,Radius=0.25,-0.5096,-0.8826,-1.1573
-H8,Bond=C2,Mass=1.008,Radius=0.25,-0.5096,0.8826,-1.1573
-endMolecule
+&MoleculeDescription
+&Molecule=Water
+# Atom's index, Atom's symbol, Bonds (atom's indices), Mass, Atomic radius, coordinates: x, y, z
+0,Symbol=O,Bond=1,2,Mass=15.999,Radius=0.6,Coordinates:0,0,0
+1,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,0.75799214458286,0
+2,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,-0.75799214458286,0
+&endMolecule
+&Molecule=Carbon Dioxide
+0,Symbol=C,Bond=1,2,Mass=12.011,Radius=0.7,Coordinates:0,0,0
+1,Symbol=O,Bond=0,Mass=15.999,Radius=0.6,Coordinates:1.16,0,0
+2,Symbol=O,Bond=0,Mass=15.999,Radius=0.6,Coordinates:-1.16,0,0
+&endMolecule
+&Molecule=Ethane
+0,Symbol=C1,Bond=1,2,3,4,Mass=12.011,Radius=0.7,Coordinates:0,0,0.7680
+1,Symbol=C2,Bond=0,5,6,7,Mass=12.011,Radius=0.7,Coordinates:0,0,-0.7680
+2,Symbol=H1,Bond=0,Mass=1.008,Radius=0.25,Coordinates:-1.0192,0,1.1573
+3,Symbol=H1,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.5096,0.8826,1.1573
+4,Symbol=H1,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.5096,-0.8826,1.1573
+5,Symbol=H2,Bond=1,Mass=1.008,Radius=0.25,Coordinates:1.0192,0,-1.1573
+6,Symbol=H2,Bond=1,Mass=1.008,Radius=0.25,Coordinates:-0.5096,-0.8826,-1.1573
+7,Symbol=H2,Bond=1,Mass=1.008,Radius=0.25,Coordinates:-0.5096,0.8826,-1.1573
+&endMolecule
+&endMoleculeDescription

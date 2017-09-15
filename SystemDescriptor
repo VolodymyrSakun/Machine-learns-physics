@@ -1,10 +1,15 @@
 #F_data = short two water molecules.x
 #F_data = short three water molecules.x
-F_data = datafile1 from github gaussian process.x
+#F_data = datafile1 from github gaussian process.x
 #F_data = datafile2.x
 #F_data = datafile3 2 water molecules.x
 #F_data = datafile4 3 water molecules small.x
 #F_data = datafile5 3 water molecules big.x
+#F_data = Reduced set 1.x
+#F_data = 3 water R 1.7. One pair.x
+#F_data = Combined 2 water.x
+#F_data = 349+354 records from set3. R less than 3. R greater than 15.7. Three pairs.x
+F_data = 601+604 records from set3. R less than 3.6. R greater than 15.6. Three pairs.x
 
 &FEATURES
 &SingleDistances
@@ -16,11 +21,11 @@ SinglePowers: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
 &endSingleDistances
 
 &DoubleDistances
-DoubleDistancesInclude=True
+DoubleDistancesInclude=False
 &DoubleDistancesDescription
-O,O,intermolecular: -1,-2,-3,-4,-5,-6,-12
-O,H,intermolecular: -1,-2,-3,-4,-5,-6,-12
-H,H,intermolecular: -1,-2,-3,-4,-5,-6,-12
+O,O,intermolecular: -1,-2,-3,-4,-5,-6
+O,H,intermolecular: -1,-2,-3,-4,-5,-6
+H,H,intermolecular: -1,-2,-3,-4,-5,-6
 O,H,intramolecular: 
 H,H,intramolecular: 
 &endDoubleDistancesDescription
@@ -61,16 +66,27 @@ O,O,intermolecular; O,O,intermolecular
 &SYSTEM
 # Atom symbol (string), Molecule number (integer)
 # water 1
+&Molecule=Water
 O,0
 H,0    
 H,0
 # water 2
+&Molecule=Water
 O,1
 H,1    
 H,1
 # water 3
+#&Molecule=Water
 #O,2
 #H,2    
 #H,2
 &endSYSTEM
- 
+
+&MoleculeDescription
+&Molecule=Water
+# Atoms Index, Atom symbol, Bonds (indices), Mass, Atomic radius, x, y, z
+0,Symbol=O,Bond=1,2,Mass=15.999,Radius=0.6,Coordinates:0,0,0
+1,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,0.75799214458286,0
+2,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,-0.75799214458286,0
+&endMolecule
+&endMoleculeDescription
