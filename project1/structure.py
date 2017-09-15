@@ -24,7 +24,7 @@ class Atom:
     MolecularIndex = None # which molecule atom belongs to. In other words number of molecule in the system where this atom exists
     Mass = None
     Radius = None
-    Bonds = []
+    Bonds = [] # integers (indices of atoms)
     def __init__(self, symbol, index, tYpe, molecular_index, Mass=None, Radius=None, Bonds=None):
         self.Symbol = symbol
         self.Index = index
@@ -47,57 +47,98 @@ class AtomCoordinates:
         self.z = Z        
         
 class Molecule:
-    Atoms = []
+    Atoms = [] # type AtomCoordinates
     AtomIndex = []
     nAtoms = None
-    Bonds = []
+    Bonds = [] # list of tuples, integers (indices of atoms)
     Name = None
     Mass = None
     CenterOfMass = None # type of spherical.Point
     def __init__(self, atoms, Name=None):
-        self.Atoms = atoms # class AtomCoordinates
+        if type(atoms[0]) is Atom:
+            Atoms = []
+            for i in atoms:
+                atom = AtomCoordinates(i, None, None, None)
+                Atoms.append(atom)
+            self.Atoms = Atoms
+        else:
+            self.Atoms = atoms # class AtomCoordinates
         self.nAtoms = len(self.Atoms)
         self.Name = Name
         self.Bonds = []
+        self._refresh()
+    
+    def _refresh(self):
         mass = 0
         MissedMass = False
         l1 = []
-        l2 = []
-        for i in range(0, len(self.Atoms), 1):
+        for i in range(0, self.nAtoms, 1):
             l1.append(self.Atoms[i].Atom.Index)
-            l2.append(self.Atoms[i].Atom.Symbol)
             if self.Atoms[i].Atom.Mass is not None:
                 mass += self.Atoms[i].Atom.Mass
             else:
                 MissedMass = True
         self.AtomIndex = l1
         for i in range(0, len(self.Atoms), 1):
+            if (self.Atoms[i].Atom.Bonds is None):                
+                break
+            if (len(self.Atoms[i].Atom.Bonds) == 0):
+                break
             atom1_index = self.Atoms[i].Atom.Index
-            atom2_symbols = self.Atoms[i].Atom.Bonds # list 1..4 usually
-            for j in range(0, len(atom2_symbols), 1):
-                symbol = atom2_symbols[j]
-                atom2_index = l1[l2.index(symbol)]
-                if atom1_index > atom2_index:
-                    a1, a2 = library.Swap(atom1_index, atom2_index)
-                else:
-                    a1, a2 = atom1_index, atom2_index
-                new_bond = (a1, a2)
-                if new_bond not in self.Bonds:
-                    self.Bonds.append(new_bond)
+            atom2_indices = self.Atoms[i].Atom.Bonds # list 1..4 usually
+            if atom2_indices is None: 
+                continue
+            if len(atom2_indices) == 0:
+                continue
+            else:
+                for j in range(0, len(atom2_indices), 1):
+                    atom2_index = atom2_indices[j]
+                    if atom1_index > atom2_index:
+                        a1, a2 = library.Swap(atom1_index, atom2_index)
+                    else:
+                        a1, a2 = atom1_index, atom2_index
+                    new_bond = (a1, a2)
+                    if new_bond not in self.Bonds:
+                        self.Bonds.append(new_bond)
         if not MissedMass:
             self.Mass = mass
-            x, y, z = spherical.center_of_mass(self.Atoms)
-            self.CenterOfMass = spherical.Point(x, y, z)
         else:
-            self.Mass = None
+            self.Mass = None       
+        p = spherical.center_of_mass(self.Atoms) # returns False if missing coordinates
+        if type(p) is not bool: 
+            self.CenterOfMass = p
+        else:
             self.CenterOfMass = None
                 
+class System:
+    Atoms=None
+    Molecules=None
+    Prototypes=None
+    nAtoms=None
+    nAtTypes=None
+    nMolecules=None
+    Distances=None
+    nDistances=None
+    nDiTypes=None
+    def __init__(self, Atoms=None, Molecules=None, Prototypes=None,\
+        nAtoms=None, nAtTypes=None, nMolecules=None, Distances=None,\
+        nDistances=None, nDiTypes=None):
+        self.Atoms = Atoms
+        self.Molecules = Molecules
+        self.Prototypes = Prototypes
+        self.nAtoms = nAtoms
+        self.nAtTypes = nAtTypes
+        self.nMolecules = nMolecules
+        self.Distances = Distances
+        self.nDistances = nDistances
+        self.nDiTypes = nDiTypes
+            
 class Record:
     atoms = None
     e = None
     def __init__(self, energy, atoms):
         self.e = energy
-        self.atoms = atoms
+        self.atoms = atoms # class AtomCoordinates
 
 class Distance:
     Atom1 = None
@@ -317,22 +358,22 @@ class Feature:
         c2 = str(CategoryAtomic)
         self.FeType = p1 + p2 + t11 + t12 + t21 + t22 + c1 + c2
         return
-                            
-class System:
-    Atoms=None
-    nAtoms=None
-    nAtTypes=None
-    Distances=None
-    nDistances=None
-    nDiTypes=None
-    def __init__(self, Atoms=None, nAtoms=None, nAtTypes=None, Distances=None, nDistances=None, nDiTypes=None):
-        self.Atoms = Atoms
-        self.nAtoms = nAtoms
-        self.nAtTypes = nAtTypes
-        self.Distances = Distances
-        self.nDistances = nDistances
-        self.nDiTypes = nDiTypes
     
+class FeatureNonlinear:
+    idx = None
+    Distance = None
+    nDistances = None
+    FeType = 'exp'
+    nConstants = None 
+    
+    def __init__(self, idx, Distance, FeType='exp', nDistances=1, nConstants=2):
+        self.idx = idx
+        self.Distance = Distance
+        self.FeType=FeType
+        self.nDistances=nDistances
+        self.nConstants=nConstants
+        return
+        
 # Auxilary functions that print objects
 
 def print_feature(feature):

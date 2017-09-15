@@ -258,15 +258,18 @@ def center_of_mass(atoms):
     MiXi = 0
     MiYi = 0
     MiZi = 0
-    for i in range(0, len(atoms), 1):
-        Mi += atoms[i].Atom.Mass
-        MiXi += atoms[i].Atom.Mass * atoms[i].x
-        MiYi += atoms[i].Atom.Mass * atoms[i].y
-        MiZi += atoms[i].Atom.Mass * atoms[i].z
-    X = MiXi / Mi
-    Y = MiYi / Mi
-    Z = MiZi / Mi
-    return X, Y, Z
+    try:
+        for i in range(0, len(atoms), 1):
+            Mi += atoms[i].Atom.Mass
+            MiXi += atoms[i].Atom.Mass * atoms[i].x
+            MiYi += atoms[i].Atom.Mass * atoms[i].y
+            MiZi += atoms[i].Atom.Mass * atoms[i].z
+        X = MiXi / Mi
+        Y = MiYi / Mi
+        Z = MiZi / Mi
+        return Point(X, Y, Z)
+    except:
+        return False
 
 # molecule - class Molecule; new_origin - class Point
 # change coordinate system to have new origine = new_origin
@@ -499,7 +502,7 @@ def check_overlap(molecule1, molecule2):
                 return True
     return False
     
-def ReadMolecules(F='MoleculesDescriptor.'):
+def ReadMolecules(F='MoleculesDescriptor.'): # inactive
     F = F # file with info about system structure
     Separators = '=|,| |:|;|: |'
 # read descriptor from file
@@ -528,7 +531,7 @@ def ReadMolecules(F='MoleculesDescriptor.'):
     while i < len(lines):    
         x = lines[i]
         if (x.find('Molecule') != -1):
-            x = lines[i]
+#            x = lines[i]
             s = re.split(Separators, x)
             del(s[0])
             s0 = s[0]
@@ -719,3 +722,82 @@ def generate_molecule_coordinates_list(prototype, nMolecules=2, nRecords=100,\
             records.append(line)
         rec += 1
     return records
+
+def get_distance(x1, y1, z1, x2, y2, z2):
+    v = vector_from_coordinates(x1, y1, z1, x2, y2, z2)
+    return v.length
+
+def check_molecules(molecules, RMin=0, RMax=100, CheckCenterOfMass=True, nDistances=-1):
+# RMin - minimal distance
+# EMax - maximal distance 
+# nDistances - how many distances must follow the selection criteria
+    if RMin is None:
+        RMin = 0
+    if RMax is None:
+        RMax = 1e100
+    if nDistances is None:
+        CheckAtomDistances = False
+    else:
+        CheckAtomDistances = True
+        Distances = 0
+        for i in range(0, len(molecules), 1):
+            for k in range(0, len(molecules[i].Atoms), 1):
+                for j in range(i+1, len(molecules), 1):
+                    for l in range(0, len(molecules[j].Atoms), 1):
+                        Distances += 1
+        if (nDistances == -1) or (nDistances > Distances):
+            nDistances = Distances
+    if CheckCenterOfMass:
+# check center of mass
+        for i in range(0, len(molecules), 1):
+            for j in range(i+1, len(molecules), 1):
+                r = get_distance(molecules[i].CenterOfMass.x, molecules[i].CenterOfMass.y,\
+                    molecules[i].CenterOfMass.z, molecules[j].CenterOfMass.x,\
+                    molecules[j].CenterOfMass.y, molecules[j].CenterOfMass.z)
+                if r < RMin:
+                    return False
+                if r > RMax:
+                    return False                
+    if CheckAtomDistances:
+# check all atoms
+        good = 0
+        for i in range(0, len(molecules), 1):
+            for k in range(0, len(molecules[i].Atoms), 1):
+                for j in range(i+1, len(molecules), 1):
+                    for l in range(0, len(molecules[j].Atoms), 1):
+                        r = get_distance(molecules[i].Atoms[k].x, molecules[i].Atoms[k].y,\
+                            molecules[i].Atoms[k].z, molecules[j].Atoms[l].x,\
+                            molecules[j].Atoms[l].y, molecules[j].Atoms[l].z)
+                        if (r > RMin) and (r < RMax): # good distance
+                            good += 1
+        if good < nDistances:
+            return False
+    return True              
+                
+def get_molecules_from_records(system, records, idx=None):
+    if type(records) is structure.Record:
+        idx = [0]
+        rec = [records]
+    else:
+        if idx is None:
+            idx = list(range(0, len(records), 1))
+        rec = records
+    molecules = []
+    for i in idx: # record index
+        l = 0 # atom index in records
+        for j in range(0, len(system.Molecules), 1): # molecule index in records
+            atoms = []
+            MoleculeName = system.Molecules[j].Name
+            for k in range(0, len(system.Molecules[j].Atoms), 1): # atom index in molecule
+                atom = system.Molecules[j].Atoms[k].Atom # type Atom
+                atom_c = structure.AtomCoordinates(atom, rec[i].atoms[l].x, rec[i].atoms[l].y, rec[i].atoms[l].z)
+                atoms.append(atom_c)
+                l += 1
+            molecules.append(structure.Molecule(atoms, MoleculeName))
+    return molecules
+            
+
+                    
+
+    
+    

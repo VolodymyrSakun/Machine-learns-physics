@@ -98,172 +98,7 @@ def Scaler_L2(X):
             X_new[i, j] = X[i, j] / Denom
     return X_new
 
-# reads feature set and objects that describes it
-def ReadFeatures(F_features=None, F_FeaturesAll=None, F_FeaturesReduced=None,\
-        F_System=None, F_Records=None, verbose=False):
-# F_features - .csv file that contains data stored by Generape combined features.py
-# F_FeaturesAll - .dat file that contains object with all informations about features
-# F_FeaturesReduced - .dat file that contains object with all informations about reduced features
-# F_System - .dat file that contains object Class.System
-# F_Records - .dat file that contains list of records 
-# returns:
-# X - [n x m] numpy array of features
-# rows correspond to observations
-# columns correspond to features
-# Y - [n x 1] numpy array, recponse variable
-# FeaturesAll - class1.InvPowDistancesFeature object. Contains all features
-# FeaturesReduced - class1.InvPowDistancesFeature object. Contains combined features
-    if verbose:
-        print('Reading data from file')
-    if (F_features is not None) and os.path.isfile(F_features):
-        dataset = pd.read_csv(F_features)
-        NofFeatures = dataset.shape[1] - 1 # read numder of distances from dataset
-        X = dataset.iloc[:, 0:NofFeatures].values
-        Y = dataset.iloc[:, -1].values
-        if len(Y.shape) == 2:
-            Y = Y.reshape(-1)
-        del dataset['energy']
-    else:
-        X = None
-        Y = None
-# load reduced features and energy from file
-    if (F_FeaturesReduced is not None) and os.path.isfile(F_FeaturesReduced):
-        f = open(F_FeaturesReduced, "rb")
-        FeaturesReduced = pickle.load(f)
-        f.close()
-    else:
-        FeaturesReduced = None
-# load list FeaturesAll from file
-    if (F_FeaturesAll is not None) and os.path.isfile(F_FeaturesAll):
-        f = open(F_FeaturesAll, "rb")
-        FeaturesAll = pickle.load(f)
-        f.close()
-    else:
-        FeaturesAll = None
-# load system object from file
-    if (F_System is not None) and os.path.isfile(F_System):
-        f = open(F_System, "rb")
-        system = pickle.load(f)
-        f.close()    
-    else:
-        system = None
-# load records list from file
-    if F_Records is not None and os.path.isfile(F_Records):
-        f = open(F_Records, "rb")
-        records = pickle.load(f)
-        f.close() 
-    else:
-        records = None
-    return X, Y, FeaturesAll, FeaturesReduced, system, records
 
-# select the best subset from elastic net path
-def SelectBestSubsetFromElasticNetPath(x_std, y_std, Method='CV', MSE_threshold=None, R2_threshold=None, \
-    L1_ratio=0.01, Eps=1e-3, N_alphas=200, Alphas=None, max_iter=10000, tol=0.0001, \
-    cv=30, n_jobs=-1, selection='random', PlotPath=False, FileName=None, verbose=False):
-# returns list of indices of selected features
-# default setting: use ElasticNetCV assigned by Method
-# x_std - standardized set of features
-# y_std - response with mean = 0
-# Method='CV' - use ElasticNEtCV, Method='grid' - use enet_path
-# MSE_threshold - treshhold for selecting min nonzero coefficients which gives fit better than MSE_threshold
-# R2_threshold - treshhold for selecting min nonzero coefficients which gives fit better than R2_threshold
-# L1_ratio - portion of L1 regularization. For Method='CV' can be array of floats
-# eps - Length of the path. eps=1e-3 means that alpha_min / alpha_max = 1e-3. Relevant if alphas is not assigned
-# N_alphas - size of grid
-# Alphas - array of regularization strengths
-# cv - number of cross-folds. only for Method='CV'
-# selection='cyclic' or 'random'. If set to ‘random’, a random coefficient is updated every iteration rather than looping over features sequentially by default. This (setting to ‘random’) often leads to significantly faster convergence especially when tol is higher than 1e-4.
-# PlotPath - plot 2 graphs: Number of nonzero coefficients vs. alpha and MSE vs. alpha. Only for Method='grid'
-
-    if (Method == 'CV'):
-        enet_cv = ElasticNetCV(l1_ratio=L1_ratio, eps=Eps, n_alphas=N_alphas, alphas=Alphas, fit_intercept=False,\
-            normalize=False, precompute='auto', max_iter=max_iter, tol=0.0001, cv=cv, copy_X=True, \
-            verbose=verbose, n_jobs=n_jobs, positive=False, random_state=101, selection=selection)
-        enet_cv.fit(x_std, y_std)
-        coef = enet_cv.coef_
-        alpha = enet_cv.alpha_
-        alphas = enet_cv.alphas_
-        nonzero_idx = []
-        for j in range(0, len(coef), 1):
-            if coef[j] != 0:
-                nonzero_idx.append(j)
-
-    if (Method == 'grid'):    
-        alphas , coefs, _ = enet_path(x_std, y_std, l1_ratio=L1_ratio, eps=Eps, \
-            n_alphas=N_alphas, alphas=Alphas, precompute='auto', Xy=None, copy_X=True,\
-            coef_init=None, verbose=verbose, return_n_iter=False, positive=False, check_input=True)
-       
-        lr = LinearRegression(fit_intercept=False, normalize=False, copy_X=True, n_jobs=1)
-        mse_list = []
-        nonzero_count_list = []
-        for i in range(0, coefs.shape[1], 1): # columns
-            nonzero_idx = []
-            for j in range(0, coefs.shape[0], 1):
-                if coefs[j, i] != 0:
-                    nonzero_idx.append(j)
-            if len(nonzero_idx) == 0:
-                mse_list.append(1e+100)
-                continue
-            nonzero_count_list.append(len(nonzero_idx))
-            x = np.zeros(shape=(x_std.shape[0], len(nonzero_idx)), dtype=float)
-            x[:, :] = x_std[:, nonzero_idx]
-            lr.fit(x, y_std)
-            y_pred_lr = lr.predict(x)
-            mse_lr = skm.mean_squared_error(y_std, y_pred_lr)
-            mse_list.append(mse_lr)
-        count_min = coefs.shape[0]
-        idx = -1
-        # if threshold for MSE is provided
-        if MSE_threshold is not None:
-            for i in range(0, len(mse_list), 1):
-                if mse_list[i] < MSE_threshold:
-                    if nonzero_count_list[i] < count_min:
-                        idx = i
-                        count_min = nonzero_count_list[i]
-        else:
-            idx = np.argmin(mse_list) # index of column of enet_path. best fit
-        for i in range(0, len(mse_list), 1):
-            if mse_list[i] == 1e+100:
-                mse_list[i] = 0
-        if idx == -1:
-            print('MSE for all path is greater than threshold provided :', MSE_threshold)
-            print('Best fit is assigned according to min MSE from the path')
-            idx = np.argmin(mse_list) # index of column of enet_path. best fit
-        alpha = alphas[idx]
-# store indices of nonzero coefficients of best fit        
-        nonzero_idx = []
-        for j in range(0, coefs.shape[0], 1):
-            if coefs[j, idx] != 0:
-                nonzero_idx.append(j)
-                
-    if PlotPath and (Method == 'grid'):
-        nonzero = []
-        for i in range(0, coefs.shape[1], 1):
-            nonzero_count = np.count_nonzero(coefs[:, i])
-            nonzero.append(nonzero_count)
-        fig = plt.figure(1, figsize = (19, 10))
-        plt.subplot(211)
-        subplot11 = plt.gca()
-        plt.plot(alphas, nonzero, ':')
-        subplot11.set_xscale('log')
-        plt.xlabel('Alphas')
-        plt.ylabel('Number of nonzero coefficients')
-        plt.title('Elastic Net Path')
-        plt.subplot(212)
-        subplot21 = plt.gca()
-        plt.plot(alphas, mse_list, ':')
-        subplot21.set_xscale('log')
-        subplot21.set_yscale('log')
-        plt.xlabel('Alphas')
-        plt.ylabel('MSE')
-        plt.title('Mean squared error vs. regularization strength')
-        plt.show()
-        plt.savefig(FileName, bbox_inches='tight')
-        plt.close(fig)
-    if (Method == 'CV'):
-        return nonzero_idx, alpha
-    if (Method == 'grid'):
-        return nonzero_idx, alpha, mse_list, nonzero_count_list
 
 def BackwardElimination(X_train, Y_train, X_test, Y_test, FeaturesAll, \
     FeaturesReduced, Method='fast', Criterion='p-Value', N_of_features_to_select=20, \
@@ -674,7 +509,7 @@ def get_full_list(idx, NofFeatures):
         idx_corr.append(n)
     return idx_corr
 
-def ClassifyCorrelatedFeatures(X, features_idx, MinCorrelation, Model=1, Corr_Matrix=None, verbose=False):
+def ClassifyCorrelatedFeatures(X, features_idx=None, MinCorrelation=0.95, Model=1, C=None):
 # creates list of correlated features 
 # X - [n x m] numpy array of features
 # rows correspond to observations
@@ -692,22 +527,21 @@ def ClassifyCorrelatedFeatures(X, features_idx, MinCorrelation, Model=1, Corr_Ma
                     return True
         return False
     
-    if Corr_Matrix is not None:
-        C = Corr_Matrix
-    else:
+    if C is None:
         C = np.cov(X, rowvar=False, bias=True)
     list1 = []
     list2 = []
-    features_lars_idx = list(features_idx)
-    for i in range(0, len(features_lars_idx), 1):
-        idx = features_lars_idx[i]
+    if features_idx is None:
+        features_idx = list(range(0, X.shape[1], 1))
+    for i in range(0, len(features_idx), 1):
+        idx = features_idx[i]
         list1.append(list(''))
         list2.append(list(''))
         list1[i].append(idx)
         list2[i].append(idx)
     NofFeatures = X.shape[1]
     k = 0
-    for i in features_lars_idx:
+    for i in features_idx:
         for j in range(0, NofFeatures, 1):
             if i == j:
                 continue
@@ -842,7 +676,7 @@ def Results_to_xls(writeResults, SheetName, selected_features_list, FeaturesAll,
     return
 # end of Results_to_xls
 
-def StoreFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced):
+def StoreLinearFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced):
     writeResults = pd.ExcelWriter(FileName, engine='openpyxl')
     NofSelectedFeatures = len(FeaturesReduced)
     selected_features_list = list(range(0,NofSelectedFeatures,1))
@@ -922,6 +756,28 @@ def StoreFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced):
         del(Results['Order 1'])
         del(Results['Degree 1'])
         del(Results['HaType 1'])
+    Results.to_excel(writeResults)
+    writeResults.save()  
+    return
+
+def StoreNonlinearFeaturesDescriprion(FileName, FeaturesNonlinear):
+    writeResults = pd.ExcelWriter(FileName, engine='openpyxl')
+    nFeatures = len(FeaturesNonlinear)
+    Results = pd.DataFrame(np.zeros(shape = (nFeatures, 7)).astype(float), \
+        columns=['Feature index','Feature type','Bond','Intermolecular','Distance type',\
+        'Number of distances in feature', 'Number of constants in feature'], dtype=str)
+    for i in range(0, nFeatures, 1):
+        Results.loc[i]['Feature index'] = i
+        Results.loc[i]['Feature type'] = FeaturesNonlinear[i].FeType
+        Results.loc[i]['Bond'] = FeaturesNonlinear[i].Distance.Atom1.Symbol +\
+        '-' + FeaturesNonlinear[i].Distance.Atom2.Symbol
+        Results.loc[i]['Distance type'] = FeaturesNonlinear[i].Distance.DiType
+        if FeaturesNonlinear[i].Distance.isIntermolecular: # True = Intermolecular False = Intramolecular
+            Results.loc[i]['Intermolecular'] = 'Yes'
+        else:
+            Results.loc[i]['Intermolecular'] = 'No'
+        Results.loc[i]['Number of distances in feature'] = FeaturesNonlinear[i].nDistances 
+        Results.loc[i]['Number of constants in feature'] = FeaturesNonlinear[i].nConstants 
     Results.to_excel(writeResults)
     writeResults.save()  
     return
@@ -1553,34 +1409,6 @@ def rank_features(x_std, y_std, idx, direction='Lo-Hi'):
 # bubble sort from high to low. Greater mse first = most important features first
         mse_list, idx = Sort(mse_list, idx, direction='Hi-Lo')
     return idx
-
-class ENet:
-    idx = None
-    F_ENet = 'ENet path.png'
-    L1 = 0.7
-    eps = 1e-3
-    nAlphas = 100
-    alphas = None
-    def __init__(self, F_ENet='ENet path.png', L1=0.7, eps=1e-3, nAlphas=100, alphas=None):
-        self.F_ENet = F_ENet
-        self.L1 = L1
-        self.eps = eps
-        self.nAlphas = nAlphas
-        if alphas is not None:
-            self.alphas = alphas
-        return
-    def fit(self, x, y, VIP_idx=None):
-        if VIP_idx is None:
-            VIP_idx = []
-        idx, alpha, mse, nonz = SelectBestSubsetFromElasticNetPath(x, y,\
-            Method='grid', MSE_threshold=None, R2_threshold=None, L1_ratio=self.L1, Eps=self.eps,\
-            N_alphas=self.nAlphas, Alphas=self.alphas, max_iter=10000, tol=0.0001, cv=None, n_jobs=1, \
-            selection='random', PlotPath=True, FileName=self.F_ENet, verbose=True)
-        for i in VIP_idx: # add missing VIP features 
-            if i not in idx:
-                idx.append(i)
-        self.idx = idx
-        return
     
 class BF:
     LastIterationsToStore = 15
@@ -1591,10 +1419,12 @@ class BF:
     Slope = 0.001
     VIP_number = None
     F_Coef = 'Coefficients.dat'
+    UseNonlinear = False
+    Normalize = False
     
-    def __init__(self, LastIterationsToStore=15, UseCorrelationMatrix=False,\
+    def __init__(self, LastIterationsToStore=15, UseNonlinear=False, UseCorrelationMatrix=False,\
         MinCorr=None, F_Xlsx='BF.xlsx', F_Plot = 'Results', F_Coef = 'Coefficients.dat',\
-        Slope = 0.001, VIP_number=None):
+        Slope = 0.001, VIP_number=None, Normalize=False):
         self.LastIterationsToStore = LastIterationsToStore
         self.UseCorrelationMatrix = UseCorrelationMatrix
         self.MinCorr = MinCorr
@@ -1603,12 +1433,14 @@ class BF:
         self.F_Coef = F_Coef
         self.Slope = Slope
         self.VIP_number = VIP_number
+        self.UseNonlinear = UseNonlinear
+        self.Normalize = Normalize
         return
     
-    def fit(self, x_std, y_std, X_train, Y_train, X_test, Y_test, FeaturesAll,\
-            FeaturesReduced, idx=None, VIP_idx=None, Method='sequential',\
-            Criterion='MSE', GetVIP=False, BestFitMethod='Fast', MaxLoops=10,\
-            MaxBottom=3, verbose=1):
+    def fit(self, X_train_nonlin, X_train_lin, Y_train, X_test_nonlin, X_test_lin,\
+            Y_test, FeaturesAll, FeaturesReduced, idx_nonlin=None, VIP_idx_nonlin=None,\
+            idx_lin=None, VIP_idx_lin=None, Method='sequential', Criterion='MSE',\
+            GetVIP=False, BestFitMethod='Fast', MaxLoops=10, MaxBottom=3, verbose=1):
         if VIP_idx is None:
             VIP_idx = []
         if idx is None:
@@ -1974,3 +1806,37 @@ def get_energy(Coef_tuple, FeaturesAll, FeaturesReduced, record_list, Record, nV
                 variable += r
         E += variable * features_set[2][i] # combined features by coefficient
     return E
+
+def replace_numbers(l1, l2, source_data):
+    l1 = list(l1)
+    l2 = list(l2) # those numbers will be replaced by numbers from l1
+    if type(source_data) is not list: # replace single number
+        try:
+            idx = l2.index(source_data)
+        except:
+            return False # source data is not in mapping list
+        dest = l1[idx]       
+        return dest
+    dest_data = copy.deepcopy(source_data)
+    for i in range(0, len(source_data), 1):
+        if (type(source_data[i]) is list): # 2D array
+            for j in range(0, len(source_data[i]), 1):
+                num_source = source_data[i][j]
+                try:
+                    idx = l2.index(num_source)
+                except:
+                    return False # source data is not in mapping list
+                num_dest = l1[idx]
+                dest_data[i][j] = num_dest
+        else: # 1D array
+            try:
+                idx = l2.index(source_data[i])
+            except:
+                return False # source data is not in mapping list
+            num_dest = l1[idx]
+            dest_data[i] = num_dest
+    return dest_data
+    
+    
+    
+    
