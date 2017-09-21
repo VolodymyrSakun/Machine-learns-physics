@@ -13,6 +13,7 @@ import multiprocessing as mp
 import re
 import time
 import shutil
+import random
 
 # record_list[0].atoms[0].Atom.Symbol
 # record_list[0].atoms[0].Atom.Index
@@ -52,6 +53,41 @@ import shutil
 # FeaturesAll[0].DtP2.Distance.Atom2.AtType
 # FeaturesAll[0].DtP2.Distance.Atom2.MolecularIndex
 
+def ReadData(F_data):
+        # Read coordinates from file
+    f = open(F_data, "r")
+    data0 = f.readlines()
+    f.close()
+    data = []
+    for i in range(0, len(data0), 1):
+        data.append(data0[i].rstrip())
+    del(data0)
+    # Rearrange data in structure
+    i = 0 # counts lines in textdata
+    j = 0 # counts atom records for each energy value
+    atoms_list = [] # temporary list
+    record_list = []
+    while i < len(data):
+        s = data[i].split() # line of text separated in list
+        if len(s) == 0: # empty line
+            i += 1
+            continue
+    # record for energy value
+        elif (len(s) == 1) and library.isfloat(s[0]): 
+            e = float(s[0])
+            rec = structure.Record(e, atoms_list)
+            record_list.append(rec)
+            j = 0
+            atoms_list = []
+        elif (len(s) == 4): 
+            x = float(s[1])
+            y = float(s[2])
+            z = float(s[3])
+            atoms_list.append(structure.AtomCoordinates(Atoms[j], x, y, z))
+            j += 1
+        i += 1
+    return record_list
+
 def StoreEnergy(F_Response, record_list):
     Size = len(record_list)
     energy = np.zeros(shape=(Size, 1), dtype=float)
@@ -62,30 +98,6 @@ def StoreEnergy(F_Response, record_list):
     Table.to_csv(f, index=False)
     f.close()
     return
-
-"""
-def StoreDistances(F_Distances, record_list):
-    Size = len(record_list)
-    nAtoms = len(record_list[0].atoms)
-    nDistances = int(nAtoms**2 / 2 - nAtoms / 2)
-    distances_array = np.zeros(shape=(Size, nDistances), dtype=float)
-# only distance for exp function
-    for i in range(0, Size, 1):
-        l = 0
-        for k in range(0, nAtoms, 1):
-            for j in range(k+1, nAtoms, 1):        
-                r = np.sqrt((record_list[i].atoms[k].x - record_list[i].atoms[j].x)**2 +\
-                            (record_list[i].atoms[k].y - record_list[i].atoms[j].y)**2 +\
-                            (record_list[i].atoms[k].z - record_list[i].atoms[j].z)**2)            
-                distances_array[i, l] = r
-                l += 1    
-# save distances
-    Table = pd.DataFrame(distances_array, dtype=float)
-    f = open(F_Distances, 'w')
-    Table.to_csv(f, index=False)
-    f.close()
-    return
-"""
 
 def StoreDistances(F_Distances, record_list, Distances):
     Size = len(record_list)
@@ -224,6 +236,7 @@ def StoreFeatures(F_LinearFeatures, first, last, FeaturesAll, FeaturesReduced, r
             if (FeaturesAll[j].FeType == FeaturesReduced[k].FeType):
                 features_array_reduced[:, k] += features_array[:, j]
 
+
 # removing NaN from dataset
 #    mask = ~np.any(np.isnan(features_array_reduced), axis=1)
 #    features_array_reduced = features_array_reduced[mask]
@@ -241,8 +254,10 @@ def StoreFeatures(F_LinearFeatures, first, last, FeaturesAll, FeaturesReduced, r
 
 if __name__ == '__main__':
     F_SystemDescriptor = 'SystemDescriptor.' # file with info about system structure
-    F_Response = 'Response.csv' # response variable (y)
-    F_LinearFeatures = 'LinearFeatures.csv' # output csv file with combined features and energy
+    F_Response_Train = 'ResponseTrain.csv' # response variable (y)
+    F_Response_Test = 'ResponseTest.csv' # response variable (y)
+    F_LinearFeaturesTrain = 'LinearFeaturesTrain.csv' # output csv file with combined features and energy
+    F_LinearFeaturesTest = 'LinearFeaturesTest.csv' # output csv file with combined features and energy
     F_Distances = 'Distances.csv' # output csv file. distances
     F_NonlinearFeatures = 'NonlinearFeatures.dat'
     F_LinearFeaturesAll = 'LinearFeaturesAll.dat' # output data structure which contains all features
@@ -252,10 +267,18 @@ if __name__ == '__main__':
     F_LinearFeaturesList = 'Linear Features Reduced List.xlsx'
     F_NonlinearFeaturesList = 'Nonlinear Features List.xlsx'
     F_Structure = 'Structure.xlsx'
-    Separators = '=|,| |:|;|: |'   
+    F_Filter = 'Filter.dat'
+    Separators = '=|,| |:|;|: '   
+    RandomSeed = 101
+    if RandomSeed is not None:
+        random.seed(RandomSeed)
+    else:
+        random.seed()
     try:        
-        os.remove(F_Response)
-        os.remove(F_LinearFeatures) # erase old files if exist
+        os.remove(F_Response_Train)
+        os.remove(F_Response_Test)
+        os.remove(F_LinearFeaturesTrain) # erase old files if exist
+        os.remove(F_LinearFeaturesTest)
         os.remove(F_Distances)
         os.remove(F_NonlinearFeatures)
         os.remove(F_LinearFeaturesAll) 
@@ -266,6 +289,11 @@ if __name__ == '__main__':
         os.remove(F_Structure)
     except:
         pass    
+    f = open(F_Filter, "rb")
+    Filter = pickle.load(f)
+    f.close()
+    F_train_data = Filter['Training Set']
+    F_test_data = Filter['Test Set']
     # read descriptor from file
     with open(F_SystemDescriptor) as f:
         lines = f.readlines()
@@ -296,14 +324,6 @@ if __name__ == '__main__':
             s = list(filter(bool, s)) # removes empty records
             if 'True' in s: # proceed single distances
                 ProceedHarmonics = True
-        if (x.find('F_data') != -1):        
-            s = re.split('F_data = |F_data=|', x)
-            s = list(filter(bool, s))
-            f_name = s
-            F_data = f_name[0]
-    if len(F_data) == 0:
-        print('Please specify file name in SystemDescriptor')
-        print('Add row like \"F_data = filename.x\" at the beginning of file')
     if ProceedSingle:
         if ('&SingleDistancesDescription' in lines):
             for i in range(0, len(lines), 1):
@@ -815,7 +835,13 @@ if __name__ == '__main__':
         if (FeaturesAll[i].FeType not in FeType_list):
             FeType_list.append(FeaturesAll[i].FeType)
             FeaturesReduced.append(FeaturesAll[i])
-    
+# store global indices for each reduced feature
+    for k in range(0, len(FeaturesReduced), 1):
+        for j in range(0, len(FeaturesAll), 1):
+            if (FeaturesAll[j].FeType == FeaturesReduced[k].FeType):
+                if j not in FeaturesReduced[k].idx:
+                    FeaturesReduced[k].idx.append(j)
+                
     NofFeatures = len(FeaturesAll) # Total number of features
     NofFeaturesReduced = len(FeaturesReduced)
     
@@ -843,46 +869,30 @@ if __name__ == '__main__':
     library.StoreLinearFeaturesDescriprion(F_LinearFeaturesList, FeaturesAll, FeaturesReduced) # xlsx
     library.store_structure(F_Structure, Atoms, Distances, DtP_Double_list, FeaturesAll) # xlsx
     
-    # Read coordinates from file
-    f = open(F_data, "r")
-    data0 = f.readlines()
-    f.close()
-    data1 = []
-    for i in range(0, len(data0), 1):
-        data1.append(data0[i].rstrip())
-    del(data0)
-    
-    # Rearrange data in structure
-    i = 0 # counts lines in textdata
-    j = 0 # counts atom records for each energy value
-    atoms_list = [] # temporary list
-    record_list = []
-    while i < len(data1):
-        s = data1[i].split() # line of text separated in list
-        if len(s) == 0: # empty line
-            i += 1
-            continue
-    # record for energy value
-        elif (len(s) == 1) and library.isfloat(s[0]): 
-            e = float(s[0])
-            rec = structure.Record(e, atoms_list)
-            record_list.append(rec)
-            j = 0
-            atoms_list = []
-        elif (len(s) == 4): 
-            x = float(s[1])
-            y = float(s[2])
-            z = float(s[3])
-            atoms_list.append(structure.AtomCoordinates(Atoms[j], x, y, z))
-            j += 1
-        i += 1
-    
-    # save record_list into file
-    f = open(F_record_list, "wb")
-    pickle.dump(record_list, f)
-    f.close()
-    
-    # split array if too big
+    record_list_train = ReadData(F_train_data)
+    StoreEnergy(F_Response_Train, record_list_train)
+    nTrainPoints = len(record_list_train)
+    if F_test_data is not None:
+        record_list_test = ReadData(F_test_data)             
+        record_list_test_reduced = []
+        nTestPoints = int(Filter['Test Fraction for fit'] * len(record_list_test))
+        if Filter['Test Points number'] is not None:
+            nTestPoints = Filter['Test Points number']
+        if nTestPoints > len(record_list_test):
+            nTestPoints = len(record_list_test)
+        for i in range(0, nTestPoints, 1):
+            r = random.randrange(0, len(record_list_test), 1)
+            record_list_test_reduced.append(record_list_test[r])
+            del(record_list_test[r])
+        StoreEnergy(F_Response_Test, record_list_test_reduced)
+        record_list = record_list_train + record_list_test_reduced
+    else:
+        record_list = record_list_train
+    print('Train = ', len(record_list_train))
+    print('Test = ', len(record_list_test_reduced))
+    print('All = ', len(record_list))
+    print('# test points', nTestPoints)
+# split array if too big
     NpArrayCapacity = 1e+8
     Size = len(record_list) # N of observations
     Length = len(FeaturesAll)
@@ -919,18 +929,34 @@ if __name__ == '__main__':
             size_list_str.append(str(first) + '-' + str(last-1) + '.csv')
             i += 1
     StoreDistances(F_Distances, record_list, Distances)
-    StoreEnergy(F_Response, record_list)
+
     ran = list(range(0, len(size_list_str), 1))
     jobs = (delayed(StoreFeatures)(size_list_str[i], size_list[i][0], size_list[i][1], FeaturesAll, FeaturesReduced, record_list, Atoms) for i in ran)
     N = Parallel(n_jobs=nCPU)(jobs)
     print('Storing results in one file')
-    f = open(F_LinearFeatures, "w")
+    f = open('Tmp.csv', "w")
     for i in range(0, len(size_list_str), 1):
         fin = open(size_list_str[i], "r")
         S = fin.readlines()
         f.writelines(S)
         fin.close()
     f.close()
+    f = open('Tmp.csv', "r")
+    data = f.readlines()
+    f.close()
+    os.remove('Tmp.csv')
+    f = open(F_LinearFeaturesTrain, "w")
+    i = 0
+    while i <= nTrainPoints:
+        f.write(data[i])
+        i += 1
+    f.close()
+    f = open(F_LinearFeaturesTest, "w")
+    f.write(data[0])
+    while i < len(data):
+        f.write(data[i])
+        i += 1
+    f.close()       
     for i in range(0, len(size_list_str), 1):
         try:
             os.remove(size_list_str[i]) # erase old files if exist
@@ -942,8 +968,10 @@ if __name__ == '__main__':
         os.makedirs(directory)    
     try:
         shutil.copyfile(F_SystemDescriptor, directory + '\\' + F_SystemDescriptor)
-        shutil.copyfile(F_Response, directory + '\\' + F_Response)
-        shutil.copyfile(F_LinearFeatures, directory + '\\' + F_LinearFeatures)
+        shutil.copyfile(F_Response_Train, directory + '\\' + F_Response_Train)
+        shutil.copyfile(F_Response_Test, directory + '\\' + F_Response_Test)
+        shutil.copyfile(F_LinearFeaturesTrain, directory + '\\' + F_LinearFeaturesTrain)
+        shutil.copyfile(F_LinearFeaturesTest, directory + '\\' + F_LinearFeaturesTest)
         shutil.copyfile(F_Distances, directory + '\\' + F_Distances)
         shutil.copyfile(F_LinearFeaturesAll, directory + '\\' + F_LinearFeaturesAll)
         shutil.copyfile(F_NonlinearFeatures, directory + '\\' + F_NonlinearFeatures)

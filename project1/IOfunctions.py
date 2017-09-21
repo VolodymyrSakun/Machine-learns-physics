@@ -5,8 +5,10 @@ from project1 import library
 from project1 import spherical
 import pandas as pd
 import pickle 
+import copy
 
-Separators = '=|,| |:|;|: |'   
+#Separators = '=|,| |:|;|: |'   
+Separators = '=|,| |:|;|: '
 
 def ReadMoleculeDescription(F):    
 # read descriptor from file
@@ -85,10 +87,12 @@ def ReadMoleculeDescription(F):
             j += 1
             i += 1
     return Molecules
-
+    
 # reads feature set and objects that describes it
-def ReadFeatures(F_Nonlinear=None, F_linear=None, F_Response=None, F_NonlinearFeatures=None,\
-        F_FeaturesAll=None, F_FeaturesReduced=None, F_System=None, F_Records=None, verbose=False):
+def ReadFeatures(F_Nonlinear=None, F_linear_Train=None, F_Response_Train=None,\
+        F_linear_Test=None, F_Response_Test=None, F_NonlinearFeatures=None,\
+        F_FeaturesAll=None, F_FeaturesReduced=None, F_System=None, F_Records=None,\
+        verbose=False):
 # F_features - .csv file that contains data stored by Generape combined features.py
 # F_FeaturesAll - .dat file that contains object with all informations about features
 # F_FeaturesReduced - .dat file that contains object with all informations about reduced features
@@ -110,17 +114,29 @@ def ReadFeatures(F_Nonlinear=None, F_linear=None, F_Response=None, F_NonlinearFe
     else:
         X_Nonlinear = None
 # load features for linear fit        
-    if (F_linear is not None) and os.path.isfile(F_linear):
-        dataset = pd.read_csv(F_linear)
-        X_linear = dataset.iloc[:, :].values
+    if (F_linear_Train is not None) and os.path.isfile(F_linear_Train):
+        dataset = pd.read_csv(F_linear_Train)
+        X_linear_Train = dataset.iloc[:, :].values
     else:
-        X_linear = None
+        X_linear_Train = None
 # load response variable (y)        
-    if (F_Response is not None) and os.path.isfile(F_Response):
-        dataset = pd.read_csv(F_Response)
-        Y = dataset.iloc[:, :].values
+    if (F_Response_Train is not None) and os.path.isfile(F_Response_Train):
+        dataset = pd.read_csv(F_Response_Train)
+        Y_Train = dataset.iloc[:, :].values
     else:
-        Y = None
+        Y_Train = None
+# load features for linear fit        
+    if (F_linear_Test is not None) and os.path.isfile(F_linear_Test):
+        dataset = pd.read_csv(F_linear_Test)
+        X_linear_Test = dataset.iloc[:, :].values
+    else:
+        X_linear_Test = None
+# load response variable (y)        
+    if (F_Response_Test is not None) and os.path.isfile(F_Response_Test):
+        dataset = pd.read_csv(F_Response_Test)
+        Y_Test = dataset.iloc[:, :].values
+    else:
+        Y_Test = None
 # load list FeaturesNonlinear into file        
     if (F_NonlinearFeatures is not None) and os.path.isfile(F_NonlinearFeatures):
         f = open(F_NonlinearFeatures, "rb")
@@ -154,4 +170,70 @@ def ReadFeatures(F_Nonlinear=None, F_linear=None, F_Response=None, F_NonlinearFe
         f.close() 
     else:
         records = None
-    return X_Nonlinear, X_linear, Y, FeaturesNonlinear, FeaturesAll, FeaturesReduced, system, records
+    return {'X Nonlinear': X_Nonlinear, 'X Linear Train': X_linear_Train,\
+            'Response Train': Y_Train, 'X Linear Test': X_linear_Test,\
+            'Response Test': Y_Test, 'Nonlinear Features': FeaturesNonlinear,\
+            'Linear Features All': FeaturesAll, 'Linear Features Reduced': FeaturesReduced,\
+            'System': system, 'Records': records}
+
+def store_records(F, record_list):
+    records = []
+    for i in range(0, len(record_list), 1):
+        for molecule in record_list[i].Molecules:
+            for atom in molecule.Atoms:
+                S = atom.Atom.Symbol
+                x = str(atom.x)
+                y = str(atom.y)
+                z = str(atom.z)
+                line = S + ': ' + x + '\t' + y + '\t' + z + '\n'
+                records.append(line)
+        line = str(record_list[i].E_True) + '\n'
+        records.append(line)
+        records.append('\n')
+    
+    f = open(F, "w")
+    f.writelines(records)
+    f.close()
+    return
+
+def ReadRecords(F, MoleculePrototypes):
+    # Read coordinates from file
+    f = open(F, "r")
+    data0 = f.readlines()
+    f.close()
+    data1 = []
+    for i in range(0, len(data0), 1):
+        data1.append(data0[i].rstrip())
+    del(data0)
+    # Rearrange data in structure
+    i = 0 # counts lines in textdata
+    j = 0 # molecule number
+    k = 0 # atom number
+    molecules = copy.deepcopy(MoleculePrototypes)
+    Records = []
+    while i < len(data1):
+        s = data1[i].split() # line of text separated in list
+        if len(s) == 0: # empty line
+            i += 1 # next line
+            j = 0 # molecule number
+            k = 0 # atom number
+            molecules = copy.deepcopy(MoleculePrototypes)
+            continue
+        elif (len(s) == 1) and library.isfloat(s[0]): # energy line
+            j = 0
+            k = 0
+            e = float(s[0])    
+            for molecule in molecules:
+                molecule._refresh()
+            rec = structure.Rec(molecules, E_True=e)
+            Records.append(rec)
+        elif (len(s) == 4): 
+            molecules[j].Atoms[k].x = float(s[1])
+            molecules[j].Atoms[k].y = float(s[2])
+            molecules[j].Atoms[k].z = float(s[3])
+            k += 1
+            if k >= molecules[j].nAtoms: # go to next molecule
+                k = 0
+                j += 1
+        i += 1
+    return Records

@@ -253,24 +253,47 @@ def get_real_form3(m, n, theta, phi):
         s = np.sqrt(2) * (-1)**m * sph_harm(m, n, theta, phi).real
     return s.real
 
-def center_of_mass(atoms):
+def center_of_mass(Object):
+    if type(Object) is not list:
+        if type(Object) is structure.AtomCoordinates:
+            return Point(Object.x, Object.y, Object.z)
+        elif type(Object) is structure.Molecule:
+            return center_of_mass(Object.Atoms)
+    if type(Object) is not list:
+        return False
     Mi = 0
     MiXi = 0
     MiYi = 0
-    MiZi = 0
-    try:
-        for i in range(0, len(atoms), 1):
-            Mi += atoms[i].Atom.Mass
-            MiXi += atoms[i].Atom.Mass * atoms[i].x
-            MiYi += atoms[i].Atom.Mass * atoms[i].y
-            MiZi += atoms[i].Atom.Mass * atoms[i].z
-        X = MiXi / Mi
-        Y = MiYi / Mi
-        Z = MiZi / Mi
-        return Point(X, Y, Z)
-    except:
-        return False
-
+    MiZi = 0    
+    if type(Object[0]) is structure.AtomCoordinates:
+        try:
+            for i in range(0, len(Object), 1):
+                Mi += Object[i].Atom.Mass
+                MiXi += Object[i].Atom.Mass * Object[i].x
+                MiYi += Object[i].Atom.Mass * Object[i].y
+                MiZi += Object[i].Atom.Mass * Object[i].z
+            X = MiXi / Mi
+            Y = MiYi / Mi
+            Z = MiZi / Mi
+            return Point(X, Y, Z)
+        except:
+            return False
+    elif type(Object[0]) is structure.Molecule:
+        try:
+            for i in range(0, len(Object), 1):
+                Mi += Object[i].Mass
+                MiXi += Object[i].Mass * Object[i].CenterOfMass.x
+                MiYi += Object[i].Mass * Object[i].CenterOfMass.y
+                MiZi += Object[i].Mass * Object[i].CenterOfMass.z
+            X = MiXi / Mi
+            Y = MiYi / Mi
+            Z = MiZi / Mi
+            return Point(X, Y, Z)
+        except:
+            return False        
+        
+        
+        
 # molecule - class Molecule; new_origin - class Point
 # change coordinate system to have new origine = new_origin
 def translate_molecule_to_new_coordinate_system(molecule, new_origin):
@@ -504,7 +527,7 @@ def check_overlap(molecule1, molecule2):
     
 def ReadMolecules(F='MoleculesDescriptor.'): # inactive
     F = F # file with info about system structure
-    Separators = '=|,| |:|;|: |'
+    Separators = '=|,| |:|;|: '
 # read descriptor from file
     with open(F) as f:
         lines = f.readlines()

@@ -40,6 +40,7 @@ class AtomCoordinates:
     x = None
     y = None
     z = None
+    
     def __init__(self, atom, X, Y, Z):
         self.Atom = atom
         self.x = X
@@ -54,7 +55,10 @@ class Molecule:
     Name = None
     Mass = None
     CenterOfMass = None # type of spherical.Point
+    
     def __init__(self, atoms, Name=None):
+        if type(atoms) is Atom or type(atoms) is AtomCoordinates:
+            atoms = [atoms]
         if type(atoms[0]) is Atom:
             Atoms = []
             for i in atoms:
@@ -224,6 +228,8 @@ class Feature:
     FeType = 'None'
     Harmonic1 = None
     Harmonic2 = None
+    idx = []
+    
     def __init__(self, DtP1, DtP2=None, Harmonic1=None, Harmonic2=None):
         
         def count_unique(d1, d2):
@@ -242,6 +248,7 @@ class Feature:
                 return 2
             return 1                
         
+        self.idx = []
         if (DtP1 is not None) and (DtP2 is None): # one distance in feature
             self.nDistances = 1
             # get category based on molecular index
@@ -374,6 +381,158 @@ class FeatureNonlinear:
         self.nConstants=nConstants
         return
         
+class Rec:
+    Molecules = []
+    nMolecules = None
+    E_True = None
+    E_Predicted = None # from get_energy
+    MSE = None # from get_energy
+    CenterOfMass = None # of all molecules in one record
+    R_CenterOfMass_Average = None # 
+    R_Average = None
+    
+    def __init__(self, Molecules, E_True=None):
+        self.Molecules = Molecules
+        self.E_True = E_True
+        self.E_Predicted = None
+        self.MSE = None
+        self.nMolecules = len(Molecules)
+        self.CenterOfMass = spherical.center_of_mass(Molecules)
+        R = 0
+        for molecule in Molecules:
+            v = spherical.vector_from_points(self.CenterOfMass, molecule.CenterOfMass)
+            R += v.length        
+        self.R_CenterOfMass_Average = R / self.nMolecules
+        R = 0
+        n = 0
+        if self.nMolecules > 1:
+            for i1 in range(0, self.nMolecules, 1):
+                for i2 in range(i1+1, self.nMolecules, 1):
+                    v = spherical.vector_from_points(Molecules[i1].CenterOfMass, Molecules[i2].CenterOfMass)
+                    R += v.length   
+                    n += 1 
+            self.R_Average = R / n
+        return
+
+# only for linear now    
+    def get_energy(self, chromosome, FeaturesAll, FeaturesReduced):
+        idx_lin = chromosome.get_genes_list(Type=0)
+        coef = chromosome.get_coeff_list(Type=0)
+        E = 0
+        for i in range(0, chromosome.Size, 1): # for each nonzero coefficient
+            current_feature_idx = idx_lin[i] # idx of FeaturesReduced
+            FeaturesReduced[current_feature_idx].idx # list of idx in FeaturesAll
+            variable = 0
+            for j in FeaturesReduced[current_feature_idx].idx:
+                if FeaturesAll[j].nDistances == 1:
+                    atom1_index = FeaturesAll[j].DtP1.Distance.Atom1.Index # first atom number
+                    atom2_index = FeaturesAll[j].DtP1.Distance.Atom2.Index # second atom number
+                    for molecule in self.Molecules:
+                        for atom in molecule.Atoms:
+                            if atom.Atom.Index == atom1_index:
+                                x1 = atom.x
+                                y1 = atom.y
+                                z1 = atom.z
+                            if atom.Atom.Index == atom2_index:
+                                x2 = atom.x
+                                y2 = atom.y
+                                z2 = atom.z                               
+                    d = np.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2)            
+                    r = d**FeaturesAll[j].DtP1.Power # distance to correcponding power
+                if FeaturesAll[j].nDistances == 2:
+                    atom11_index = FeaturesAll[j].DtP1.Distance.Atom1.Index
+                    atom12_index = FeaturesAll[j].DtP1.Distance.Atom2.Index
+                    atom21_index = FeaturesAll[j].DtP2.Distance.Atom1.Index
+                    atom22_index = FeaturesAll[j].DtP2.Distance.Atom2.Index
+                    for molecule in self.Molecules:
+                        for atom in molecule.Atoms:
+                            if atom.Atom.Index == atom11_index:
+                                x11 = atom.x
+                                y11 = atom.y
+                                z11 = atom.z
+                            if atom.Atom.Index == atom12_index:
+                                x12 = atom.x
+                                y12 = atom.y
+                                z12 = atom.z       
+                            if atom.Atom.Index == atom21_index:
+                                x21 = atom.x
+                                y21 = atom.y
+                                z21 = atom.z
+                            if atom.Atom.Index == atom22_index:
+                                x22 = atom.x
+                                y22 = atom.y
+                                z22 = atom.z                                     
+                    d1 = np.sqrt((x11 - x12)**2 + (y11 - y12)**2 + (z11 - z12)**2)            
+                    r1 = d1**FeaturesAll[j].DtP1.Power # distance to correcponding power
+                    d2 = np.sqrt((x21 - x22)**2 + (y21 - y22)**2 + (z21 - z22)**2)            
+                    r2 = d2**FeaturesAll[j].DtP2.Power # distance to correcponding power
+                    r = r1 * r2      
+                variable += r
+            E += variable * coef[i] # combined features by coefficient
+        self.E_Predicted = E
+        self.MSE = (self.E_True - self.E_Predicted)**2
+        return 
+
+# only for linear now    
+    def get_energy1(self, chromosome, FeaturesAll, FeaturesReduced):
+        idx_lin = chromosome.get_genes_list(Type=0)
+        coef = chromosome.get_coeff_list(Type=0)
+        E = 0
+        for i in range(0, chromosome.Size, 1): # for each nonzero coefficient
+            current_feature_idx = idx_lin[i]
+            current_feature_type = FeaturesReduced[current_feature_idx].FeType
+            variable = 0
+            for j in range(0, len(FeaturesAll), 1): # for each combined feature
+                if FeaturesAll[j].FeType == current_feature_type:
+                    if FeaturesAll[j].nDistances == 1:
+                        atom1_index = FeaturesAll[j].DtP1.Distance.Atom1.Index # first atom number
+                        atom2_index = FeaturesAll[j].DtP1.Distance.Atom2.Index # second atom number
+                        for molecule in self.Molecules:
+                            for atom in molecule.Atoms:
+                                if atom.Atom.Index == atom1_index:
+                                    x1 = atom.x
+                                    y1 = atom.y
+                                    z1 = atom.z
+                                if atom.Atom.Index == atom2_index:
+                                    x2 = atom.x
+                                    y2 = atom.y
+                                    z2 = atom.z                               
+                        d = np.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2)            
+                        r = d**FeaturesAll[j].DtP1.Power # distance to correcponding power
+                    if FeaturesAll[j].nDistances == 2:
+                        atom11_index = FeaturesAll[j].DtP1.Distance.Atom1.Index
+                        atom12_index = FeaturesAll[j].DtP1.Distance.Atom2.Index
+                        atom21_index = FeaturesAll[j].DtP2.Distance.Atom1.Index
+                        atom22_index = FeaturesAll[j].DtP2.Distance.Atom2.Index
+                        for molecule in self.Molecules:
+                            for atom in molecule.Atoms:
+                                if atom.Atom.Index == atom11_index:
+                                    x11 = atom.x
+                                    y11 = atom.y
+                                    z11 = atom.z
+                                if atom.Atom.Index == atom12_index:
+                                    x12 = atom.x
+                                    y12 = atom.y
+                                    z12 = atom.z       
+                                if atom.Atom.Index == atom21_index:
+                                    x21 = atom.x
+                                    y21 = atom.y
+                                    z21 = atom.z
+                                if atom.Atom.Index == atom22_index:
+                                    x22 = atom.x
+                                    y22 = atom.y
+                                    z22 = atom.z                                     
+                        d1 = np.sqrt((x11 - x12)**2 + (y11 - y12)**2 + (z11 - z12)**2)            
+                        r1 = d1**FeaturesAll[j].DtP1.Power # distance to correcponding power
+                        d2 = np.sqrt((x21 - x22)**2 + (y21 - y22)**2 + (z21 - z22)**2)            
+                        r2 = d2**FeaturesAll[j].DtP2.Power # distance to correcponding power
+                        r = r1 * r2      
+                    variable += r
+            E += variable * coef[i] # combined features by coefficient
+        self.E_Predicted = E
+        self.MSE = (self.E_True - self.E_Predicted)**2
+        return 
+    
 # Auxilary functions that print objects
 
 def print_feature(feature):

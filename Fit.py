@@ -13,12 +13,12 @@ from sklearn.utils import shuffle
 
 if __name__ == '__main__':
 # Global variables
-    DesiredNumberVariables = 7
+    DesiredNumberVariables = 15
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
     UseVIP = False # if true fit will be found in two steps. First step - fit only
     # single distances, select most important (VIP) features which will be kept
-    test_size = 0.3 # fraction of test size
+    test_size = 1e-20 # fraction of test size
 # Elastic net parameters    
     L1_Single = 0.7
     eps_single = 1e-3
@@ -32,13 +32,12 @@ if __name__ == '__main__':
 #    MaxBottom = 50 # integer - number of finished branches
     UseCorrelationMutation=True
     MinCorrMutation=0.9
-    UseCorrelationBestFit=True
+    UseCorrelationBestFit=False
     MinCorrBestFit=0.8
+    
     # for Best Fit algorithm. If False, all features will be used in trials 
     # to find Best Fit. Overwise, only most correlated features will be used.
     # If false, will be slow for big number of features
-    MinCorr_Single = 0.9 # minimum correlation for single distances
-    MinCorr = 0.8 # minimum correlation for double distances
     # needed only if UseCorrelationMatrix=True
     # used for creating list of most correlated features for Best Fit
     # float [0 .. 1]
@@ -50,17 +49,18 @@ if __name__ == '__main__':
     F_ENet = 'ENet path'
     F_GA = 'GA path'
     F_ga_structure = 'GA_structure.dat'
+    F_MoleculesDescriptor = 'MoleculesDescriptor.'
     Slope = 0.001 # stopping criterion for VIP features. Slope of RMSE graph
     VIP_number = 5 # stopping criterion for VIP features. Desired number of VIP features
 # GA parameters
-    PopulationSize = 20 # Population
+    PopulationSize = 100 # Population
     ChromosomeSize = DesiredNumberVariables
     MutationProbability = 0.3 # probability of mutation
     MutationInterval = [1, 3] # will be randomly chosen between min and max-1
     EliteFraction = 0.4 # fracrion of good chromosomes that will be used for crossover
     MutationCrossoverFraction = 0.3
     CrossoverFractionInterval = [0.6, 0.4] # how many genes will be taken from first and second best chromosomes (fraction)
-    IterationPerRecord = 1 # Display results of current fit after N iterations
+    IterationPerRecord = 100 # Display results of current fit after N iterations
     StopTime = 600 # How long in seconds GA works without improvement
     nIter = 1000 # How many populations will be used before GA stops
     RandomSeed = 101
@@ -68,52 +68,49 @@ if __name__ == '__main__':
     cond=1e-03 # for scipy solver
     lapack_driver='gelsy' # 'gelsd', 'gelsy', 'gelss', for scipy solver
     NonlinearFunction = 'exp'
-    UseNonlinear = True # if true, only linear regression will be used
+    UseNonlinear = False # if true, only linear regression will be used
     CrossoverMethod = 'Random' # 'Random' or 'Best'
     MutationMethod = 'Correlated' # 'Random' or 'Correlated'
     verbose = True
 
     
 # Read features and structures from files stored by "Generate combined features"
-    X_nonlin, X_lin, Y, FeaturesNonlinear, FeaturesAll, FeaturesReduced, system, _ = IOfunctions.ReadFeatures(\
-        F_Nonlinear='Distances.csv', F_linear='LinearFeatures.csv', F_Response='Response.csv',\
-        F_NonlinearFeatures = 'NonlinearFeatures.dat', F_FeaturesAll='LinearFeaturesAll.dat',\
-        F_FeaturesReduced='LinearFeaturesReduced.dat', F_System='system.dat', F_Records=None, verbose=False)
+    FilterResults = IOfunctions.ReadFeatures(\
+        F_Nonlinear='Distances.csv', F_linear_Train='LinearFeaturesTrain.csv',\
+        F_Response_Train='ResponseTrain.csv', F_linear_Test='LinearFeaturesTest.csv',\
+        F_Response_Test='ResponseTest.csv', F_NonlinearFeatures = 'NonlinearFeatures.dat',\
+        F_FeaturesAll='LinearFeaturesAll.dat', F_FeaturesReduced='LinearFeaturesReduced.dat',\
+        F_System='system.dat', F_Records=None, verbose=False)
+    
+    X_train_nonlin = FilterResults['X Nonlinear']
+    X_train_lin = FilterResults['X Linear Train']
+    Y_train = FilterResults['Response Train']
+    X_test_lin = FilterResults['X Linear Test']
+    Y_test = FilterResults['Response Test']
+    FeaturesNonlinear = FilterResults['Nonlinear Features']
+    FeaturesAll = FilterResults['Linear Features All']
+    FeaturesReduced = FilterResults['Linear Features Reduced']
+    system = FilterResults['System']
+#    records = results['Records']
+
 # split data in order to separate training set and test set
 # all response variables Y must be 1D arrays
-    X_nonlin, X_lin, Y = shuffle(X_nonlin, X_lin, Y, random_state=RandomSeed)
-    if (X_nonlin is not None) and (X_lin is None):
+
+    if (X_train_nonlin is not None) and (X_train_lin is None):
         UseNonlinear = True
         print('Linear features are not provides. Use non-linear regression only')
-        X_nonlin, Y = shuffle(X_nonlin, Y, random_state=RandomSeed)
-        X_train_nonlin, X_test_nonlin, Y_train, Y_test = train_test_split(X_nonlin, Y, test_size=test_size, random_state=RandomSeed)
         X_train_lin = None
         X_test_lin = None
-    if ((X_nonlin is None) and (X_lin is not None)) or (not UseNonlinear):
+    if ((X_train_nonlin is None) and (X_train_lin is not None)) or (not UseNonlinear):
         UseNonlinear = False
         if not UseNonlinear:
             print('Activated linear features only')
         else:
             print('Non-linear features are not provided. Use linear regression only')
-        X_lin, Y = shuffle(X_lin, Y, random_state=RandomSeed)
-        X_train_lin, X_test_lin, Y_train, Y_test = train_test_split(X_lin, Y, test_size=test_size, random_state=RandomSeed)
         X_train_nonlin = None
         X_test_nonlin = None
-    if ((X_nonlin is not None) and (X_lin is not None)) and UseNonlinear:
+    if ((X_train_nonlin is not None) and (X_train_lin is not None)) and UseNonlinear:
         print('Linear and non-linear features are provided')        
-        X_nonlin, X_lin, Y = shuffle(X_nonlin, X_lin, Y, random_state=RandomSeed)
-        X = np.empty(shape=(X_lin.shape[0], X_nonlin.shape[1]+X_lin.shape[1]), dtype=float)
-        X[:, 0:X_nonlin.shape[1]] = X_nonlin[:, :] # non-linear features first
-        X[:, X_nonlin.shape[1]:X.shape[1]] = X_lin[:, :]
-        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=test_size, random_state=RandomSeed)
-        X_train_nonlin = X_train[:, 0:X_nonlin.shape[1]]
-        X_train_lin = X_train[:, X_nonlin.shape[1]:X.shape[1]]
-        X_test_nonlin = X_test[:, 0:X_nonlin.shape[1]]
-        X_test_lin = X_test[:, X_nonlin.shape[1]:X.shape[1]]
-        Y_train = Y_train.reshape(-1)
-        Y_test = Y_test.reshape(-1)
-        del(X_train)
-        del(X_test)        
     if UseVIP:
         if system.nAtoms == 6: # two water molecules system
             VIP_number = 5
@@ -194,7 +191,7 @@ if __name__ == '__main__':
                 VIP_idx_lin=None, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
                 UseNonlinear=UseNonlinear, LinearSolver=LinearSolver,\
                 cond=cond, lapack_driver=lapack_driver, NonlinearFunction=NonlinearFunction,\
-                nIter = 1000)
+                nIter=nIter)
             t_sec = time.time() - t
             print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
             chromosome = ga.BestChromosome        
@@ -218,15 +215,19 @@ if __name__ == '__main__':
             chromosome = ga.RemoveWorstGene(chromosome, x_nonlin=X_train_nonlin,\
                 x_lin=Single_X_train, y=Y_train, verbose=True)
         t_sec = time.time() - t
-        ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Test',\
+        ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Train',\
             PlotType='Line', F='Single')
-        ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Test',\
+        ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Train',\
             PlotType='Line', F='Single')
         ga.PlotChromosomes(5, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='Mallow statistics Train',\
             PlotType='Line', F='Single')
         print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
-        
-
+        ga.Results_to_xlsx(F_Out_Single, ga.DecreasingChromosomes, FeaturesNonlinear=FeaturesNonlinear,\
+            FeaturesAll=FeaturesAll, FeaturesReduced=FeaturesReduced)        
+        for i in ga.DecreasingChromosomes:
+            if i.Size == VIP_number:
+                VIP_idx_nonlin = i.get_genes_list(Type=1)
+                VIP_idx_lin = i.get_genes_list(Type=0)
     else:
         VIP_idx_nonlin = []
         VIP_idx_lin = []
@@ -283,7 +284,7 @@ if __name__ == '__main__':
             VIP_idx_lin=VIP_idx_lin, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
             UseNonlinear=UseNonlinear, LinearSolver=LinearSolver,\
             cond=cond, lapack_driver=lapack_driver, NonlinearFunction=NonlinearFunction,\
-            nIter = 1000)
+            nIter = nIter)
         t_sec = time.time() - t
         print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
         chromosome = ga.BestChromosome        
@@ -295,6 +296,7 @@ if __name__ == '__main__':
         if chromosome.Size <= ga.ChromosomeSize:
             chromosome = ga.BestFit(chromosome, x_nonlin=X_train_nonlin, x_lin=X_train_lin,\
                 y=Y_train, verbose=True)
+#            chromosome = ga.BestFitTree(chromosome, x_nonlin=None, x_lin=X_train_lin, y=Y_train, verbose=True)
 # calculate both train and test set score
             chromosome.score(x_nonlin_train=X_train_nonlin, x_lin_train=X_train_lin,\
                 y_train=Y_train, x_nonlin_test=X_test_nonlin, x_lin_test=X_test_lin,\
@@ -308,9 +310,9 @@ if __name__ == '__main__':
         chromosome = ga.RemoveWorstGene(chromosome, x_nonlin=X_train_nonlin,\
             x_lin=X_train_lin, y=Y_train, verbose=True)
     t_sec = time.time() - t
-    ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Test',\
+    ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Train',\
         PlotType='Line', F='Default')
-    ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Test',\
+    ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Train',\
         PlotType='Line', F='Default')
     ga.PlotChromosomes(5, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='Mallow statistics Train',\
         PlotType='Line', F='Default')
@@ -318,13 +320,15 @@ if __name__ == '__main__':
     ga.Results_to_xlsx(F_Out, ga.DecreasingChromosomes, FeaturesNonlinear=FeaturesNonlinear,\
             FeaturesAll=FeaturesAll, FeaturesReduced=FeaturesReduced)
     f = open(F_ga_structure, "wb") # save GA structure
-    pickle.dump(ga, f)
+    pickle.dump(ga, f, pickle.HIGHEST_PROTOCOL)
     f.close() 
     directory = time.strftime("%Y-%m-%d %H-%M-%S", time.gmtime())
     if not os.path.exists(directory):
         os.makedirs(directory)    
     if os.path.isfile('SystemDescriptor.'):
         shutil.copyfile('SystemDescriptor.', directory + '\\' + 'SystemDescriptor.')
+    if os.path.isfile(F_MoleculesDescriptor):
+        shutil.copyfile(F_MoleculesDescriptor, directory + '\\' + F_MoleculesDescriptor)
     if os.path.isfile('Structure.xlsx'):    
         shutil.copyfile('Structure.xlsx', directory + '\\' + 'Structure.xlsx')
     if os.path.isfile('Linear Features Reduced List.xlsx'): 
@@ -336,9 +340,13 @@ if __name__ == '__main__':
     if os.path.isfile(F_Out_Single):
         shutil.move(F_Out_Single, directory + '\\' + F_Out_Single)
     if os.path.isfile(F_Out):
-        shutil.move(F_Out, directory + '\\' + F_Out)    
-    if os.path.isfile(F_ga_structure):
-        shutil.move(F_ga_structure, directory + '\\' + F_ga_structure)
+        shutil.move(F_Out, directory + '\\' + F_Out)   
+# copy all *.dat files        
+    l = os.listdir('./')
+    for name in l:
+        if name.endswith('.dat'):
+            if os.path.isfile(name):
+                shutil.copy2(name, directory)  # copy2, copyfile      
 # move all *.png images        
     l = os.listdir('./')
     for name in l:

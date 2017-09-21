@@ -156,6 +156,19 @@ class GA:
         def __init__(self, genes):
             self.Genes = genes
             self.Size = len(self.Genes)
+            self.MSE_Train = None 
+            self.RMSE_Train = None
+            self.R2_Train = None
+            self.R2Adj_Train = None
+            self.Mallow_Train = None
+            self.MSE_Test = None 
+            self.RMSE_Test = None
+            self.R2_Test = None
+            self.R2Adj_Test = None
+            self.Mallow_Test = None
+            self.Rank = None
+            self.Origin = None
+            self.time = None            
             return
 
 # return list of indices of specified type            
@@ -166,6 +179,17 @@ class GA:
                     idx.append(self.Genes[i].Idx)
             return idx
 
+# return list of indices of specified type            
+        def get_coeff_list(self, Type=0):
+            coef = []
+            for i in range(0, self.Size, 1):
+                if self.Genes[i].Type != Type:
+                    continue
+                coef.append(self.Genes[i].Coef1)
+                if self.Genes[i].Type == 1: # nonlinear
+                    coef.append(self.Genes[i].Coef2)
+            return coef
+        
         def find_gene_idx(self, gene): # returns gene index in chromosome
             if self.Genes is None:
                 return None
@@ -754,7 +778,7 @@ class GA:
         LastChangeTime = time()
         nIter = 0
         try: # loop will be interrupted by pressing Ctrl-C
-            while ((time() - LastChangeTime) < self.StopTime) and nIter < self.nIter:
+            while ((time() - LastChangeTime) < self.StopTime) and (nIter < self.nIter):
                 nIter += 1
                 # get fitness for population
                 for i in range(0, self.PopulationSize, 1): # calculate MSE and R2 for each chromosome
@@ -1111,4 +1135,26 @@ class GA:
         writeResults.save()
         return
 
-      
+# only for linear now
+    def BestFitTree(self, chromosome, x_nonlin=None, x_lin=None, y=None, verbose=True):       
+        active_features = chromosome.get_genes_list(Type=0)
+        VIP_idx = self.VIP_idx_lin
+        MaxLoops=10000
+        MaxBottom=1000
+        x_std, _ = regression.Standardize(x_lin)
+        y_std = y
+        
+        corr_list = self.get_correlated_features_list(chromosome, Model=2,\
+            UseCorrelationMatrix=self.UseCorrelationBestFit, MinCorr=self.MinCorrBestFit)
+        
+        idx = library.FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=VIP_idx,\
+            MaxLoops=MaxLoops, MaxBottom=MaxBottom, verbose=verbose)
+        
+        Genes_list = []
+        for i in range(0, len(idx), 1):
+            Idx = idx[i]
+            gene = self.Gene(Idx, Type=0, p_Value=None, rank=None)
+            Genes_list.append(gene)
+        chromosome = self.Chromosome(Genes_list)
+        return chromosome
+        

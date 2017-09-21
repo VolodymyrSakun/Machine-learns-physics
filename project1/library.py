@@ -98,7 +98,13 @@ def Scaler_L2(X):
             X_new[i, j] = X[i, j] / Denom
     return X_new
 
-
+def InInterval(n, List):
+    if List is None:
+        return -1
+    for i in range(0, len(List), 1):
+        if (n >= List[i][0]) and (n <= List[i][1]):
+            return i
+    return -1 # not in region
 
 def BackwardElimination(X_train, Y_train, X_test, Y_test, FeaturesAll, \
     FeaturesReduced, Method='fast', Criterion='p-Value', N_of_features_to_select=20, \
@@ -1579,6 +1585,11 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None,\
                 self.level = self.parent.level + 1
             return
 
+        def Print(self):
+            print('idx: ', self.idx)
+            print('MSE: ', self.mse)
+            return
+        
     def add_child(idx, mse, node=None, child_number=None):
         child = Node(idx, mse, parent=node) # new node
         node.children[child_number] = child # link from parent to child
@@ -1691,6 +1702,8 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None,\
     k = 0
     bot = 0
     while (node is not None) and (k < MaxLoops) and (bot < MaxBottom):
+        if k % 10 == 0:
+            print('Iteration: ', k)
         bottom = True
         if repeat:
             prev_node = last_node
@@ -1732,6 +1745,9 @@ def FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=None,\
                 current_node = current_node.Next
             if best_unfinished is not None:
                 node = best_unfinished
+            print_nodes(Root, verbose=verbose) # bottom reached
+            if verbose and (node is not None):
+                node.Print()
         k += 1
     print_nodes(Root, verbose=verbose) # service function
     idx, mse = get_best_mse(Root)
@@ -1776,7 +1792,7 @@ def get_energy(Coef_tuple, FeaturesAll, FeaturesReduced, record_list, Record, nV
     features_set = Coef_tuple[tuple_number]
     k = Record # number of record
     E = 0
-    for i in range(0, len(features_set[1]), 1): # for each variable
+    for i in range(0, len(features_set[1]), 1): # for each nonzero coefficient
         current_feature_idx = features_set[1][i]
         current_feature_type = FeaturesReduced[current_feature_idx].FeType
         variable = 0
