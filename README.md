@@ -4,7 +4,7 @@
 
 SystemDescriptor - description of system
 
-MoleculeDescriptor - description molecules in system
+MoleculeDescriptor - description of molecules in system
 
 datafile1 from github gaussian process.x (from quantum mechanics)
 
