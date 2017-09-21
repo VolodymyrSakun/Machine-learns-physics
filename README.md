@@ -2,7 +2,9 @@
 
 * Data files:
 
-SystemDescriptor - descriptor for Generate harmonic features (MP).py
+SystemDescriptor - description of system
+
+MoleculeDescriptor - description molecules in system
 
 datafile1 from github gaussian process.x (from quantum mechanics)
 
