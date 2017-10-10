@@ -35,18 +35,30 @@
 import numpy as np
 import pandas as pd
 import sklearn.metrics as skm
+import os
 import copy
 import pickle 
 import sys
+import re
+import time
+import shutil
 from sklearn.linear_model import LinearRegression
 import statsmodels.regression.linear_model as sm
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import ElasticNetCV
-from sklearn.linear_model import enet_path
 import multiprocessing as mp
 from joblib import Parallel, delayed
-import os
+from project1 import IOfunctions
+import random
+from project1 import structure
+from project1 import library
+from project1 import spherical
+from project1.genetic import GA
+from project1 import regression
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import WhiteKernel
+
 
 def isfloat(value):
     try:
@@ -1853,6 +1865,1248 @@ def replace_numbers(l1, l2, source_data):
             dest_data[i] = num_dest
     return dest_data
     
+def FilterData(F, TrainIntervals, GridStart = 0.0, GridEnd = 20.0, GridSpacing=0.1, ConfidenceInterval=1, TestFraction=0.3, TrainFraction=1):
+    F_MoleculesDescriptor = 'MoleculesDescriptor.'
+    F_Train = 'Training Set.x'
+    F_Test = 'Test Set.x'
+    F_Filter = 'Filter.dat'
+    MoleculePrototypes = IOfunctions.ReadMoleculeDescription(F=F_MoleculesDescriptor)
+    RandomSeed = 101
+    if RandomSeed is not None:
+        random.seed(RandomSeed)
+    else:
+        random.seed()    
+    GridTrain = [] # small intervals
+    GridTest = [] # small intervals
+    i = GridStart
+    while i < (GridEnd-GridSpacing):
+        GridTrain.append((round(i, 2), round(i+GridSpacing, 2)))
+        GridTest.append((round(i, 2), round(i+GridSpacing, 2)))
+        i += GridSpacing
+    N = np.zeros(shape=(len(GridTest)), dtype=int) # number of points in each grid  
+    NTrain = list(np.zeros(shape=(len(GridTrain)), dtype=int)) # count test points
+    NTest = list(np.zeros(shape=(len(GridTest)), dtype=int)) # count test points        
+    Records = IOfunctions.ReadRecords(F, MoleculePrototypes) # Read records
+    DMin = 1000
+    DMax = 0
+    nMolecules = Records[0].nMolecules
+# Determine DMin, DMax and fill N    
+    for record in Records:
+        if nMolecules == 2:
+            if record.R_Average > DMax:
+                DMax = record.R_Average
+            if record.R_Average < DMin:
+                DMin = record.R_Average
+            j = int(record.R_Average / GridSpacing)
+            N[j] += 1
+        else:
+            if record.R_CenterOfMass_Average > DMax:
+                DMax = record.R_CenterOfMass_Average
+            if record.R_CenterOfMass_Average < DMin:
+                DMin = record.R_CenterOfMass_Average
+            j = int(record.R_Average / GridSpacing)
+            N[j] += 1
+# Estimate number of points per grid
+    n = np.asarray(N.nonzero()).reshape(-1) # indices with nonzero records nonzero   
+    nGrids = int(len(n) * ConfidenceInterval)
+    N_list = list(N)
+    N_Reduced = []
+    while len(N_Reduced) < nGrids:
+        i = np.argmax(N_list)
+        N_Reduced.append(N_list[i])
+        del(N_list[i])
+    nPointsGrid = N_Reduced[-1]
+    nTestPointsGrid = int(nPointsGrid * TestFraction)
+    nTotalTrainPointsGrid = nPointsGrid - nTestPointsGrid  
+    nTrainPointsGrid = int(nTotalTrainPointsGrid * TrainFraction)
+    N_list = list(N)    
+    i = 0
+    while i < len(N_list): # remove regions where there are not enough points
+# training region        
+        if (InInterval(GridTest[i][0], TrainIntervals) != -1) and (InInterval(GridTest[i][1], TrainIntervals) != -1):
+            if N_list[i] < nPointsGrid: # not enough points for training and test, discard
+                del(N_list[i])
+                del(NTrain[i])
+                del(NTest[i])
+                del(GridTrain[i])
+                del(GridTest[i])   
+            else:
+                i += 1
+        else: # test region            
+            if N_list[i] < nTestPointsGrid: # not enough test points
+                del(N_list[i])
+                del(NTrain[i])
+                del(NTest[i])
+                del(GridTrain[i])
+                del(GridTest[i]) 
+            else:
+                i += 1
+    i = 0 # remove remaining train grid that not in training region
+    while i < len(GridTrain):
+        if (InInterval(GridTrain[i][0], TrainIntervals) != -1) and (InInterval(GridTrain[i][1], TrainIntervals) != -1):
+            i += 1
+            continue
+        else:
+            del(GridTrain[i])
+            del(NTrain[i])
+# proceed records                               
+    RecordsTrain = []
+    RecordsTest = []
+    while len(Records) > 0:
+        r = random.randrange(0, len(Records), 1)  
+        record = copy.deepcopy(Records[r])
+        if nMolecules == 2:
+            d = record.R_Average
+        else:
+            d = record.R_CenterOfMass_Average
+        j = InInterval(d, GridTrain) 
+        if j != -1: # in training region?
+            if NTrain[j] < nTrainPointsGrid: # append to training set
+                NTrain[j] += 1
+                RecordsTrain.append(record)
+            else:  # if it is full, append to test set
+                j = InInterval(d, GridTest) # which interval?
+                if NTest[j] < nTestPointsGrid: 
+                    NTest[j] += 1
+                    RecordsTest.append(record)              
+        else: # not training region
+            j = InInterval(d, GridTest) # which interval?
+            if NTest[j] < nTestPointsGrid: # append to test set only
+                NTest[j] += 1
+                RecordsTest.append(record)
+        del(Records[r]) 
+
+    IOfunctions.store_records(F_Train, RecordsTrain) # store trained set
+    IOfunctions.store_records(F_Test, RecordsTest) # store test set
+    TestIntervals = [] # Define test regions
+    if TrainIntervals[0][0] != 0:
+        TestIntervals.append((0, TrainIntervals[0][0]))
+    for i in range(0, (len(TrainIntervals)-1), 1):
+        if TrainIntervals[i][1] != TrainIntervals[i+1][0]:
+            TestIntervals.append((TrainIntervals[i][1], TrainIntervals[i+1][0]))
+    if TrainIntervals[-1][1] != GridTest[-1][1]:
+        TestIntervals.append((TrainIntervals[-1][1], GridTest[-1][1]))    
+    results = {'Initial dataset': F, 'Number of molecules per record': nMolecules,\
+               'Train Intervals': TrainIntervals, 'Test Intervals': TestIntervals, 'Train records number': len(RecordsTrain),\
+               'Train Grid': GridTrain, 'Test Grid': GridTest, 'Test records number': len(RecordsTest),\
+               'Molecule prototypes': MoleculePrototypes, 'Max points per grid': nPointsGrid,\
+               'Train points per grid': nTrainPointsGrid, 'Train Fraction Used': TrainFraction,\
+               'Test points per grid': nTestPointsGrid, 'Confidence Interval used': ConfidenceInterval,\
+               'Training Set': F_Train, 'Test Set': F_Test}
     
+# save results
+    f = open(F_Filter, "wb")
+    pickle.dump(results, f)
+    f.close()   
+# store results in txt file    
+    l = []
+    a = results.keys()
+    for i in a:
+        s = str(i) + "\n"
+        s1 = str(results[i]) + "\n"
+        l.append(s)
+        l.append(s1)
+        l.append("\n")
+    f = open('results.txt', "w")
+    f.writelines(l)
+    f.close()
     
+    return results
+    
+def ReadData(F_data, Atoms):
+        # Read coordinates from file
+    f = open(F_data, "r")
+    data0 = f.readlines()
+    f.close()
+    data = []
+    for i in range(0, len(data0), 1):
+        data.append(data0[i].rstrip())
+    del(data0)
+    # Rearrange data in structure
+    i = 0 # counts lines in textdata
+    j = 0 # counts atom records for each energy value
+    atoms_list = [] # temporary list
+    record_list = []
+    while i < len(data):
+        s = data[i].split() # line of text separated in list
+        if len(s) == 0: # empty line
+            i += 1
+            continue
+    # record for energy value
+        elif (len(s) == 1) and library.isfloat(s[0]): 
+            e = float(s[0])
+            rec = structure.Record(e, atoms_list)
+            record_list.append(rec)
+            j = 0
+            atoms_list = []
+        elif (len(s) == 4): 
+            x = float(s[1])
+            y = float(s[2])
+            z = float(s[3])
+            atoms_list.append(structure.AtomCoordinates(Atoms[j], x, y, z))
+            j += 1
+        i += 1
+    return record_list
+
+def StoreEnergy(F_Response, record_list):
+    Size = len(record_list)
+    if Size > 0:
+        energy = np.zeros(shape=(Size, 1), dtype=float)
+        for i in range(0, Size, 1):
+            energy[i, 0] = record_list[i].e # energy    
+        Table = pd.DataFrame(energy, columns=['response'], dtype=float)
+        f = open(F_Response, 'w')
+        Table.to_csv(f, index=False)
+        f.close()
+    return
+
+def StoreDistances(F_Distances, record_list, Distances):
+    Size = len(record_list)
+    nDistances = len(Distances)
+    distances_array = np.zeros(shape=(Size, nDistances), dtype=float)
+    for i in range(0, Size, 1):
+        for j in range(0, nDistances, 1):
+            r = np.sqrt((record_list[i].atoms[Distances[j].Atom1.Index].x - record_list[i].atoms[Distances[j].Atom2.Index].x)**2 +\
+                        (record_list[i].atoms[Distances[j].Atom1.Index].y - record_list[i].atoms[Distances[j].Atom2.Index].y)**2 +\
+                        (record_list[i].atoms[Distances[j].Atom1.Index].z - record_list[i].atoms[Distances[j].Atom2.Index].z)**2)            
+            distances_array[i, j] = r
+# save distances
+    Table = pd.DataFrame(distances_array, dtype=float)
+    f = open(F_Distances, 'w')
+    Table.to_csv(f, index=False)
+    f.close()
+    return
+
+def StoreFeatures(F_LinearFeatures, first, last, FeaturesAll, FeaturesReduced, record_list, Atoms):
+# Storing energy
+    NofFeaturesReduced = len(FeaturesReduced)
+    NofFeatures = len(FeaturesAll)
+# calculating and storing distances  
+    features_array = np.zeros(shape=(last-first, len(FeaturesAll)), dtype=float) 
+    for j in range(0, len(FeaturesAll), 1):
+        for i in range(first, last, 1):
+            if (FeaturesAll[j].nDistances == 1) and (FeaturesAll[j].Harmonic1 is None) and (FeaturesAll[j].Harmonic2 is None):
+# features with only one distance. no harmonics
+                atom1_index = FeaturesAll[j].DtP1.Distance.Atom1.Index # first atom number
+                atom2_index = FeaturesAll[j].DtP1.Distance.Atom2.Index # second atom number
+                d = np.sqrt((record_list[i].atoms[atom1_index].x - record_list[i].atoms[atom2_index].x)**2 +\
+                            (record_list[i].atoms[atom1_index].y - record_list[i].atoms[atom2_index].y)**2 +\
+                            (record_list[i].atoms[atom1_index].z - record_list[i].atoms[atom2_index].z)**2)            
+                r = d**FeaturesAll[j].DtP1.Power # distance to correcponding power
+            if (FeaturesAll[j].nDistances == 2) and (FeaturesAll[j].Harmonic1 is None) and (FeaturesAll[j].Harmonic2 is None):
+# features with two distances without harmonics
+                atom11_index = FeaturesAll[j].DtP1.Distance.Atom1.Index
+                atom12_index = FeaturesAll[j].DtP1.Distance.Atom2.Index
+                atom21_index = FeaturesAll[j].DtP2.Distance.Atom1.Index
+                atom22_index = FeaturesAll[j].DtP2.Distance.Atom2.Index
+                d1 = np.sqrt((record_list[i].atoms[atom11_index].x - record_list[i].atoms[atom12_index].x)**2 +\
+                             (record_list[i].atoms[atom11_index].y - record_list[i].atoms[atom12_index].y)**2 +\
+                             (record_list[i].atoms[atom11_index].z - record_list[i].atoms[atom12_index].z)**2)            
+                r1 = d1**FeaturesAll[j].DtP1.Power # distance to correcponding power
+                d2 = np.sqrt((record_list[i].atoms[atom21_index].x - record_list[i].atoms[atom22_index].x)**2 +\
+                             (record_list[i].atoms[atom21_index].y - record_list[i].atoms[atom22_index].y)**2 +\
+                             (record_list[i].atoms[atom21_index].z - record_list[i].atoms[atom22_index].z)**2)            
+                r2 = d2**FeaturesAll[j].DtP2.Power # distance to correcponding power
+                r = r1 * r2       
+            if (FeaturesAll[j].nDistances == 2) and (FeaturesAll[j].Harmonic1 is not None) and (FeaturesAll[j].Harmonic2 is not None):
+# features with two distances and two harmonics            
+                atom11_index = FeaturesAll[j].DtP1.Distance.Atom1.Index
+                atom12_index = FeaturesAll[j].DtP1.Distance.Atom2.Index
+                atom21_index = FeaturesAll[j].DtP2.Distance.Atom1.Index
+                atom22_index = FeaturesAll[j].DtP2.Distance.Atom2.Index
+                d1 = np.sqrt((record_list[i].atoms[atom11_index].x - record_list[i].atoms[atom12_index].x)**2 +\
+                             (record_list[i].atoms[atom11_index].y - record_list[i].atoms[atom12_index].y)**2 +\
+                             (record_list[i].atoms[atom11_index].z - record_list[i].atoms[atom12_index].z)**2)            
+                r1 = d1**FeaturesAll[j].DtP1.Power # distance to correcponding power
+                d2 = np.sqrt((record_list[i].atoms[atom21_index].x - record_list[i].atoms[atom22_index].x)**2 +\
+                             (record_list[i].atoms[atom21_index].y - record_list[i].atoms[atom22_index].y)**2 +\
+                             (record_list[i].atoms[atom21_index].z - record_list[i].atoms[atom22_index].z)**2)            
+                r2 = d2**FeaturesAll[j].DtP2.Power # distance to correcponding power
+
+                center_index = FeaturesAll[j].Harmonic1.Center.Index
+                external_index = FeaturesAll[j].Harmonic1.Atom.Index
+                new_origin = spherical.Point(record_list[i].atoms[center_index].x, record_list[i].atoms[center_index].y, record_list[i].atoms[center_index].z)
+                external_atom = spherical.Point(record_list[i].atoms[external_index].x, record_list[i].atoms[external_index].y, record_list[i].atoms[external_index].z)
+                h_list = []
+                O_list = []
+                for k in range(0, len(Atoms), 1): 
+# find two hydrogens that belong to same molecule
+                    if (FeaturesAll[j].Harmonic1.Center.MolecularIndex == Atoms[k].MolecularIndex) and\
+                        (FeaturesAll[j].Harmonic1.Center.AtType != Atoms[k].AtType):
+                        h_list.append(Atoms[k])
+# find two oxygens that belong to other molecules                            
+                    if (FeaturesAll[j].Harmonic1.Center.MolecularIndex != Atoms[k].MolecularIndex) and\
+                        (FeaturesAll[j].Harmonic1.Center.AtType == Atoms[k].AtType):
+                        O_list.append(Atoms[k])
+                H1_index = h_list[0].Index
+                H2_index = h_list[1].Index
+                H1 = spherical.Point(record_list[i].atoms[H1_index].x, record_list[i].atoms[H1_index].y, record_list[i].atoms[H1_index].z)
+                H2 = spherical.Point(record_list[i].atoms[H2_index].x, record_list[i].atoms[H2_index].y, record_list[i].atoms[H2_index].z)
+                if len(O_list) == 1: # two water molecules system
+                    O2_index = O_list[0].Index
+                    O2 = spherical.Point(record_list[i].atoms[O2_index].x, record_list[i].atoms[O2_index].y, record_list[i].atoms[O2_index].z)
+                    directing_point = O2
+                else:
+                    O2_index = O_list[0].Index
+                    O3_index = O_list[1].Index                    
+                    O2 = spherical.Point(record_list[i].atoms[O2_index].x, record_list[i].atoms[O2_index].y, record_list[i].atoms[O2_index].z)
+                    O3 = spherical.Point(record_list[i].atoms[O3_index].x, record_list[i].atoms[O3_index].y, record_list[i].atoms[O3_index].z)
+                    directing_point = spherical.get_directing_point_O2_O3(O2, O3)
+                theta, phi = spherical.get_angles(new_origin, H1, H2, external_atom, directing_point)
+                s1 = spherical.get_real_form2(FeaturesAll[j].Harmonic1.Order, FeaturesAll[j].Harmonic1.Degree, theta, phi)
+
+                center_index = FeaturesAll[j].Harmonic2.Center.Index
+                external_index = FeaturesAll[j].Harmonic2.Atom.Index
+                new_origin = spherical.Point(record_list[i].atoms[center_index].x, record_list[i].atoms[center_index].y, record_list[i].atoms[center_index].z)
+                external_atom = spherical.Point(record_list[i].atoms[external_index].x, record_list[i].atoms[external_index].y, record_list[i].atoms[external_index].z)
+                h_list = []
+                O_list = []
+                for k in range(0, len(Atoms), 1): 
+# find two hydrogens that belong to same molecule
+                    if (FeaturesAll[j].Harmonic2.Center.MolecularIndex == Atoms[k].MolecularIndex) and\
+                        (FeaturesAll[j].Harmonic2.Center.AtType != Atoms[k].AtType):
+                        h_list.append(Atoms[k])
+# find two oxygens that belong to other molecules                            
+                    if (FeaturesAll[j].Harmonic2.Center.MolecularIndex != Atoms[k].MolecularIndex) and\
+                        (FeaturesAll[j].Harmonic2.Center.AtType == Atoms[k].AtType):
+                        O_list.append(Atoms[k])
+                H1_index = h_list[0].Index
+                H2_index = h_list[1].Index
+                H1 = spherical.Point(record_list[i].atoms[H1_index].x, record_list[i].atoms[H1_index].y, record_list[i].atoms[H1_index].z)
+                H2 = spherical.Point(record_list[i].atoms[H2_index].x, record_list[i].atoms[H2_index].y, record_list[i].atoms[H2_index].z)
+                if len(O_list) == 1: # two water molecules system
+                    O2_index = O_list[0].Index
+                    O2 = spherical.Point(record_list[i].atoms[O2_index].x, record_list[i].atoms[O2_index].y, record_list[i].atoms[O2_index].z)
+                    directing_point = O2
+                else:
+                    O2_index = O_list[0].Index
+                    O3_index = O_list[1].Index                    
+                    O2 = spherical.Point(record_list[i].atoms[O2_index].x, record_list[i].atoms[O2_index].y, record_list[i].atoms[O2_index].z)
+                    O3 = spherical.Point(record_list[i].atoms[O3_index].x, record_list[i].atoms[O3_index].y, record_list[i].atoms[O3_index].z)
+                    directing_point = spherical.get_directing_point_O2_O3(O2, O3)                    
+                theta, phi = spherical.get_angles(new_origin, H1, H2, external_atom, directing_point)
+                s2 = spherical.get_real_form2(FeaturesAll[j].Harmonic2.Order, FeaturesAll[j].Harmonic2.Degree, theta, phi)
+
+                r = r1*r2*s1*s2
+                
+            features_array[i-first, j] = r # store to array
+# sum features with equal FeType
+    features_array_reduced = np.zeros(shape=(last-first, NofFeaturesReduced), dtype=float)
+    for k in range(0, NofFeaturesReduced, 1):
+        for j in range(0, NofFeatures, 1):
+            if (FeaturesAll[j].FeType == FeaturesReduced[k].FeType):
+                features_array_reduced[:, k] += features_array[:, j]
+
+
+# removing NaN from dataset
+#    mask = ~np.any(np.isnan(features_array_reduced), axis=1)
+#    features_array_reduced = features_array_reduced[mask]
+#    energy = energy[mask]
+# save reduced features and energy into file
+    Table = pd.DataFrame(features_array_reduced, dtype=float)
+    f = open(F_LinearFeatures, 'a')
+    if first == 0:
+        Table.to_csv(f, index=False)
+    else:
+        Table.to_csv(f, index=False, header=False)
+    f.close()
+    return
+# end of StoreFeatures
+
+def GenerateFeatures():
+    F_SystemDescriptor = 'SystemDescriptor.' # file with info about system structure
+    F_Response_Train = 'ResponseTrain.csv' # response variable (y)
+    F_Response_Test = 'ResponseTest.csv' # response variable (y)
+    F_LinearFeaturesTrain = 'LinearFeaturesTrain.csv' # output csv file with combined features and energy
+    F_LinearFeaturesTest = 'LinearFeaturesTest.csv' # output csv file with combined features and energy
+    F_Distances_Train = 'Distances Train.csv' # output csv file. distances
+    F_Distances_Test = 'Distances Test.csv' # output csv file. distances
+    F_NonlinearFeatures = 'NonlinearFeatures.dat'
+    F_LinearFeaturesAll = 'LinearFeaturesAll.dat' # output data structure which contains all features
+    F_LinearFeaturesReduced = 'LinearFeaturesReduced.dat' # output data structure which contains combined features
+    F_System = 'system.dat' # output data system structure
+    F_record_list = 'records.dat'
+    F_LinearFeaturesList = 'Linear Features Reduced List.xlsx'
+    F_NonlinearFeaturesList = 'Nonlinear Features List.xlsx'
+    F_Structure = 'Structure.xlsx'
+    F_Filter = 'Filter.dat'
+    Separators = '=|,| |:|;|: '   
+    RandomSeed = 101
+    if RandomSeed is not None:
+        random.seed(RandomSeed)
+    else:
+        random.seed()
+    try:        
+        os.remove(F_Response_Train)
+        os.remove(F_Response_Test)
+        os.remove(F_LinearFeaturesTrain) # erase old files if exist
+        os.remove(F_LinearFeaturesTest)
+        os.remove(F_Distances_Train)
+        os.remove(F_Distances_Test)
+        os.remove(F_NonlinearFeatures)
+        os.remove(F_LinearFeaturesAll) 
+        os.remove(F_LinearFeaturesReduced) 
+        os.remove(F_System)
+        os.remove(F_record_list)
+        os.remove(F_LinearFeaturesList)
+        os.remove(F_Structure)
+    except:
+        pass    
+    f = open(F_Filter, "rb")
+    Filter = pickle.load(f)
+    f.close()
+    F_train_data = Filter['Training Set']
+    F_test_data = Filter['Test Set']
+    nTrainPoints = Filter['Train records number']
+    nTestPoints = Filter['Test records number']
+    # read descriptor from file
+    with open(F_SystemDescriptor) as f:
+        lines = f.readlines()
+    f.close()
+    lines = [x.strip() for x in lines] # x is string
+    ProceedSingle = False
+    ProceedDouble = False
+    for i in range(0, len(lines), 1):
+        x = lines[i]
+        if len(x) == 0:
+            continue
+        if x[0] == '#':
+            continue
+        if (x.find('SingleDistancesInclude') != -1):
+            s = re.split(Separators, x)
+            s = list(filter(bool, s)) # removes empty records
+            if 'True' in s: # proceed single distances
+                ProceedSingle = True
+        if (x.find('DoubleDistancesInclude') != -1):
+            s = re.split(Separators, x)
+            s = list(filter(bool, s)) # removes empty records
+            if 'True' in s: # proceed single distances
+                ProceedDouble = True
+    if ProceedSingle:
+        if ('&SingleDistancesDescription' in lines):
+            for i in range(0, len(lines), 1):
+                x = lines[i]
+                if (x.find('&SingleDistancesDescription') != -1):
+                    First = i + 1 # index of first record of single distance description
+                if (x.find('&endSingleDistancesDescription') != -1):
+                    Last = i # index +1 of last record of single distance description
+            SingleDescription = []
+            for i in range(First, Last, 1):
+                x = lines[i]
+                s = re.split(Separators, x)
+                s = list(filter(bool, s)) # removes empty records
+                SingleDescription.append(s)
+            del(First)
+            del(Last)
+        if ('&DefaultSingleDistances' in lines):
+            for i in range(0, len(lines), 1):
+                x = lines[i]
+                if (x.find('SinglePowers') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))
+                    SinglePowersDefault = list(filter(bool, s)) # removes empty records
+                    del(SinglePowersDefault[0])
+    if ProceedDouble:
+        if ('&DoubleDistancesDescription' in lines):
+            for i in range(0, len(lines), 1):
+                x = lines[i]
+                if (x.find('&DoubleDistancesDescription') != -1):
+                    First = i + 1 # index of first record of single distance description
+                if (x.find('&endDoubleDistancesDescription') != -1):
+                    Last = i # index +1 of last record of single distance description
+            DoubleDescription = []
+            for i in range(First, Last, 1):
+                x = lines[i]
+                s = re.split(Separators, x)
+                s = list(filter(bool, s)) # removes empty records
+                DoubleDescription.append(s)
+            del(First)
+            del(Last)
+        if ('&DefaultDoubleDistances' in lines):
+            for i in range(0, len(lines), 1):
+                x = lines[i]
+                if (x.find('DoublePowers') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))
+                    DoublePowersDefault = list(filter(bool, s)) # removes empty records
+                    del(DoublePowersDefault[0])
+                if (x.find('IncludeAllExcept') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))  
+                    if (s[1] == 'True') or (s[1] == 'Yes'):
+                        IncludeAllExcept = True
+                    if (s[1] == 'False') or (s[1] == 'No'):
+                        IncludeAllExcept = False
+                if (x.find('ExcludeAllExcept') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))  
+                    if (s[1] == 'True') or (s[1] == 'Yes'):
+                        ExcludeAllExcept = True
+                    if (s[1] == 'False') or (s[1] == 'No'):
+                        ExcludeAllExcept = False 
+                if (x.find('IncludeSameType') != -1):
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))  
+                    if (s[1] == 'True') or (s[1] == 'Yes'):
+                        IncludeSameType = True
+                    if (s[1] == 'False') or (s[1] == 'No'):
+                        IncludeSameType = False                    
+        if ('&IncludeExcludeList' in lines):
+            for i in range(0, len(lines), 1):
+                x = lines[i]
+                if (x.find('&IncludeExcludeList') != -1):
+                    First = i + 1 # index of first record of single distance description
+                if (x.find('&endIncludeExcludeList') != -1):
+                    Last = i # index +1 of last record of single distance description
+            IncludeExcludeList = []
+            for i in range(First, Last, 1):
+                x = lines[i]
+                s = re.split(Separators, x)
+                s = list(filter(bool, s)) # removes empty records
+                IncludeExcludeList.append(s)
+    else:
+        DtP_Double_list = []
+                    
+    if ('&SYSTEM' in lines):
+        i = 0 # index of line in file
+        Atoms = [] # create list of atom structures from file
+        while ((lines[i].find('&SYSTEM') == -1) and (i < len(lines))):
+            i += 1
+        i += 1 # next line after &SYSTEM
+        j = 0 # order in the system 
+        types_list = []
+        idx_list = []
+        molecules_idx_list = []
+        molecules = []
+        k = 0
+        one_molecule_atoms = []
+        old_molecule_index = None
+        while ((lines[i].find('&endSYSTEM') == -1) and (i < len(lines))):
+            if (lines[i][0] == '#'):
+                i += 1
+                continue
+            x = lines[i]
+            if (x.find('&Molecule') != -1):
+                s = re.split(Separators, x)
+                del(s[0]) # 'Molecule'
+                s0 = s[0]
+                for l in range(1, len(s), 1):
+                    s0 = s0 + ' ' + s[l]
+                MoleculeName = s0
+                i += 1
+                continue
+            s = re.split(Separators, x)
+            s = list(filter(bool, s))
+            symbol = s[0]
+            if symbol not in types_list:
+                types_list.append(symbol)
+                idx_list.append(k)
+                k += 1
+            idx = types_list.index(symbol)    
+            try:
+                molecule_index = int(s[1])
+                if molecule_index not in molecules_idx_list: # next molecule
+                    molecules_idx_list.append(molecule_index)
+                    if j == 0: # first atom
+                        old_molecule_index = molecule_index
+                        one_molecule_atoms.append(structure.Atom(symbol, j, idx_list[idx], old_molecule_index))
+                        j += 1 # to next index
+                        i += 1 # to next line
+                        continue
+                    for l in one_molecule_atoms: # store atoms from previous molecule
+                        Atoms.append(l)
+                    molecules.append(structure.Molecule(one_molecule_atoms, Name=MoleculeName))
+                    one_molecule_atoms = []
+                    old_molecule_index = molecule_index
+                    one_molecule_atoms.append(structure.Atom(symbol, j, idx_list[idx], old_molecule_index))
+                    old_molecule_index = molecule_index
+                    j += 1
+                else: # same molecule
+                    one_molecule_atoms.append(structure.Atom(symbol, j, idx_list[idx], old_molecule_index))
+                    j += 1
+            except:
+                print('Error reading file')
+                break
+            i += 1
+        nMolecules = len(molecules_idx_list)
+        for l in one_molecule_atoms:
+            Atoms.append(l)
+        molecules.append(structure.Molecule(one_molecule_atoms, Name=MoleculeName))
+    else:
+        print('Error reading &SYSTEM section from SystemDescriptor')
+                
+    Prototypes = IOfunctions.ReadMoleculeDescription(F_SystemDescriptor) # read molecule prototypes 
+    MoleculeNames = []
+    for i in Prototypes:
+        MoleculeNames.append(i.Name)
+    for i in molecules:
+        if i.Name in MoleculeNames:
+            idx = MoleculeNames.index(i.Name)
+            i.Mass = Prototypes[idx].Mass
+            for j in range(0, len(i.Atoms), 1):
+                i.Atoms[j].Atom.Mass = Prototypes[idx].Atoms[j].Atom.Mass
+                i.Atoms[j].Atom.Radius = Prototypes[idx].Atoms[j].Atom.Radius
+                i.Atoms[j].Atom.Bonds = Prototypes[idx].Atoms[j].Atom.Bonds
+                i.Atoms[j].Atom.Bonds = library.replace_numbers(i.AtomIndex, Prototypes[idx].AtomIndex, i.Atoms[j].Atom.Bonds)
+    for i in molecules:
+        i._refresh() # update data from prototype
+    # determine number of atom types from list
+    nAtTypes = len(types_list)       
+    nAtoms = len(Atoms)
+    Distances = [] # create list of distances from list of atoms
+    for i in range(0, nAtoms, 1):
+        for j in range(i+1, nAtoms, 1):
+            Distances.append(structure.Distance(Atoms[i], Atoms[j]))
+    DiTypeList = []
+    for i in Distances:
+        if i.DiType not in DiTypeList:
+            DiTypeList.append(i.DiType)
+    nDistances = len(Distances)
+    nDiTypes = len(DiTypeList)
+    system = structure.System(Atoms=Atoms, Molecules=molecules, Prototypes=Prototypes,\
+        nAtoms=nAtoms, nAtTypes=nAtTypes, nMolecules=nMolecules, Distances=Distances,\
+        nDistances=nDistances, nDiTypes=nDiTypes)
+    FeaturesNonlinear = []    
+    for i in range(0, nDistances, 1):
+        FeaturesNonlinear.append(structure.FeatureNonlinear(i, Distances[i], FeType='exp', nDistances=1, nConstants=2))
+    FeaturesAll = [] # list of all features    
+    if ProceedSingle:
+        # add DiType for each record   
+        SingleDescriptionDiType = []                 
+        for i in range(0, len(SingleDescription), 1):
+            a1 = SingleDescription[i][0]
+            a2 = SingleDescription[i][1]
+            if SingleDescription[i][2] == 'intermolecular':
+                inter = True
+            else:
+                inter = False
+            for j in Distances:
+                if j.isIntermolecular == inter:
+                    if ((j.Atom1.Symbol == a1) and (j.Atom2.Symbol == a2)) or \
+                        ((j.Atom1.Symbol == a2) and (j.Atom2.Symbol == a1)):
+                        SingleDescriptionDiType.append(j.DiType)
+                        break
+        for i in DiTypeList:
+            if i not in SingleDescriptionDiType:
+                SingleDescriptionDiType.append(i)
+                for j in Distances:
+                    if j.DiType == i:
+                        idx = j
+                        break
+                if idx.isIntermolecular:
+                    inter = 'intermolecular'
+                else:
+                    inter = 'intramolecular'
+                SingleDescription.append([idx.Atom1.Symbol, idx.Atom2.Symbol, inter])
+                SingleDescription[-1] += SinglePowersDefault
+
+    # make list of features with only one distance
+        DtP_Single_list = []
+        for i in range(0, len(Distances), 1):
+            k = SingleDescriptionDiType.index(Distances[i].DiType)
+            Powers = SingleDescription[k][3:]
+            for j in Powers:
+                DtP_Single_list.append(structure.Distance_to_Power(Distances[i], int(j)))
+    
+        for i in DtP_Single_list:
+            FeaturesAll.append(structure.Feature(i, DtP2=None))        
+            
+    if ProceedDouble:
+        # add DiType for each record   
+        DoubleDescriptionDiType = []                 
+        for i in range(0, len(DoubleDescription), 1):
+            a1 = DoubleDescription[i][0]
+            a2 = DoubleDescription[i][1]
+            if DoubleDescription[i][2] == 'intermolecular':
+                inter = True
+            else:
+                inter = False
+            for j in Distances:
+                if j.isIntermolecular == inter:
+                    if ((j.Atom1.Symbol == a1) and (j.Atom2.Symbol == a2)) or \
+                        ((j.Atom1.Symbol == a2) and (j.Atom2.Symbol == a1)):
+                        DoubleDescriptionDiType.append(j.DiType)
+                        break
+        for i in DiTypeList:
+            if i not in DoubleDescriptionDiType:
+                DoubleDescriptionDiType.append(i)
+                for j in Distances:
+                    if j.DiType == i:
+                        idx = j
+                        break
+                if idx.isIntermolecular:
+                    inter = 'intermolecular'
+                else:
+                    inter = 'intramolecular'
+                DoubleDescription.append([idx.Atom1.Symbol, idx.Atom2.Symbol, inter])
+                DoubleDescription[-1] += DoublePowersDefault
+
+    # make list of features with only one distance
+        DtP_Double_list = []
+        for i in range(0, len(Distances), 1):
+            k = DoubleDescriptionDiType.index(Distances[i].DiType)
+            Powers = DoubleDescription[k][3:]
+            for j in Powers:
+                DtP_Double_list.append(structure.Distance_to_Power(Distances[i], int(j)))        
+        IncludeExcludeDiTypes = [] # can be empty
+        for i in IncludeExcludeList:
+            a11 = i[0]
+            a12 = i[1]
+            a21 = i[3]
+            a22 = i[4]
+            if i[2] == 'intermolecular':
+                inter1 = True
+            else:
+                inter1 = False
+            if i[5] == 'intermolecular':
+                inter2 = True
+            else:
+                inter2 = False
+            for j in Distances:
+                if j.isIntermolecular == inter1:
+                    if ((j.Atom1.Symbol == a11) and (j.Atom2.Symbol == a12)) or \
+                        ((j.Atom1.Symbol == a12) and (j.Atom2.Symbol == a11)):
+                        Type1 = j.DiType
+                        break
+            for j in Distances:
+                if j.isIntermolecular == inter2:
+                    if ((j.Atom1.Symbol == a21) and (j.Atom2.Symbol == a22)) or \
+                        ((j.Atom1.Symbol == a22) and (j.Atom2.Symbol == a21)):
+                        Type2 = j.DiType
+                        break
+            IncludeExcludeDiTypes.append((Type1, Type2))
+
+        for i in range(0, len(DtP_Double_list), 1):
+            for j in range(i+1, len(DtP_Double_list), 1):
+                if DtP_Double_list[i].Power > DtP_Double_list[j].Power:
+                    continue # skip duplicates
+                if not IncludeSameType:
+                    if DtP_Double_list[i].Distance.DiType == DtP_Double_list[j].Distance.DiType: # skip if distances of the same type
+                        continue
+                if len(IncludeExcludeDiTypes) == 0:
+                    FeaturesAll.append(structure.Feature(DtP_Double_list[i], DtP2=DtP_Double_list[j]))
+                else:
+                    for k in IncludeExcludeDiTypes:
+                        if ExcludeAllExcept:
+                            if (DtP_Double_list[i].Distance.DiType == k[0] and DtP_Double_list[j].Distance.DiType == k[1]) or (DtP_Double_list[i].Distance.DiType == k[1] and DtP_Double_list[j].Distance.DiType == k[0]):
+                               FeaturesAll.append(structure.Feature(DtP_Double_list[i], DtP2=DtP_Double_list[j])) # append if match
+                        if IncludeAllExcept:
+                            if (DtP_Double_list[i].Distance.DiType == k[0] and DtP_Double_list[j].Distance.DiType == k[1]) or (DtP_Double_list[i].Distance.DiType == k[1] and DtP_Double_list[j].Distance.DiType == k[0]):
+                                continue #skip if match
+                            FeaturesAll.append(structure.Feature(DtP_Double_list[i], DtP2=DtP_Double_list[j]))
+
+    # Make list of reduced features
+    FeaturesReduced = []
+    FeType_list = []
+    for i in range(0, len(FeaturesAll), 1):
+        if (FeaturesAll[i].FeType not in FeType_list):
+            FeType_list.append(FeaturesAll[i].FeType)
+            FeaturesReduced.append(FeaturesAll[i])
+# store global indices for each reduced feature
+    for k in range(0, len(FeaturesReduced), 1):
+        for j in range(0, len(FeaturesAll), 1):
+            if (FeaturesAll[j].FeType == FeaturesReduced[k].FeType):
+                if j not in FeaturesReduced[k].idx:
+                    FeaturesReduced[k].idx.append(j)
+                    
+    # save list FeaturesNonlinear into file
+    f = open(F_NonlinearFeatures, "wb")
+    pickle.dump(FeaturesNonlinear, f)
+    f.close()
+    
+    # save list FeaturesAll into file
+    f = open(F_LinearFeaturesAll, "wb")
+    pickle.dump(FeaturesAll, f)
+    f.close()
+    
+    # save list FeaturesReduced into file
+    f = open(F_LinearFeaturesReduced, "wb")
+    pickle.dump(FeaturesReduced, f)
+    f.close()
+
+    # save system object into file
+    f = open(F_System, "wb")
+    pickle.dump(system, f)
+    f.close()
+    
+    library.StoreNonlinearFeaturesDescriprion(F_NonlinearFeaturesList, FeaturesNonlinear) # xlsx
+    library.StoreLinearFeaturesDescriprion(F_LinearFeaturesList, FeaturesAll, FeaturesReduced) # xlsx
+    library.store_structure(F_Structure, Atoms, Distances, DtP_Double_list, FeaturesAll) # xlsx
+    record_list_train = ReadData(F_train_data, Atoms)
+    record_list_test = ReadData(F_test_data, Atoms)
+    record_list = record_list_train + record_list_test
+    StoreDistances(F_Distances_Train, record_list_train, Distances)
+    StoreDistances(F_Distances_Test, record_list_test, Distances)  
+    StoreEnergy(F_Response_Train, record_list_train)
+    StoreEnergy(F_Response_Test, record_list_test)
+        
+    print('Number of train points', nTrainPoints)
+    print('Number of test points', nTestPoints)
+    print('Total number of observations = ', len(record_list))
+
+# split array if too big
+    NpArrayCapacity = 1e+8
+    Size = len(record_list) # N of observations
+    Length = len(FeaturesAll)
+    if (Size * Length) > NpArrayCapacity:
+        BufSize = int(NpArrayCapacity / Length)
+    else:
+        BufSize = Size
+    # create endpoints for array size_list[1 - inf][0 - 1]
+    i = 0 # Number of observation
+    j = 0 # Number of feature
+    size_list = []
+    size_list_str = []
+    nCPU = mp.cpu_count()
+    nCPU = 1
+    print('Start Multiprocessing with ', nCPU, ' cores')
+    size = int(Size / nCPU)
+    first = 0
+    if size < BufSize:
+        for i in range(0, nCPU, 1):
+            first = i * size
+            last = (i+1) * size
+            if i == (nCPU-1):
+                last = Size
+            size_list.append((first, last))
+            size_list_str.append(str(first) + '-' + str(last-1) + '.csv')
+    else:# if number of records is huge
+        i = 0
+        last = 0
+        while last != Size:
+            first = i * BufSize
+            last = (i+1) * BufSize
+            if last > Size:
+                last = Size
+            size_list.append((first, last))
+            size_list_str.append(str(first) + '-' + str(last-1) + '.csv')
+            i += 1
+
+    ran = list(range(0, len(size_list_str), 1))
+    jobs = (delayed(StoreFeatures)(size_list_str[i], size_list[i][0], size_list[i][1], FeaturesAll, FeaturesReduced, record_list, Atoms) for i in ran)
+    Parallel(n_jobs=nCPU)(jobs)
+    print('Storing results in one file')
+    f = open('Tmp.csv', "w")
+    for i in range(0, len(size_list_str), 1):
+        fin = open(size_list_str[i], "r")
+        S = fin.readlines()
+        f.writelines(S)
+        fin.close()
+    f.close()
+    f = open('Tmp.csv', "r")
+    data = f.readlines()
+    f.close()
+    os.remove('Tmp.csv')
+    f = open(F_LinearFeaturesTrain, "w")
+    i = 0
+    while i <= nTrainPoints:
+        f.write(data[i])
+        i += 1
+    f.close()
+    if i < len(data):
+        f = open(F_LinearFeaturesTest, "w")
+        f.write(data[0])
+        while i < len(data):
+            f.write(data[i])
+            i += 1
+        f.close()       
+    for i in range(0, len(size_list_str), 1):
+        try:
+            os.remove(size_list_str[i]) # erase old files if exist
+        except:
+            pass
+            
+def GetFit():
+# Global variables
+    DesiredNumberVariables = 15
+    FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
+    # Can be 'ENet' or 'GA' 
+    UseVIP = False # if true fit will be found in two steps. First step - fit only
+    # single distances, select most important (VIP) features which will be kept
+# Elastic net parameters    
+    L1_Single = 0.7
+    eps_single = 1e-3
+    n_alphas_single = 100
+    L1 = 0.7
+    eps = 1e-3
+    n_alphas = 100
+# Best Fit parameters
+#    BestFitMethod = 'Fast' # can be 'Tree' or 'Fast'
+#    MaxLoops = 1000 # integer number - greater = slower but better fit
+#    MaxBottom = 50 # integer - number of finished branches
+    UseCorrelationMutation=True
+    MinCorrMutation=0.8
+    UseCorrelationBestFit=False
+    MinCorrBestFit=0.9
+    
+    # for Best Fit algorithm. If False, all features will be used in trials 
+    # to find Best Fit. Overwise, only most correlated features will be used.
+    # If false, will be slow for big number of features
+    # needed only if UseCorrelationMatrix=True
+    # used for creating list of most correlated features for Best Fit
+    # float [0 .. 1]
+    F_Filter = 'Filter.dat'
+    F_Out_Single = 'Single BE.xlsx'
+    F_ENet_Single = 'Single ENet path'
+    F_Out = 'BE.xlsx'
+    F_ENet = 'ENet path'
+    F_GA = 'GA path'
+    F_ga_structure = 'GA_structure.dat' 
+    F_gp_structure = 'GP_structure.dat' 
+    F_MoleculesDescriptor = 'MoleculesDescriptor.'
+#    Slope = 0.001 # stopping criterion for VIP features. Slope of RMSE graph
+    VIP_number = 5 # stopping criterion for VIP features. Desired number of VIP features
+# GA parameters
+    PopulationSize = 100 # Population
+    ChromosomeSize = DesiredNumberVariables
+    MutationProbability = 0.3 # probability of mutation
+    MutationInterval = [1, 3] # will be randomly chosen between min and max-1
+    EliteFraction = 0.4 # fracrion of good chromosomes that will be used for crossover
+    MutationCrossoverFraction = 0.3
+    CrossoverFractionInterval = [0.6, 0.4] # how many genes will be taken from first and second best chromosomes (fraction)
+    IterationPerRecord = 50 # Display results of current fit after N iterations
+    StopTime = 600 # How long in seconds GA works without improvement
+    nIter = 500 # How many populations will be used before GA stops
+    RandomSeed = 101
+    LinearSolver = 'sklearn' # 'sklearn', 'scipy', 'statsmodels'
+    cond=1e-03 # for scipy solver
+    lapack_driver='gelsy' # 'gelsd', 'gelsy', 'gelss', for scipy solver
+    NonlinearFunction = 'exp'
+    UseNonlinear = False # if true, only linear regression will be used
+    CrossoverMethod = 'Random' # 'Random' or 'Best'
+    MutationMethod = 'Correlated' # 'Random' or 'Correlated'
+    verbose = True
+    
+    FilterResults = IOfunctions.ReadFeatures(\
+        F_Nonlinear_Train='Distances Train.csv', F_Nonlinear_Test='Distances Test.csv', F_linear_Train='LinearFeaturesTrain.csv',\
+        F_Response_Train='ResponseTrain.csv', F_linear_Test=None,\
+        F_Response_Test=None, F_NonlinearFeatures = 'NonlinearFeatures.dat',\
+        F_FeaturesAll='LinearFeaturesAll.dat', F_FeaturesReduced='LinearFeaturesReduced.dat',\
+        F_System='system.dat', F_Records=None, verbose=False)    
+    X_train_nonlin = FilterResults['X Nonlinear Train']
+    X_test_nonlin = FilterResults['X Nonlinear Test']
+    X_train_lin = FilterResults['X Linear Train']
+    Y_train = FilterResults['Response Train']
+    X_test_lin = FilterResults['X Linear Test']
+    Y_test = FilterResults['Response Test']
+    FeaturesNonlinear = FilterResults['Nonlinear Features']
+    FeaturesAll = FilterResults['Linear Features All']
+    FeaturesReduced = FilterResults['Linear Features Reduced']
+    system = FilterResults['System']
+
+    f = open(F_Filter, "rb") # read filter results
+    Filter = pickle.load(f)
+    f.close()
+    F_Train = Filter['Training Set']
+    F_Test = Filter['Test Set']
+    SetName = Filter['Initial dataset']
+    SetName = SetName.split(".")
+    SetNameStr = SetName[0] # directory name
+    TrainFraction = Filter['Train Fraction Used']
+    TrainFractionStr = str(round(TrainFraction*100, 0)) + '%' # subdir name
+    if len(TrainFractionStr) == 4:
+        TrainFractionStr = '00' + TrainFractionStr
+    if len(TrainFractionStr) == 5:
+        TrainFractionStr = '0' + TrainFractionStr
+    if (X_train_nonlin is not None) and (X_train_lin is None):
+        UseNonlinear = True
+        print('Linear features are not provides. Use non-linear regression only')
+        X_train_lin = None
+        X_test_lin = None
+    if ((X_train_nonlin is None) and (X_train_lin is not None)) or (not UseNonlinear):
+        UseNonlinear = False
+        if not UseNonlinear:
+            print('Activated linear features only')
+        else:
+            print('Non-linear features are not provided. Use linear regression only')
+        X_train_nonlin = None
+        X_test_nonlin = None
+    if ((X_train_nonlin is not None) and (X_train_lin is not None)) and UseNonlinear:
+        print('Linear and non-linear features are provided')        
+
+    if UseVIP:
+        if system.nAtoms == 6: # two water molecules system
+            VIP_number = 5
+        if system.nAtoms == 9: # three water molecules system
+            VIP_number = 3
+# create arrays for single distances only        
+        SingleFeaturesAll = []
+        for i in range(0, len(FeaturesAll), 1):
+            if FeaturesAll[i].nDistances == 1:
+                SingleFeaturesAll.append(FeaturesAll[i])
+        SingleFeaturesReduced = []
+        for i in range(0, len(FeaturesReduced), 1):
+            if FeaturesReduced[i].nDistances == 1:
+                SingleFeaturesReduced.append(FeaturesReduced[i])
+        Single_X_train = np.zeros(shape=(X_train_lin.shape[0], len(SingleFeaturesReduced)), dtype=float)
+        if X_test_lin is not None:
+            Single_X_test = np.zeros(shape=(X_test_lin.shape[0], len(SingleFeaturesReduced)), dtype=float)
+        else:
+            Single_X_test = None
+        j = 0
+        for i in range(0, len(FeaturesReduced), 1):
+            if FeaturesReduced[i].nDistances == 1:
+                Single_X_train[:, j] = X_train_lin[:, i]
+                if X_test_lin is not None:
+                    Single_X_test[:, j] = X_test_lin[:, i]
+                j += 1
+        t = time.time()       
+        ga = GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
+            MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
+            EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
+            CrossoverFractionInterval=CrossoverFractionInterval, IterationPerRecord=IterationPerRecord,\
+            StopTime=StopTime, RandomSeed=RandomSeed, verbose=verbose,\
+            UseCorrelationMutation=UseCorrelationMutation, MinCorrMutation=MinCorrMutation,\
+            UseCorrelationBestFit=UseCorrelationBestFit, MinCorrBestFit=MinCorrBestFit)
+    # linear only for now
+        idx = list(range(0, Single_X_train.shape[1], 1))
+        results = regression.fit_linear(idx, Single_X_train, Y_train, x_test=Single_X_test, y_test=Y_test,\
+            MSEall_train=None, MSEall_test=None, normalize=True, LinearSolver='sklearn')
+        ga.MSEall_train = results['MSE Train']
+        ga.MSEall_test = results['MSE Test']    
+
+        if (FirstAlgorithm == 'ENet'):
+            print('Only linear features will be considered')
+            Alphas = np.logspace(-7, -3.5, num=100, endpoint=True, base=10.0, dtype=None)
+            enet = regression.ENet(L1=L1_Single, eps=eps_single, nAlphas=n_alphas_single, alphas=Alphas, random_state=None)
+            print('Elastic Net Fit for all features')
+            print('L1 portion = ', enet.L1)
+            print('Epsilon = ', enet.eps)
+            print('Number of alphas =', enet.nAlphas)
+            print('Number of features go to elastic net regularisation = ', len(FeaturesReduced))
+            enet.fit(Single_X_train, Y_train, VIP_idx=None, Criterion='Mallow', normalize=True,\
+                max_iter=1000, tol=0.0001, cv=None, n_jobs=1, selection='random', verbose=True)
+            enet.plot_path(1, FileName=F_ENet_Single)
+            idx = enet.idx
+            Gene_list = []
+            for i in idx:
+                Gene_list.append(GA.Gene(i, Type=0))
+            chromosome = ga.Chromosome(Gene_list)
+            chromosome.erase_score()
+            # chromosome contains only linear indices
+            # use standardized for training set and regular for testing
+            chromosome.score(x_nonlin_train=None, x_lin_train=Single_X_train,\
+                y_train=Y_train, x_nonlin_test=None, x_lin_test=Single_X_test,\
+                y_test=Y_test, NonlinearFunction=ga.NonlinearFunction,\
+                LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)
+            if ga.LinearSolver == 'statsmodels':
+                chromosome.rank_sort_pValue()
+            else:
+                chromosome.rank(x_nonlin=X_train_nonlin, x_lin=Single_X_train,\
+                    y=Y_train, NonlinearFunction=ga.NonlinearFunction,\
+                    LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)
+                chromosome.sort(order='Most important first')  
+                ga.n_lin = Single_X_train.shape[1]
+            t_sec = time.time() - t
+            print("\n", 'Elastic Net worked ', t_sec, 'sec')  
+            print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
+        if FirstAlgorithm == 'GA':
+            print('Genetic Algorithm for all features')
+            ga.fit(x_nonlin_train=X_train_nonlin, x_lin_train=Single_X_train, y_train=Y_train,\
+                x_nonlin_test=X_test_nonlin, x_lin_test=Single_X_test, y_test=Y_test,\
+                idx_nonlin=None, idx_lin=None, VIP_idx_nonlin=None,\
+                VIP_idx_lin=None, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
+                UseNonlinear=UseNonlinear, LinearSolver=LinearSolver,\
+                cond=cond, lapack_driver=lapack_driver, NonlinearFunction=NonlinearFunction,\
+                nIter=nIter)
+            t_sec = time.time() - t
+            print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
+            chromosome = ga.BestChromosome        
+            print("\n", 'Features left for Backward Elimination and Search Alternative = ',\
+                  chromosome.Size)
+            ga.PlotChromosomes(2, ga.BestChromosomes, XAxis='time', YAxis='R2 Train',\
+                PlotType='Scatter', F=F_GA)
+        while chromosome.Size > 1:
+            if chromosome.Size <= ga.ChromosomeSize:
+                chromosome = ga.BestFit(chromosome, x_nonlin=X_train_nonlin, x_lin=Single_X_train,\
+                    y=Y_train, verbose=True) # returns ranked and sorted chromosome
+# get score for test set                
+                chromosome.score(x_nonlin_train=X_train_nonlin, x_lin_train=Single_X_train,\
+                    y_train=Y_train, x_nonlin_test=X_test_nonlin, x_lin_test=Single_X_test,\
+                    y_test=Y_test, NonlinearFunction=ga.NonlinearFunction,\
+                    LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver) 
+                chromosome.Origin = 'Best Fit'
+                chromosome_copy = copy.deepcopy(chromosome)
+                chromosome_copy.print_score()
+                ga.DecreasingChromosomes.append(chromosome_copy)
+            chromosome = ga.RemoveWorstGene(chromosome, x_nonlin=X_train_nonlin,\
+                x_lin=Single_X_train, y=Y_train, verbose=True)
+        t_sec = time.time() - t
+        ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Train',\
+            PlotType='Line', F='Single')
+        ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Train',\
+            PlotType='Line', F='Single')
+        ga.PlotChromosomes(5, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='Mallow statistics Train',\
+            PlotType='Line', F='Single')
+        print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
+        ga.Results_to_xlsx(F_Out_Single, ga.DecreasingChromosomes, FeaturesNonlinear=FeaturesNonlinear,\
+            FeaturesAll=FeaturesAll, FeaturesReduced=FeaturesReduced)        
+        for i in ga.DecreasingChromosomes:
+            if i.Size == VIP_number:
+                VIP_idx_nonlin = i.get_genes_list(Type=1)
+                VIP_idx_lin = i.get_genes_list(Type=0)
+    else:
+        VIP_idx_nonlin = []
+        VIP_idx_lin = []      
+
+# proceed all features 
+    t = time.time()       
+    ga = GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
+        MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
+        EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
+        CrossoverFractionInterval=CrossoverFractionInterval, IterationPerRecord=IterationPerRecord,\
+        StopTime=StopTime, RandomSeed=RandomSeed, verbose=verbose,\
+        UseCorrelationMutation=UseCorrelationMutation, MinCorrMutation=MinCorrMutation,\
+        UseCorrelationBestFit=UseCorrelationBestFit, MinCorrBestFit=MinCorrBestFit)
+# linear only for now
+    idx = list(range(0, X_train_lin.shape[1], 1))
+    ga.n_lin = X_train_lin.shape[1]
+    results = regression.fit_linear(idx, X_train_lin, Y_train, x_test=X_test_lin, y_test=Y_test,\
+        MSEall_train=None, MSEall_test=None, normalize=True, LinearSolver='sklearn')
+    ga.MSEall_train = results['MSE Train']
+    ga.MSEall_test = results['MSE Test']    
+    if (FirstAlgorithm == 'ENet'):
+        print('Only linear features will be considered')
+        Alphas = np.logspace(-7, -3.5, num=100, endpoint=True, base=10.0, dtype=None)
+        enet = regression.ENet(L1=L1, eps=eps, nAlphas=n_alphas, alphas=Alphas, random_state=None)
+        print('Elastic Net Fit for all features')
+        print('L1 portion = ', enet.L1)
+        print('Epsilon = ', enet.eps)
+        print('Number of alphas =', enet.nAlphas)
+        print('Number of features go to elastic net regularisation = ', len(FeaturesReduced))
+        enet.fit(X_train_lin, Y_train, VIP_idx=VIP_idx_lin, Criterion='Mallow', normalize=True,\
+            max_iter=1000, tol=0.0001, cv=None, n_jobs=1, selection='random', verbose=True)
+        enet.plot_path(1, FileName=F_ENet)
+        idx = enet.idx
+        Gene_list = []
+        for i in idx:
+            Gene_list.append(GA.Gene(i, Type=0))
+        chromosome = ga.Chromosome(Gene_list)
+        chromosome.erase_score()
+        # chromosome contains only linear indices
+        # use standardized for training set and regular for testing
+        chromosome.score(x_nonlin_train=None, x_lin_train=X_train_lin,\
+            y_train=Y_train, x_nonlin_test=None, x_lin_test=X_test_lin,\
+            y_test=Y_test, NonlinearFunction=ga.NonlinearFunction,\
+            LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)
+        chromosome.rank_sort(x_nonlin=X_train_nonlin, x_lin=X_train_lin, y=Y_train, NonlinearFunction=ga.NonlinearFunction,\
+            LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)
+        t_sec = time.time() - t
+        print("\n", 'Elastic Net worked ', t_sec, 'sec')  
+        print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
+    if FirstAlgorithm == 'GA':
+        print('Genetic Algorithm for all features')
+        ga.fit(x_nonlin_train=X_train_nonlin, x_lin_train=X_train_lin, y_train=Y_train,\
+            x_nonlin_test=X_test_nonlin, x_lin_test=X_test_lin, y_test=Y_test,\
+            idx_nonlin=None, idx_lin=None, VIP_idx_nonlin=VIP_idx_nonlin,\
+            VIP_idx_lin=VIP_idx_lin, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
+            UseNonlinear=UseNonlinear, LinearSolver=LinearSolver,\
+            cond=cond, lapack_driver=lapack_driver, NonlinearFunction=NonlinearFunction,\
+            nIter = nIter)
+        t_sec = time.time() - t
+        print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
+        chromosome = copy.deepcopy(ga.BestChromosome)
+        print("\n", 'Features left for Backward Elimination and Search Alternative = ',\
+              chromosome.Size)
+        ga.PlotChromosomes(2, ga.BestChromosomes, XAxis='time', YAxis='R2 Train',\
+            PlotType='Scatter', F=F_GA)
+    while chromosome.Size > 1:
+        if chromosome.Size <= ga.ChromosomeSize:
+            chromosome = ga.BestFit(chromosome, x_nonlin=X_train_nonlin, x_lin=X_train_lin,\
+                y=Y_train, verbose=True)
+#            chromosome = ga.BestFitTree(chromosome, x_nonlin=None, x_lin=X_train_lin, y=Y_train, verbose=True)
+# calculate both train and test set score
+            chromosome.score(x_nonlin_train=X_train_nonlin, x_lin_train=X_train_lin,\
+                y_train=Y_train, x_nonlin_test=X_test_nonlin, x_lin_test=X_test_lin,\
+                y_test=Y_test, NonlinearFunction=ga.NonlinearFunction,\
+                LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver) 
+            chromosome.Origin = 'Best Fit'
+            chromosome_copy = copy.deepcopy(chromosome)
+            chromosome_copy.print_score()
+            ga.DecreasingChromosomes.append(chromosome_copy)
+# chromosome must be sorted before             
+        chromosome = ga.RemoveWorstGene(chromosome, x_nonlin=X_train_nonlin,\
+            x_lin=X_train_lin, y=Y_train, verbose=True)
+        if chromosome is None:
+            break # number of genes in chromosome = number of VIP genes
+    t_sec = time.time() - t
+    ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Train',\
+        PlotType='Line', F='Default')
+    ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Train',\
+        PlotType='Line', F='Default')
+    ga.PlotChromosomes(5, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='Mallow statistics Train',\
+        PlotType='Line', F='Default')
+    print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
+    ga.Results_to_xlsx(F_Out, ga.DecreasingChromosomes, FeaturesNonlinear=FeaturesNonlinear,\
+            FeaturesAll=FeaturesAll, FeaturesReduced=FeaturesReduced)
+# Gaussian fit    
+    print('Gaussian started')  
+    X_train_nonlin = FilterResults['X Nonlinear Train']
+    X_test_nonlin = FilterResults['X Nonlinear Test']
+    Y_train = FilterResults['Response Train']
+    kernel = RBF(length_scale=2.2, length_scale_bounds=(1e-02, 1.0)) + WhiteKernel(0.0005)
+    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer=None,\
+        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)    
+#    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer='fmin_l_bfgs_b',\
+#        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+    gp.fit(X_train_nonlin, Y_train) # set from distances  
+    
+    f = open(F_ga_structure, "wb") # save GA structure
+    pickle.dump(ga, f, pickle.HIGHEST_PROTOCOL)
+    f.close() 
+
+    f = open(F_gp_structure, "wb") # save GP structure
+    pickle.dump(gp, f, pickle.HIGHEST_PROTOCOL)
+    f.close() 
+    
+    directory = SetNameStr
+    if not os.path.exists(directory):
+        os.makedirs(directory)   
+    subdirectory = directory + '\\' + TrainFractionStr
+    if os.path.exists(subdirectory):
+        shutil.rmtree(subdirectory, ignore_errors=False, onerror=None)
+    os.makedirs(subdirectory)     
+    if os.path.isfile('SystemDescriptor.'):
+        shutil.copy2('SystemDescriptor.', subdirectory + '\\' + 'SystemDescriptor.')
+    if os.path.isfile(F_MoleculesDescriptor):
+        shutil.copy2(F_MoleculesDescriptor, subdirectory + '\\' + F_MoleculesDescriptor)
+    if os.path.isfile('Structure.xlsx'):    
+        shutil.move('Structure.xlsx', subdirectory + '\\' + 'Structure.xlsx')
+    if os.path.isfile('Linear Features Reduced List.xlsx'): 
+        shutil.move('Linear Features Reduced List.xlsx', subdirectory + '\\' +\
+                        'Linear Features Reduced List.xlsx')
+    if os.path.isfile('Nonlinear Features List.xlsx'): 
+        shutil.move('Nonlinear Features List.xlsx', subdirectory + '\\' +\
+                        'Nonlinear Features List.xlsx')
+    if os.path.isfile(F_Out_Single):
+        shutil.move(F_Out_Single, subdirectory + '\\' + F_Out_Single)
+    if os.path.isfile(F_Out):
+        shutil.move(F_Out, subdirectory + '\\' + F_Out)  
+    if os.path.isfile(F_Train):
+        shutil.move(F_Train, subdirectory + '\\' + F_Train) 
+    if os.path.isfile(F_Test):
+        shutil.move(F_Test, subdirectory + '\\' + F_Test) 
+    if os.path.isfile('results.txt'):
+        shutil.move('results.txt', subdirectory + '\\' + 'results.txt') 
+        
+# move all *.dat files        
+    l = os.listdir('./')
+    for name in l:
+        if name.endswith('.dat'):
+            if os.path.isfile(name):
+                shutil.move(name, subdirectory)  # copy2, copyfile      
+# move all *.png images        
+    l = os.listdir('./')
+    for name in l:
+        if name.endswith('.png'):
+            if os.path.isfile(name):
+                shutil.move(name, subdirectory)
+# move all *.csv data files        
+    l = os.listdir('./')
+    for name in l:
+        if name.endswith('.csv'):
+            if os.path.isfile(name):
+                shutil.move(name, subdirectory)                
+    return
+
     

@@ -53,11 +53,12 @@ RESET = "\033[0;0m"
 BOLD    = "\033[;1m"
 REVERSE = "\033[;7m"
 
-
+#sys.stdout.write(RED)
 #sys.stdout.write("\033[1;31m")
 #print("All following prints will be red ...")
 #sys.stdout.write(RESET)
 #print("All following prints will be red ...")
+
 
 class GA:
     VIP_Chromosome = None
@@ -366,7 +367,9 @@ class GA:
                         idx_lin.insert(i, tmp)
                         mse_lin_list.append(mse)
                 else: 
+                    sys.stdout.write(RED)
                     print('Crash: rank_sort')
+                    sys.stdout.write(RESET)
                     return
             j = 0
             k = 0
@@ -512,7 +515,9 @@ class GA:
         n_nonlin = len(pool_nonlin_free)
         n_lin = len(pool_lin_free)
         if (n_nonlin + n_lin) == 0:
+            sys.stdout.write(RED)
             print('Crash: create_random_gene. No pool.')
+            sys.stdout.write(RESET)
             return None
         rand = random.randrange(0, n_nonlin+n_lin, 1) # get random number of feature
         if rand < n_nonlin: # non-linear feature
@@ -544,7 +549,7 @@ class GA:
 
     def generate_new_chromosome(self):
         if self.VIP_Chromosome is not None:
-            Gene_list = self.VIP_Chromosome.Genes
+            Gene_list = copy.deepcopy(self.VIP_Chromosome.Genes)
         else:
             Gene_list = []
         chromosome = self.Chromosome(Gene_list)
@@ -559,48 +564,69 @@ class GA:
             chromosome.Origin = 'Pool'
             return chromosome
         else:
+            sys.stdout.write(RED)
             print('Crash: generate_new_chromosome')
+            sys.stdout.write(RESET)
             return None
-        
+
 # mutate one gene
     def mutate(self, chromosome, MutationMethod='Random'):
-        Found = False
-        while not Found:
-            gene_idx = random.randrange(0, chromosome.Size, 1) # which gene will be mutated
-            old_gene = chromosome.Genes[gene_idx] 
-            if not old_gene.is_gene_exists(self.VIP_Chromosome):
-                Found = True # gene does not belong to VIP_Chromosome and can be replaced
+        Gene_list = []
+#        print(chromosome.Size)
+#        chromosome.print_score()
+        i = 0
+        while i < len(chromosome.Genes):
+            if chromosome.Genes[i].is_gene_exists(self.VIP_Chromosome):
+                i_copy = copy.deepcopy(chromosome.Genes[i])
+                Gene_list.append(i_copy) # copy VIP genes
+                del(chromosome.Genes[i]) # remove VIP gene from chromosome
+            i += 1
+        chromosome.erase_score() # recalculate size
+        gene_idx = random.randrange(0, chromosome.Size, 1)
+        old_gene = chromosome.Genes[gene_idx] 
+        for i in range(0, chromosome.Size, 1):
+            if (chromosome.Genes[i].Idx == gene_idx) and (chromosome.Genes[i].Type == old_gene.Type):
+                continue
+            i_copy = copy.deepcopy(chromosome.Genes[i])
+            Gene_list.append(i_copy) # copy VIP genes
+        chromosome = self.Chromosome(Gene_list)
         if (old_gene.Type == 0) and (MutationMethod == 'Correlated'):
             corr_idx = self.get_correlated_features_list(chromosome, Model=2,\
                 UseCorrelationMatrix = self.UseCorrelationMutation, MinCorr = self.MinCorrMutation)
             idx = []
             for i in range(0, len(corr_idx), 1):
-                if corr_idx[i][0] == gene_idx:
+                if corr_idx[i][0] == old_gene.Idx:
                     idx = corr_idx[i]
                     break
             if len(idx) > 1:
                 new_gene = self.create_random_gene(chromosome=chromosome, pool_nonlin = [], pool_lin=idx)
                 if new_gene is not None:
-                    chromosome.Genes[gene_idx] = new_gene
+                    chromosome.Genes.append(new_gene)
                     chromosome.erase_score()
                     chromosome.Origin = 'Mutation'
                     if not chromosome.has_duplicates():
                         return chromosome
                 else:
+                    sys.stdout.write(RED)
                     print('Crash: mutate Correlated')
+                    sys.stdout.write(RESET)
         new_gene = self.create_random_gene(chromosome=chromosome)
         if new_gene is not None:
-            chromosome.Genes[gene_idx] = new_gene
+            chromosome.Genes.append(new_gene)
             chromosome.erase_score()
             chromosome.Origin = 'Mutation'
             if not chromosome.has_duplicates():
                 return chromosome
             else:
+                sys.stdout.write(RED)
                 print('Chash: Duplicates in mutation')
+                sys.stdout.write(RESET)
         else:
-            print('Crash: mutate')
+            sys.stdout.write(RED)
+            print('Crash: mutate. Cannot create random gene')
+            sys.stdout.write(RESET)
             return None
-        
+               
 # mutate more than one gene
     def mutate_many(self, chromosome, nMutations, MutationMethod='Random'):
         n = 0
@@ -649,7 +675,7 @@ class GA:
         if self.VIP_Chromosome is None:
             Gene_list = []
         else:
-            Gene_list = self.VIP_Chromosome.Genes
+            Gene_list = copy.deepcopy(self.VIP_Chromosome.Genes)
         chromosome = self.Chromosome(Gene_list)
         size_VIP = len(Gene_list)
         size_left = self.ChromosomeSize - size_VIP
@@ -669,7 +695,9 @@ class GA:
                     chromosome.Genes.append(new_gene)
                     chromosome.erase_score()
                 else:
+                    sys.stdout.write(RED)
                     print('Crash: crossover n1')
+                    sys.stdout.write(RESET)
                     break
 # append features from first chromosone
             for i in range(0, n2, 1):
@@ -678,9 +706,11 @@ class GA:
                     chromosome.Genes.append(new_gene)
                     chromosome.erase_score()
                 else:
+                    sys.stdout.write(RED)
                     print('Crash: crossover n2')
                     print('pool_nonlin: ', idx_nonlin2)
                     print('pool_lin: ', idx_lin2)
+                    sys.stdout.write(RESET)
                     chromosome.print_score()
                     break
         if (self.CrossoverMethod == 'Best'):
@@ -709,14 +739,18 @@ class GA:
                 chromosome.Genes.append(new_gene)
                 chromosome.erase_score()
             else:
+                sys.stdout.write(RED)
                 print('Crash: crossover')
+                sys.stdout.write(RESET)
                 return None
         chromosome.erase_score()
         chromosome.Origin = 'Crossover'
         if not chromosome.has_duplicates():
             return chromosome # return a new child
         else:
+            sys.stdout.write(RED)
             print('Crash: crossover produces duplicates')
+            sys.stdout.write(RESET)
             return None
    
     def init_population(self):
@@ -728,7 +762,9 @@ class GA:
             if (chromosome is not None) and (not chromosome.has_duplicates()):
                 self.Population.append(chromosome)
         if len(self.Population) != self.PopulationSize:
+            sys.stdout.write(RED)
             print('Crash: init_population')
+            sys.stdout.write(RESET)
         return 
     
 
@@ -773,6 +809,11 @@ class GA:
             random.seed(self.RandomSeed)
         # get initial population
         self.init_population()
+        sys.stdout.write(RED)        
+        print('VIP: ', self.VIP_idx_lin)
+        if self.VIP_Chromosome is not None:
+            self.VIP_Chromosome.print_score()
+        sys.stdout.write(RESET)            
         StartTime = time()
         BestChromosome = None
         LastChangeTime = time()
@@ -836,14 +877,18 @@ class GA:
                             if chromosome1.is_exist(chromosome2):
                                 c1 = c2
                                 k += 1
-                        if k >= 10:
+                        if k >= 100:
+                            sys.stdout.write(RED)
                             print('Crash: fit main loop. crossover')
                             print('Might want to increase EliteFracrion')
+                            sys.stdout.write(RESET)
                             chromosome = self.generate_new_chromosome()
                         else:
                             chromosome = self.crossover(chromosome1, chromosome2)
                     if chromosome is None:
+                        sys.stdout.write(RED)
                         print('Crash: crossover')
+                        sys.stdout.write(RESET)
                         chromosome = self.generate_new_chromosome()
                     new_population.append(chromosome)
                 while len(new_population) < self.PopulationSize:
@@ -894,7 +939,9 @@ class GA:
             elif YAxis == 'Mallow statistics Test':
                 YPlot.append(i.Mallow_Test)  
             else:
+                sys.stdout.write(RED)
                 print('Crash: PlotChromosomes')
+                sys.stdout.write(RESET)
                 return
         plt.ylabel(YAxis)
         if PlotType == 'Line':
@@ -919,7 +966,8 @@ class GA:
             del(chromosome.Genes[-1])
             chromosome.Size -= 1
             chromosome.erase_score()
-        elif (self.n_VIP_lin + self.n_VIP_nonlin) >= chromosome.Size:
+        elif self.VIP_Chromosome.Size >= chromosome.Size:
+            print('Cannot remove any gene since all of them are VIP')
             return None
         else:
             for i in range(0, chromosome.Size, 1):
@@ -1014,11 +1062,14 @@ class GA:
                             ch.Origin = 'Best Fit'
                             chromosome_copy = copy.deepcopy(ch)                    
                             Chromosome_list.append(chromosome_copy)
-                    for i in Chromosome_list:
-                        if i.MSE_Train < Best.MSE_Train:
-                            Best = copy.deepcopy(i)    
+                    for j in Chromosome_list:
+                        if j.MSE_Train < Best.MSE_Train:
+                            Best = copy.deepcopy(j)    
                             Found = True
                             if verbose:
+                                sys.stdout.write(GREEN)
+                                print('Best fit new chromosome')
+                                sys.stdout.write(RESET)
                                 Best.print_score()
             if Found:                
                 Best.rank_sort(x_nonlin=x_nonlin, x_lin=x_lin, y=y, MSEall=self.MSEall_train, NonlinearFunction=self.NonlinearFunction,\

@@ -89,7 +89,7 @@ def ReadMoleculeDescription(F):
     return Molecules
     
 # reads feature set and objects that describes it
-def ReadFeatures(F_Nonlinear=None, F_linear_Train=None, F_Response_Train=None,\
+def ReadFeatures(F_Nonlinear_Train=None, F_Nonlinear_Test=None, F_linear_Train=None, F_Response_Train=None,\
         F_linear_Test=None, F_Response_Test=None, F_NonlinearFeatures=None,\
         F_FeaturesAll=None, F_FeaturesReduced=None, F_System=None, F_Records=None,\
         verbose=False):
@@ -108,11 +108,16 @@ def ReadFeatures(F_Nonlinear=None, F_linear_Train=None, F_Response_Train=None,\
     if verbose:
         print('Reading data from file')
 # load features for non-linear fit
-    if (F_Nonlinear is not None) and os.path.isfile(F_Nonlinear):
-        dataset = pd.read_csv(F_Nonlinear)
-        X_Nonlinear = dataset.iloc[:, :].values
+    if (F_Nonlinear_Train is not None) and os.path.isfile(F_Nonlinear_Train):
+        dataset = pd.read_csv(F_Nonlinear_Train)
+        X_Nonlinear_Train = dataset.iloc[:, :].values
     else:
-        X_Nonlinear = None
+        X_Nonlinear_Train = None
+    if (F_Nonlinear_Test is not None) and os.path.isfile(F_Nonlinear_Test):
+        dataset = pd.read_csv(F_Nonlinear_Test)
+        X_Nonlinear_Test = dataset.iloc[:, :].values
+    else:
+        X_Nonlinear_Test = None
 # load features for linear fit        
     if (F_linear_Train is not None) and os.path.isfile(F_linear_Train):
         dataset = pd.read_csv(F_linear_Train)
@@ -170,7 +175,7 @@ def ReadFeatures(F_Nonlinear=None, F_linear_Train=None, F_Response_Train=None,\
         f.close() 
     else:
         records = None
-    return {'X Nonlinear': X_Nonlinear, 'X Linear Train': X_linear_Train,\
+    return {'X Nonlinear Train': X_Nonlinear_Train, 'X Nonlinear Test': X_Nonlinear_Test, 'X Linear Train': X_linear_Train,\
             'Response Train': Y_Train, 'X Linear Test': X_linear_Test,\
             'Response Test': Y_Test, 'Nonlinear Features': FeaturesNonlinear,\
             'Linear Features All': FeaturesAll, 'Linear Features Reduced': FeaturesReduced,\

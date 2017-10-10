@@ -667,8 +667,57 @@ def generate_random_molecule(prototype, SphereRadius=10, max_trials=100):
         n_trials += 1
     print('Unable to generate molecule with provided configuration')
     return -1
-    
-def check_new_molecule(molecules, molecule, SphereRadius=10, additional_gap=0):
+
+def generate_random_molecules2(prototype, DMin=0, DMax=10, max_trials=100):
+# molecule prototype must be aligned by function align_molecule
+# generates one molecule that has center of mass farther than DMin and closer than DMax from COM of prototype
+    Molecule_list = []
+    Molecule_list.append(prototype)
+    n_trials = 0
+    while n_trials < max_trials:
+# angles for molecule rotation        
+        theta = 2*math.pi*random.random()
+        phi = math.pi*random.random()
+        psi = 2*math.pi*random.random()      
+# spherical coordinates of new center of mass        
+        theta1 = 2*math.pi*random.random()
+        phi1 = math.pi*random.random()
+        rho = DMin + (DMax - DMin) * random.random()
+        x = rho * math.sin(phi1) * math.cos(theta1)
+        y = rho * math.sin(phi1) * math.sin(theta1)
+        z = rho * math.cos(phi1)
+        new_center = Point(x, y, z)
+        molecule_rotated = rotate_molecule_angles(prototype, theta, phi, psi, AngleType='Radian')
+        molecule = translate_molecule_to_new_center(molecule_rotated, new_center)
+        if check_new_molecule2(prototype, molecule, additional_gap=0):
+            return molecule
+        n_trials += 1
+    print('Unable to generate molecule with provided configuration')
+    return None
+   
+def check_new_molecule2(molecules, molecule, additional_gap=0):
+    if type(molecules) is not list:
+        molecules = [molecules]
+    for j in molecules:
+        for k in j.Atoms:
+            x1 = k.x
+            y1 = k.y
+            z1 = k.z
+            r1 = k.Atom.Radius
+            for l in molecule.Atoms:
+                x2 = l.x
+                y2 = l.y
+                z2 = l.z
+                r2 = l.Atom.Radius
+                critical_distance = r1 + r2 + additional_gap
+                distance = float(np.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2))
+                if (distance < critical_distance):
+                    return False
+    return True
+
+def check_new_molecule(molecules, molecule, additional_gap=0):
+    if type(molecules) is not list:
+        molecules = [molecules]
     Good = True
     for j in molecules:
         for k in j.Atoms:
@@ -723,7 +772,7 @@ def generate_molecule_coordinates_list(prototype, nMolecules=2, nRecords=100,\
                 new_molecule = generate_random_molecule(prototype, SphereRadius=SphereRadius, max_trials=max_gen_trials)
                 if type(new_molecule) is int:
                     return -1
-                molecules = check_new_molecule(molecules, new_molecule, SphereRadius=SphereRadius, additional_gap=additional_gap)
+                molecules = check_new_molecule(molecules, new_molecule, additional_gap=additional_gap)
                 n_inner_trials += 1
             n_outer_trials += 1
         if len(molecules) < nMolecules:
