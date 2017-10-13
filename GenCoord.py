@@ -21,7 +21,7 @@ RandomSeed = None # if none use seed()
 DMin = 2.0 # minimal distance between center of mass of 2 water
 DMax = 15.0 # max distance between center of mass of 2 water
 Inc = 0.2 # length of interval
-nRecords_per_interval = 100 # number of records per interval
+nRecords_per_interval = 1 # number of records per interval
 MoleculeName = 'Water' # name of molecule in prototype
 
 # read molecules from descriptor file
@@ -72,23 +72,7 @@ for i in range(0, len(Records), 1):
     for j in Records[i].Molecules:
         for k in j.Atoms:
             S = k.Atom.Symbol
-            space = ''
-            x = str(round(k.x, 10))
-            x1 = x.split('.')
-            if len(x1[1]) < 10:
-                x = x1[0] + '.' + x1[1].ljust(11-len(x1[1]), '0')
-            space1 = space.ljust(20-len(x), ' ')
-            y = str(round(k.y, 10))
-            y1 = y.split('.')
-            if len(y1[1]) < 10:
-                y = y1[0] + '.' + y1[1].ljust(11-len(y1[1]), '0')            
-            space2 = space.ljust(20-len(y), ' ')
-            z = str(round(k.z, 10))
-            z1 = z.split('.')
-            if len(z1[1]) < 10:
-                z = z1[0] + '.' + z1[1].ljust(11-len(z1[1]), '0')            
-            space3 = space.ljust(20-len(z), ' ')
-            line = '  ' + S + space1 + x + space2 + y + space3 + z + '\n'
+            line = "%3s%20.10f%20.10f%20.10f\n" % (S,k.x,k.y,k.z)
             record.append(line)
     record.append('$end\n')
     CurentDir = str(i)
