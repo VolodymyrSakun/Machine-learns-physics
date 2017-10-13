@@ -5,19 +5,16 @@
 1,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,0.75799214458286,0
 2,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,-0.75799214458286,0
 &endMolecule
-&Molecule=Carbon Dioxide
-0,Symbol=C,Bond=1,2,Mass=12.011,Radius=0.7,Coordinates:0,0,0
-1,Symbol=O,Bond=0,Mass=15.999,Radius=0.6,Coordinates:1.16,0,0
-2,Symbol=O,Bond=0,Mass=15.999,Radius=0.6,Coordinates:-1.16,0,0
+&Molecule=Water
+# Atom's index, Atom's symbol, Bonds (atom's indices), Mass, Atomic radius, coordinates: x, y, z
+3,Symbol=O,Bond=4,5,Mass=15.999,Radius=0.6,Coordinates:0,0,0
+4,Symbol=H,Bond=3,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,0.75799214458286,0
+5,Symbol=H,Bond=3,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,-0.75799214458286,0
 &endMolecule
-&Molecule=Ethane
-0,Symbol=C1,Bond=1,2,3,4,Mass=12.011,Radius=0.7,Coordinates:0,0,0.7680
-1,Symbol=C2,Bond=0,5,6,7,Mass=12.011,Radius=0.7,Coordinates:0,0,-0.7680
-2,Symbol=H1,Bond=0,Mass=1.008,Radius=0.25,Coordinates:-1.0192,0,1.1573
-3,Symbol=H1,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.5096,0.8826,1.1573
-4,Symbol=H1,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.5096,-0.8826,1.1573
-5,Symbol=H2,Bond=1,Mass=1.008,Radius=0.25,Coordinates:1.0192,0,-1.1573
-6,Symbol=H2,Bond=1,Mass=1.008,Radius=0.25,Coordinates:-0.5096,-0.8826,-1.1573
-7,Symbol=H2,Bond=1,Mass=1.008,Radius=0.25,Coordinates:-0.5096,0.8826,-1.1573
-&endMolecule
+#&Molecule=Water
+# Atom's index, Atom's symbol, Bonds (atom's indices), Mass, Atomic radius, coordinates: x, y, z
+#6,Symbol=O,Bond=7,8,Mass=15.999,Radius=0.6,Coordinates:0,0,0
+#7,Symbol=H,Bond=6,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,0.75799214458286,0
+#8,Symbol=H,Bond=6,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,-0.75799214458286,0
+#&endMolecule
 &endMoleculeDescription
