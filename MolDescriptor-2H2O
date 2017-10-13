@@ -1,0 +1,14 @@
+&MoleculeDescription
+&Molecule=Water
+# Atom's index, Atom's symbol, Bonds (atom's indices), Mass, Atomic radius, coordinates: x, y, z
+0,Symbol=O,Bond=1,2,Mass=15.999,Radius=0.6,Coordinates:-0.0000873528,-0.1208401737,0.0000000000
+1,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:-0.7587069339,0.4698061124,0.0000000000
+2,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.7574519660,0.4712133279,0.0000000000
+&endMolecule
+&Molecule=Water
+# Atom's index, Atom's symbol, Bonds (atom's indices), Mass, Atomic radius, coordinates: x, y, z
+3,Symbol=O,Bond=4,5,Mass=15.999,Radius=0.6,Coordinates:-0.0000873528,-0.1208401737,0.0000000000
+4,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:-0.7587069339,0.4698061124,0.0000000000
+5,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:0.7574519660,0.4712133279,0.0000000000
+&endMolecule
+&endMoleculeDescription
