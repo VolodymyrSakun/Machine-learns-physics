@@ -2,7 +2,9 @@
 
 * Data files:
 
-SystemDescriptor - descriptor for Generate harmonic features (MP).py
+SystemDescriptor - description of system
+
+MoleculeDescriptor - description of molecules in system
 
 datafile1 from github gaussian process.x (from quantum mechanics)
 
@@ -16,38 +18,20 @@ datafile5.x (three water molecules huge)
 
 * Libraries:
 
-class2.py - mostly structures that describe system
+regression.py - objects for linear and non-linear fit
 
-library2.py - functions for working with features
+library.py - functions for working with features
 
 genetic.py - functions that are used for genetic algorithm
 
 spherical.py - functions that sre used for constructing spherical harmonics features
 
-* Programs that generate data:
+IOfunctions.py - Input / output functions
 
-Geneerate random coordinates for N water molecules.py
+1. Filter data.py - Prepares data for feature generation using filters
 
-Generate random coordinates H2O CH4 CO2.py
+2. Generate features.py - Generates linear and exponential features for fitting
 
-* Programs that genarate features:
+3. Fit.py - Fits the dataset, stores results and model and plots fitting path
 
-Generate harmonic features.py - generates single, double and harmonic features
-
-Generate harmonic features MP.py - same but uses multiprocessing
-
-* Feature selection / elimination algorithms:
-
-Abbreviation:
-
-MP - code uses multiprocessing and run functions in parallel using 100% of CPU
-
-ENet - Elastic Net algorithm from sklearn
-
-GA - Genetic algorithm (structure.genetic)
-
-BS - Backward sequential selection (elimination) algorithm (structure.library2)
-
-FS - Forward sequential selection algorithm (structure.library2)
-
-BF - Best Fit algorithm (structure.library2)
+4. Final Plot.py - Plots additional graphs
