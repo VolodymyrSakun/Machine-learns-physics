@@ -14,25 +14,24 @@ import shutil
 
 # Global variables
 MoleculePrototype = 'MoleculesDescriptor.'
-FileName = 'molecule.init'
-ParentDir = '2 Water'
-SubDirStartWith = 'Water '
+FileName = 'molecule.init' # file name
+ParentDir = '2 Water' # main folder
+SubDirStartWith = 'Water ' # subdirectories start with
 RandomSeed = None # if none use seed()
-DMin = 2.0
-DMax = 15.0
-Inc = 0.1
-nRecords_per_interval = 100 # number of records
-MoleculeName = 'Water'
+DMin = 2.0 # minimal distance between center of mass of 2 water
+DMax = 15.0 # max distance between center of mass of 2 water
+Inc = 0.1 # length of interval
+nRecords_per_interval = 100 # number of records per interval
+MoleculeName = 'Water' # name of molecule in prototype
 
 # read molecules from descriptor file
-# Molecules = spherical.ReadMolecules(F='MoleculesDescriptor.')  
 Prototypes = IOfunctions.ReadMoleculeDescription(F=MoleculePrototype) 
 # align molecules that its center of mass it in 0,0,0 and principal axis aligned along x, y, z
 for molecule in Prototypes:
     if molecule.Name == MoleculeName:
         prototype = copy.deepcopy(molecule)
         break
-
+# Create intervals
 Intervals = []
 i = DMin
 while i+Inc <= DMax:
@@ -43,7 +42,7 @@ if RandomSeed is not None:
     random.seed(RandomSeed)
 else:
     random.seed()
-   
+# Generate records
 Records = []
 for interval in Intervals:
     for i in range(0, nRecords_per_interval, 1):
@@ -63,7 +62,7 @@ InitialDir = os.getcwd()
 if os.path.exists(InitialDir + '\\' + ParentDir):
     shutil.rmtree(InitialDir + '\\' + ParentDir)
 os.mkdir(InitialDir + '\\' + ParentDir)
-
+# Store records in files
 records = []
 for i in range(0, len(Records), 1):
     record = []
