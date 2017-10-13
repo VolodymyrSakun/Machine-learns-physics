@@ -53,7 +53,7 @@ import random
 from project1 import structure
 from project1 import library
 from project1 import spherical
-from project1.genetic import GA
+from project1 import genetic
 from project1 import regression
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
@@ -1871,7 +1871,7 @@ def FilterData(F, TrainIntervals, GridStart = 0.0, GridEnd = 20.0, GridSpacing=0
     F_Test = 'Test Set.x'
     F_Filter = 'Filter.dat'
     MoleculePrototypes = IOfunctions.ReadMoleculeDescription(F=F_MoleculesDescriptor)
-    RandomSeed = 101
+    RandomSeed = None
     if RandomSeed is not None:
         random.seed(RandomSeed)
     else:
@@ -1898,14 +1898,16 @@ def FilterData(F, TrainIntervals, GridStart = 0.0, GridEnd = 20.0, GridSpacing=0
             if record.R_Average < DMin:
                 DMin = record.R_Average
             j = int(record.R_Average / GridSpacing)
-            N[j] += 1
+            if j < len(N):
+                N[j] += 1
         else:
             if record.R_CenterOfMass_Average > DMax:
                 DMax = record.R_CenterOfMass_Average
             if record.R_CenterOfMass_Average < DMin:
                 DMin = record.R_CenterOfMass_Average
-            j = int(record.R_Average / GridSpacing)
-            N[j] += 1
+            j = int(record.R_CenterOfMass_Average / GridSpacing)
+            if j < len(N):
+                N[j] += 1
 # Estimate number of points per grid
     n = np.asarray(N.nonzero()).reshape(-1) # indices with nonzero records nonzero   
     nGrids = int(len(n) * ConfidenceInterval)
@@ -2716,12 +2718,13 @@ def GenerateFeatures():
         except:
             pass
             
-def GetFit():
+def GetFit(nVarMin=5, nVarMax=15, UseVIP=False):
 # Global variables
-    DesiredNumberVariables = 15
+    DesiredNumberVariables = nVarMax # greatest chromosome
+    MinSize = nVarMin # smallest chromosome size
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
-    UseVIP = False # if true fit will be found in two steps. First step - fit only
+    UseVIP = UseVIP # if true fit will be found in two steps. First step - fit only
     # single distances, select most important (VIP) features which will be kept
 # Elastic net parameters    
     L1_Single = 0.7
@@ -2851,7 +2854,7 @@ def GetFit():
                     Single_X_test[:, j] = X_test_lin[:, i]
                 j += 1
         t = time.time()       
-        ga = GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
+        ga = genetic.GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
             MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
             EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
             CrossoverFractionInterval=CrossoverFractionInterval, IterationPerRecord=IterationPerRecord,\
@@ -2880,7 +2883,7 @@ def GetFit():
             idx = enet.idx
             Gene_list = []
             for i in idx:
-                Gene_list.append(GA.Gene(i, Type=0))
+                Gene_list.append(genetic.GA.Gene(i, Type=0))
             chromosome = ga.Chromosome(Gene_list)
             chromosome.erase_score()
             # chromosome contains only linear indices
@@ -2951,7 +2954,7 @@ def GetFit():
 
 # proceed all features 
     t = time.time()       
-    ga = GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
+    ga = genetic.GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
         MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
         EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
         CrossoverFractionInterval=CrossoverFractionInterval, IterationPerRecord=IterationPerRecord,\
@@ -2980,7 +2983,7 @@ def GetFit():
         idx = enet.idx
         Gene_list = []
         for i in idx:
-            Gene_list.append(GA.Gene(i, Type=0))
+            Gene_list.append(genetic.GA.Gene(i, Type=0))
         chromosome = ga.Chromosome(Gene_list)
         chromosome.erase_score()
         # chromosome contains only linear indices
@@ -3010,7 +3013,7 @@ def GetFit():
               chromosome.Size)
         ga.PlotChromosomes(2, ga.BestChromosomes, XAxis='time', YAxis='R2 Train',\
             PlotType='Scatter', F=F_GA)
-    while chromosome.Size > 1:
+    while chromosome.Size >= MinSize:
         if chromosome.Size <= ga.ChromosomeSize:
             chromosome = ga.BestFit(chromosome, x_nonlin=X_train_nonlin, x_lin=X_train_lin,\
                 y=Y_train, verbose=True)
@@ -3045,10 +3048,10 @@ def GetFit():
     X_test_nonlin = FilterResults['X Nonlinear Test']
     Y_train = FilterResults['Response Train']
     kernel = RBF(length_scale=2.2, length_scale_bounds=(1e-02, 1.0)) + WhiteKernel(0.0005)
-    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer=None,\
-        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)    
-#    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer='fmin_l_bfgs_b',\
-#        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+#    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer=None,\
+#        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)    
+    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer='fmin_l_bfgs_b',\
+        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
     gp.fit(X_train_nonlin, Y_train) # set from distances  
     
     f = open(F_ga_structure, "wb") # save GA structure

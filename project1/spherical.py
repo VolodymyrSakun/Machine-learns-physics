@@ -671,8 +671,6 @@ def generate_random_molecule(prototype, SphereRadius=10, max_trials=100):
 def generate_random_molecules2(prototype, DMin=0, DMax=10, max_trials=100):
 # molecule prototype must be aligned by function align_molecule
 # generates one molecule that has center of mass farther than DMin and closer than DMax from COM of prototype
-    Molecule_list = []
-    Molecule_list.append(prototype)
     n_trials = 0
     while n_trials < max_trials:
 # angles for molecule rotation        
@@ -692,7 +690,7 @@ def generate_random_molecules2(prototype, DMin=0, DMax=10, max_trials=100):
         if check_new_molecule2(prototype, molecule, additional_gap=0):
             return molecule
         n_trials += 1
-    print('Unable to generate molecule with provided configuration')
+    print('Cannot generate', prototype.Name, 'in interval [', DMin, '..', DMax, ']')
     return None
    
 def check_new_molecule2(molecules, molecule, additional_gap=0):
