@@ -1,0 +1,106 @@
+# generates coordinates for 2 water molecules
+# First molecule is prototype aligned at 0,0,0
+# Requires prototype MoleculesDescriptor.
+
+from project1 import spherical
+import random
+from project1 import IOfunctions
+from project1 import structure
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import copy
+import os
+import shutil
+
+# Global variables
+MoleculePrototype = 'MoleculesDescriptor.'
+FileName = 'molecule.init'
+ParentDir = '2 Water'
+SubDirStartWith = 'Water '
+RandomSeed = None # if none use seed()
+DMin = 2.0
+DMax = 15.0
+Inc = 0.1
+nRecords_per_interval = 100 # number of records
+MoleculeName = 'Water'
+
+# read molecules from descriptor file
+# Molecules = spherical.ReadMolecules(F='MoleculesDescriptor.')  
+Prototypes = IOfunctions.ReadMoleculeDescription(F=MoleculePrototype) 
+# align molecules that its center of mass it in 0,0,0 and principal axis aligned along x, y, z
+for molecule in Prototypes:
+    if molecule.Name == MoleculeName:
+        prototype = copy.deepcopy(molecule)
+        break
+
+Intervals = []
+i = DMin
+while i+Inc <= DMax:
+    Intervals.append((round(i,2), round(i+Inc,2)))
+    i += Inc
+    
+if RandomSeed is not None:
+    random.seed(RandomSeed)
+else:
+    random.seed()
+   
+Records = []
+for interval in Intervals:
+    for i in range(0, nRecords_per_interval, 1):
+        molecule = spherical.generate_random_molecules2(prototype, DMin=interval[0], DMax=interval[1], max_trials=1000)
+        if molecule is None:
+            break
+        else:
+            Molecules = [prototype, molecule]
+            rec = structure.Rec(Molecules)
+            Records.append(rec)
+
+print('Number of records =', len(Records))
+print('Records per interval =', nRecords_per_interval)
+print('Intervals: ', Intervals)
+
+InitialDir = os.getcwd()
+if os.path.exists(InitialDir + '\\' + ParentDir):
+    shutil.rmtree(InitialDir + '\\' + ParentDir)
+os.mkdir(InitialDir + '\\' + ParentDir)
+
+records = []
+for i in range(0, len(Records), 1):
+    record = []
+    record.append('$molecule\n')
+    record.append('0 1\n')
+    for j in Records[i].Molecules:
+        for k in j.Atoms:
+            S = k.Atom.Symbol
+            space = ''
+            x = str(round(k.x, 10))
+            x1 = x.split('.')
+            if len(x1[1]) < 10:
+                x = x1[0] + '.' + x1[1].ljust(11-len(x1[1]), '0')
+            space1 = space.ljust(20-len(x), ' ')
+            y = str(round(k.y, 10))
+            y1 = y.split('.')
+            if len(y1[1]) < 10:
+                y = y1[0] + '.' + y1[1].ljust(11-len(y1[1]), '0')            
+            space2 = space.ljust(20-len(y), ' ')
+            z = str(round(k.z, 10))
+            z1 = z.split('.')
+            if len(z1[1]) < 10:
+                z = z1[0] + '.' + z1[1].ljust(11-len(z1[1]), '0')            
+            space3 = space.ljust(20-len(z), ' ')
+            line = '  ' + S + space1 + x + space2 + y + space3 + z + '\n'
+            record.append(line)
+    record.append('$end\n')
+    CurentDir = str(i)
+    CurentDir = CurentDir.zfill(10)
+    DirName = SubDirStartWith + CurentDir
+    
+    os.mkdir(InitialDir + '\\' + ParentDir + '\\' + DirName)
+    os.chdir(InitialDir + '\\' + ParentDir + '\\' + DirName)
+    f = open(FileName, "w")
+    f.writelines(record)
+    f.close()   
+    os.chdir('..\\')
+    
+os.chdir(InitialDir)
+print("DONE")
