@@ -21,7 +21,7 @@ RandomSeed = None # if none use seed()
 DMin = 2.0 # minimal distance between center of mass of 2 water
 DMax = 15.0 # max distance between center of mass of 2 water
 Inc = 0.2 # length of interval
-nRecords_per_interval = 1 # number of records per interval
+nRecords_per_interval = 100 # number of records per interval
 MoleculeName = 'Water' # name of molecule in prototype
 
 # read molecules from descriptor file

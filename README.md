@@ -16,6 +16,8 @@ datafile4.x (three water molecules small)
 
 datafile5.x (three water molecules huge)
 
+datafile6.x (two water molecules, random rotations, 6500 points, MP2)
+
 * Libraries:
 
 regression.py - objects for linear and non-linear fit
