@@ -2782,8 +2782,8 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False):
     
     FilterResults = IOfunctions.ReadFeatures(\
         F_Nonlinear_Train='Distances Train.csv', F_Nonlinear_Test='Distances Test.csv', F_linear_Train='LinearFeaturesTrain.csv',\
-        F_Response_Train='ResponseTrain.csv', F_linear_Test=None,\
-        F_Response_Test=None, F_NonlinearFeatures = 'NonlinearFeatures.dat',\
+        F_Response_Train='ResponseTrain.csv', F_linear_Test='LinearFeaturesTest.csv',\
+        F_Response_Test='ResponseTest.csv', F_NonlinearFeatures = 'NonlinearFeatures.dat',\
         F_FeaturesAll='LinearFeaturesAll.dat', F_FeaturesReduced='LinearFeaturesReduced.dat',\
         F_System='system.dat', F_Records=None, verbose=False)    
     X_train_nonlin = FilterResults['X Nonlinear Train']
@@ -3047,12 +3047,70 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False):
     X_train_nonlin = FilterResults['X Nonlinear Train']
     X_test_nonlin = FilterResults['X Nonlinear Test']
     Y_train = FilterResults['Response Train']
-    kernel = RBF(length_scale=2.2, length_scale_bounds=(1e-02, 1.0)) + WhiteKernel(0.0005)
+    Y_test = FilterResults['Response Test']
+    
+    gpR2_list = [] 
+    gr = np.linspace(1, 20, 20)
+    idx = []
+    for i in gr:
+        kernel = RBF(length_scale=i, length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
+        gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+            n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+        gp.fit(X_train_nonlin, Y_train) # set from distances
+        gpR2 = gp.score(X_test_nonlin, Y_test)
+        print(i, '  ', gpR2)
+        gpR2_list.append(gpR2)
+        idx.append(i)
+    index = np.argmax(gpR2_list)
+    print('length_scale ', idx[index])
+    print('R2 ', gpR2_list[index])
+
+    gpR2_list = [] 
+    gr = np.linspace(idx[index]-1, idx[index]+1, 21)
+    idx = []
+    for i in gr:
+        kernel = RBF(length_scale=i, length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
+        gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+            n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+        gp.fit(X_train_nonlin, Y_train) # set from distances
+        gpR2 = gp.score(X_test_nonlin, Y_test)
+        print(i, '  ', gpR2)
+        gpR2_list.append(gpR2)
+        idx.append(i)
+    index = np.argmax(gpR2_list)
+    print('length_scale ', idx[index])
+    print('R2 ', gpR2_list[index])
+
+    gpR2_list = [] 
+    gr = np.linspace(idx[index]-0.1, idx[index]+0.1, 21)
+    idx = []
+    for i in gr:
+        kernel = RBF(length_scale=i, length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
+        gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+            n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+        gp.fit(X_train_nonlin, Y_train) # set from distances
+        gpR2 = gp.score(X_test_nonlin, Y_test)
+        print(i, '  ', gpR2)
+        gpR2_list.append(gpR2)
+        idx.append(i)
+    index = np.argmax(gpR2_list)
+    print('length_scale ', idx[index])
+    print('R2 ', gpR2_list[index])
+    
+    kernel = RBF(length_scale=idx[index], length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
+    gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+    gp.fit(X_train_nonlin, Y_train) # set from distances
+    gpR2 = gp.score(X_test_nonlin, Y_test)
+    print(gpR2)
+    
+    
+#    kernel = RBF(length_scale=2.2, length_scale_bounds=(1e-02, 1.0)) + WhiteKernel(0.0005)
 #    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer=None,\
 #        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)    
-    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer='fmin_l_bfgs_b',\
-        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
-    gp.fit(X_train_nonlin, Y_train) # set from distances  
+#    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer='fmin_l_bfgs_b',\
+#        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+#    gp.fit(X_train_nonlin, Y_train) # set from distances  
     
     f = open(F_ga_structure, "wb") # save GA structure
     pickle.dump(ga, f, pickle.HIGHEST_PROTOCOL)

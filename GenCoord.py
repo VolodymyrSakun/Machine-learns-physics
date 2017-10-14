@@ -6,8 +6,6 @@ from project1 import spherical
 import random
 from project1 import IOfunctions
 from project1 import structure
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import copy
 import os
 import shutil
@@ -21,7 +19,7 @@ RandomSeed = None # if none use seed()
 DMin = 2.0 # minimal distance between center of mass of 2 water
 DMax = 15.0 # max distance between center of mass of 2 water
 Inc = 0.2 # length of interval
-nRecords_per_interval = 100 # number of records per interval
+nRecords_per_interval = 10 # number of records per interval
 MoleculeName = 'Water' # name of molecule in prototype
 
 # read molecules from descriptor file
@@ -31,6 +29,8 @@ for molecule in Prototypes:
     if molecule.Name == MoleculeName:
         prototype = copy.deepcopy(molecule)
         break
+# place prototypes center of mass at 0,0,0
+prototype = spherical.align_molecule(prototype)
 # Create intervals
 Intervals = []
 i = DMin
@@ -43,6 +43,7 @@ if RandomSeed is not None:
 else:
     random.seed()
 # Generate records
+
 Records = []
 for interval in Intervals:
     for i in range(0, nRecords_per_interval, 1):
