@@ -9,12 +9,12 @@ import sklearn.metrics as skm
 
 if __name__ == '__main__':
     initial_directory = os.getcwd()
-    F = 'SET 3.x'
-    TrainIntervals = [(0, 5), (7, 9)] # (Low, High)   
-    GridStart = 0.0
-    GridEnd = 14.0
+    F_Set = 'SET 6.x'
+    TrainIntervals = [(2.4, 15)] # (Low, High)   
+    GridStart = 2.4
+    GridEnd = 15 # for set 3 use 14, for set 1 use 7.4
     GridSpacing = 0.2
-    ConfidenceInterval = 0.9
+    ConfidenceInterval = 1 # for set 1 use 0.85; set 3 use 0.9
     TestFraction = 0.2
     TrainFraction = 0.1
     F_MoleculesDescriptor = 'MoleculesDescriptor.'
@@ -24,16 +24,22 @@ if __name__ == '__main__':
     F_Filter = 'Filter.dat' 
 # Get fit for all data    
     while TrainFraction <= 1: 
-        results = library.FilterData(F, TrainIntervals, GridStart, GridEnd, GridSpacing,\
+        results = library.FilterData(F_Set, TrainIntervals, GridStart, GridEnd, GridSpacing,\
             ConfidenceInterval, TestFraction, TrainFraction)
         library.GenerateFeatures()
-        library.GetFit()
+        library.GetFit(nVarMin=5, nVarMax=15, UseVIP=False, UseCorrelationBestFit=False, StopTime=600, nIter=600)
         TrainFraction += 0.1  
 # Prepare for plot
-    SetName = F
+    SetName = F_Set
     SetName = SetName.split(".")
     directory = SetName[0] # directory name
     subdirectory_list = os.listdir(directory) 
+    i = 0
+    while i < len(subdirectory_list):
+        if not os.path.isdir(directory + '\\' + subdirectory_list[i]):
+            del(subdirectory_list[i])
+        else:
+            i += 1
     os.chdir(directory) # make current directory 
     parent_directory = os.getcwd() # store it
     f = open(subdirectory_list[0] + '\\' + F_ga_structure, "rb")
@@ -50,7 +56,7 @@ if __name__ == '__main__':
     chromosome_size_list = []
     o = 0
     for subdirectory in subdirectory_list:     
-        if not os.path.exists(subdirectory):
+        if not os.path.isdir(subdirectory):
             continue
         x = subdirectory.split('%')
         x = float(x[0])
@@ -138,12 +144,13 @@ if __name__ == '__main__':
                 RecordsTest[i].get_energy(chromosome, FeaturesAll, FeaturesReduced)# predict LP energy
                 energy[i] = RecordsTest[i].E_Predicted
                 j = library.InInterval(Criterion, GridTest) # grid index
-                mSE[j] += RecordsTest[i].MSE
-                E_True[j] += Y_test[i]
-                E_Predicted[j] += RecordsTest[i].E_Predicted
-                mSE_gp[j] += (y_pred[i] - Y_test[i])**2
-                E_Predicted_gp[j] += y_pred[i]
-                n[j] += 1
+                if j != -10:
+                    mSE[j] += RecordsTest[i].MSE
+                    E_True[j] += Y_test[i]
+                    E_Predicted[j] += RecordsTest[i].E_Predicted
+                    mSE_gp[j] += (y_pred[i] - Y_test[i])**2
+                    E_Predicted_gp[j] += y_pred[i]
+                    n[j] += 1
                 
             Y3PlotLP_RMSE[m, o] = np.sqrt(skm.mean_squared_error(energy, Y_test))
             Y3PlotLP_R2[m, o] = skm.r2_score(Y_test, energy)
@@ -167,7 +174,7 @@ if __name__ == '__main__':
             rMSE_gp_Plot_Test = []
             E_Predicted_gp_Plot_Test = []
             for i in range(0, len(XPlot), 1):
-                if library.InInterval(XPlot[i], TrainIntervals) != -1: # plot as trained points
+                if library.InInterval(XPlot[i], TrainIntervals) != -10: # plot as trained points
                     X_Plot_Train.append(XPlot[i])
                     rMSE_Plot_Train.append(rMSE[i])
                     rMSE_gp_Plot_Train.append(rMSE_gp[i])

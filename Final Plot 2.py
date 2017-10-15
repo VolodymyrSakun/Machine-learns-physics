@@ -4,15 +4,16 @@ import numpy as np
 import pickle 
 import matplotlib.pyplot as plt
 from sklearn.gaussian_process import GaussianProcessRegressor
-#from sklearn.gaussian_process import GaussianProcess
+from sklearn.gaussian_process import GaussianProcess
 #from project1 import GP
 #import sklearn.metrics as skm
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process.kernels import WhiteKernel
 #from sklearn.gaussian_process.kernels import ExpSineSquared
-#from sklearn.gaussian_process.kernels import RationalQuadratic
-#from sklearn.gaussian_process.kernels import Matern
-
+from sklearn.gaussian_process.kernels import RationalQuadratic
+from sklearn.gaussian_process.kernels import Matern
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 
 if __name__ == '__main__':
     F_MoleculesDescriptor = 'MoleculesDescriptor.'
@@ -45,11 +46,14 @@ if __name__ == '__main__':
     FeaturesAll = results['Linear Features All']
     FeaturesReduced = results['Linear Features Reduced']
     Y_train = results['Response Train'] # for Gaussian fit
+    Y_train = Y_train.reshape(-1)
     X_test = results['X Linear Test']
     Y_test = results['Response Test']
     Y_test = Y_test.reshape(-1)
     X_dist_train = results['X Nonlinear Train']
+#    X_dist_train = X_dist_train[:, [2,3,4,6,7,8,9,10,11]]
     X_dist_test = results['X Nonlinear Test']
+#    X_dist_test = X_dist_test[:, [2,3,4,6,7,8,9,10,11]]
     MoleculePrototypes = IOfunctions.ReadMoleculeDescription(F=F_MoleculesDescriptor)
     RecordsTest = IOfunctions.ReadRecords(F_Test, MoleculePrototypes)
     if RecordsTest[0].nMolecules == 2:
@@ -59,17 +63,47 @@ if __name__ == '__main__':
 
     print('Gaussian started')
     
-    kernel = RBF(length_scale=2.2, length_scale_bounds=(1e-02, 1.0)) + WhiteKernel(0.0005)# + RationalQuadratic(length_scale=1.2, alpha=0.78)
-#    kernel = Matern(length_scale=10, length_scale_bounds=(1e-05, 10000.0), nu=1.5) + WhiteKernel(0.0005)# + RationalQuadratic(length_scale=1.2, alpha=0.78)
-    
-    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer=None,\
-        n_restarts_optimizer=0, normalize_y=False, copy_X_train=True, random_state=None)
-#    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer='fmin_l_bfgs_b',\
-#        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+    Start = 0.01
+    End = 4
+    Len = 4
+    k = 0
+    while k < 5:
+        print('Start = ', Start)
+        print('End = ', End)
+        gpR2_list = [] 
+        gr = np.linspace(Start, End, Len)
+        idx = []
+        for i in gr:
+            kernel = RBF(length_scale=i, length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
+            gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+                n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+            gp.fit(X_dist_train, Y_train) # set from distances
+            gpR2 = gp.score(X_dist_test, Y_test)
+            print(i, '  ', gpR2)
+            gpR2_list.append(gpR2)
+            idx.append(i)
+        index = np.argmax(gpR2_list)
+        print('Index = ', index)
+        print('length_scale ', idx[index])
+        print('R2 ', gpR2_list[index])
+        if index == 0:
+            Start = idx[0]
+        else:
+            Start = idx[index-1]
+        if index == (Len-1):
+            End = idx[index]
+        else:
+            End = idx[index+1]
+        k += 1
+        
+    kernel = RBF(length_scale=idx[index], length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
+    gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
     gp.fit(X_dist_train, Y_train) # set from distances
     y_pred = gp.predict(X_dist_test)
     gpR2 = gp.score(X_dist_test, Y_test)
     print(gpR2)
+    
     RMax = GridTest[-1][1]
     RMin = GridTest[0][0] 
     nIntervals = len(GridTest)
@@ -98,13 +132,14 @@ if __name__ == '__main__':
                 print('Wrong argument')
                 break
             RecordsTest[i].get_energy(chromosome, FeaturesAll, FeaturesReduced)# predict LP energy
-            j = library.InInterval(Criterion, GridTest) # grid index
-            mSE[j] += RecordsTest[i].MSE
-            E_True[j] += Y_test[i]
-            E_Predicted[j] += RecordsTest[i].E_Predicted
-            mSE_gp[j] += (y_pred[i] - Y_test[i])**2
-            E_Predicted_gp[j] += y_pred[i]
-            n[j] += 1
+            j = library.InInterval(Criterion, GridTest) # grid index, return -10 if not in any region
+            if j != -10:
+                mSE[j] += RecordsTest[i].MSE
+                E_True[j] += Y_test[i]
+                E_Predicted[j] += RecordsTest[i].E_Predicted
+                mSE_gp[j] += (y_pred[i] - Y_test[i])**2
+                E_Predicted_gp[j] += y_pred[i]
+                n[j] += 1
         
         for j in range(0, len(n), 1):
             rMSE[j] = np.sqrt(mSE[j] / n[j])
@@ -128,7 +163,7 @@ if __name__ == '__main__':
         rMSE_gp_Plot_Test = []
         E_Predicted_gp_Plot_Test = []
         for i in range(0, len(XPlot), 1):
-            if library.InInterval(XPlot[i], TrainIntervals) != -1: # plot as trained points
+            if library.InInterval(XPlot[i], TrainIntervals) != -10: # plot as trained points
                 X_Plot_Train.append(XPlot[i])
                 rMSE_Plot_Train.append(rMSE[i])
                 rMSE_gp_Plot_Train.append(rMSE_gp[i])

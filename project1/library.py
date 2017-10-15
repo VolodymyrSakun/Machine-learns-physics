@@ -112,11 +112,11 @@ def Scaler_L2(X):
 
 def InInterval(n, List):
     if List is None:
-        return -1
+        return -10
     for i in range(0, len(List), 1):
         if (n >= List[i][0]) and (n <= List[i][1]):
             return i
-    return -1 # not in region
+    return -10 # not in region
 
 def BackwardElimination(X_train, Y_train, X_test, Y_test, FeaturesAll, \
     FeaturesReduced, Method='fast', Criterion='p-Value', N_of_features_to_select=20, \
@@ -1897,17 +1897,19 @@ def FilterData(F, TrainIntervals, GridStart = 0.0, GridEnd = 20.0, GridSpacing=0
                 DMax = record.R_Average
             if record.R_Average < DMin:
                 DMin = record.R_Average
-            j = int(record.R_Average / GridSpacing)
-            if j < len(N):
-                N[j] += 1
+            if record.R_Average >= GridStart:
+                j = int((record.R_Average - GridStart) / GridSpacing)
+                if j < len(N):
+                    N[j] += 1
         else:
             if record.R_CenterOfMass_Average > DMax:
                 DMax = record.R_CenterOfMass_Average
             if record.R_CenterOfMass_Average < DMin:
                 DMin = record.R_CenterOfMass_Average
-            j = int(record.R_CenterOfMass_Average / GridSpacing)
-            if j < len(N):
-                N[j] += 1
+            if record.R_CenterOfMass_Average >= GridStart:
+                j = int((record.R_CenterOfMass_Average - GridStart) / GridSpacing)
+                if j < len(N):
+                    N[j] += 1
 # Estimate number of points per grid
     n = np.asarray(N.nonzero()).reshape(-1) # indices with nonzero records nonzero   
     nGrids = int(len(n) * ConfidenceInterval)
@@ -1925,7 +1927,7 @@ def FilterData(F, TrainIntervals, GridStart = 0.0, GridEnd = 20.0, GridSpacing=0
     i = 0
     while i < len(N_list): # remove regions where there are not enough points
 # training region        
-        if (InInterval(GridTest[i][0], TrainIntervals) != -1) and (InInterval(GridTest[i][1], TrainIntervals) != -1):
+        if (InInterval(GridTest[i][0], TrainIntervals) != -10) and (InInterval(GridTest[i][1], TrainIntervals) != -10):
             if N_list[i] < nPointsGrid: # not enough points for training and test, discard
                 del(N_list[i])
                 del(NTrain[i])
@@ -1945,7 +1947,7 @@ def FilterData(F, TrainIntervals, GridStart = 0.0, GridEnd = 20.0, GridSpacing=0
                 i += 1
     i = 0 # remove remaining train grid that not in training region
     while i < len(GridTrain):
-        if (InInterval(GridTrain[i][0], TrainIntervals) != -1) and (InInterval(GridTrain[i][1], TrainIntervals) != -1):
+        if (InInterval(GridTrain[i][0], TrainIntervals) != -10) and (InInterval(GridTrain[i][1], TrainIntervals) != -10):
             i += 1
             continue
         else:
@@ -1962,20 +1964,22 @@ def FilterData(F, TrainIntervals, GridStart = 0.0, GridEnd = 20.0, GridSpacing=0
         else:
             d = record.R_CenterOfMass_Average
         j = InInterval(d, GridTrain) 
-        if j != -1: # in training region?
+        if j != -10: # in training region?
             if NTrain[j] < nTrainPointsGrid: # append to training set
                 NTrain[j] += 1
                 RecordsTrain.append(record)
             else:  # if it is full, append to test set
                 j = InInterval(d, GridTest) # which interval?
-                if NTest[j] < nTestPointsGrid: 
-                    NTest[j] += 1
-                    RecordsTest.append(record)              
+                if j != -10:
+                    if NTest[j] < nTestPointsGrid: 
+                        NTest[j] += 1
+                        RecordsTest.append(record)              
         else: # not training region
             j = InInterval(d, GridTest) # which interval?
-            if NTest[j] < nTestPointsGrid: # append to test set only
-                NTest[j] += 1
-                RecordsTest.append(record)
+            if j != -10:
+                if NTest[j] < nTestPointsGrid: # append to test set only
+                    NTest[j] += 1
+                    RecordsTest.append(record)
         del(Records[r]) 
 
     IOfunctions.store_records(F_Train, RecordsTrain) # store trained set
@@ -2718,7 +2722,7 @@ def GenerateFeatures():
         except:
             pass
             
-def GetFit(nVarMin=5, nVarMax=15, UseVIP=False):
+def GetFit(nVarMin=5, nVarMax=15, UseVIP=False, UseCorrelationBestFit=False, StopTime=600, nIter=500):
 # Global variables
     DesiredNumberVariables = nVarMax # greatest chromosome
     MinSize = nVarMin # smallest chromosome size
@@ -2739,7 +2743,7 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False):
 #    MaxBottom = 50 # integer - number of finished branches
     UseCorrelationMutation=True
     MinCorrMutation=0.8
-    UseCorrelationBestFit=False
+    UseCorrelationBestFit=UseCorrelationBestFit
     MinCorrBestFit=0.9
     
     # for Best Fit algorithm. If False, all features will be used in trials 
@@ -2768,9 +2772,9 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False):
     MutationCrossoverFraction = 0.3
     CrossoverFractionInterval = [0.6, 0.4] # how many genes will be taken from first and second best chromosomes (fraction)
     IterationPerRecord = 50 # Display results of current fit after N iterations
-    StopTime = 600 # How long in seconds GA works without improvement
-    nIter = 500 # How many populations will be used before GA stops
-    RandomSeed = 101
+    StopTime = StopTime # How long in seconds GA works without improvement
+    nIter = nIter # How many populations will be used before GA stops
+    RandomSeed = None
     LinearSolver = 'sklearn' # 'sklearn', 'scipy', 'statsmodels'
     cond=1e-03 # for scipy solver
     lapack_driver='gelsy' # 'gelsd', 'gelsy', 'gelss', for scipy solver
@@ -2779,6 +2783,11 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False):
     CrossoverMethod = 'Random' # 'Random' or 'Best'
     MutationMethod = 'Correlated' # 'Random' or 'Correlated'
     verbose = True
+# gaussian parameters    
+    GaussianPrecision = 10
+    Start = 0.01
+    End = 5
+    Len = 4
     
     FilterResults = IOfunctions.ReadFeatures(\
         F_Nonlinear_Train='Distances Train.csv', F_Nonlinear_Test='Distances Test.csv', F_linear_Train='LinearFeaturesTrain.csv',\
@@ -3049,68 +3058,43 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False):
     Y_train = FilterResults['Response Train']
     Y_test = FilterResults['Response Test']
     
-    gpR2_list = [] 
-    gr = np.linspace(1, 20, 20)
-    idx = []
-    for i in gr:
-        kernel = RBF(length_scale=i, length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
-        gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
-            n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
-        gp.fit(X_train_nonlin, Y_train) # set from distances
-        gpR2 = gp.score(X_test_nonlin, Y_test)
-        print(i, '  ', gpR2)
-        gpR2_list.append(gpR2)
-        idx.append(i)
-    index = np.argmax(gpR2_list)
-    print('length_scale ', idx[index])
-    print('R2 ', gpR2_list[index])
 
-    gpR2_list = [] 
-    gr = np.linspace(idx[index]-1, idx[index]+1, 21)
-    idx = []
-    for i in gr:
-        kernel = RBF(length_scale=i, length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
-        gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
-            n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
-        gp.fit(X_train_nonlin, Y_train) # set from distances
-        gpR2 = gp.score(X_test_nonlin, Y_test)
-        print(i, '  ', gpR2)
-        gpR2_list.append(gpR2)
-        idx.append(i)
-    index = np.argmax(gpR2_list)
-    print('length_scale ', idx[index])
-    print('R2 ', gpR2_list[index])
-
-    gpR2_list = [] 
-    gr = np.linspace(idx[index]-0.1, idx[index]+0.1, 21)
-    idx = []
-    for i in gr:
-        kernel = RBF(length_scale=i, length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
-        gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
-            n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
-        gp.fit(X_train_nonlin, Y_train) # set from distances
-        gpR2 = gp.score(X_test_nonlin, Y_test)
-        print(i, '  ', gpR2)
-        gpR2_list.append(gpR2)
-        idx.append(i)
-    index = np.argmax(gpR2_list)
-    print('length_scale ', idx[index])
-    print('R2 ', gpR2_list[index])
+    k = 0
+    while k < GaussianPrecision: # estimate best parameter for gaussian
+        print('Start = ', Start)
+        print('End = ', End)
+        gpR2_list = [] 
+        gr = np.linspace(Start, End, Len)
+        idx = []
+        for i in gr:
+            kernel = RBF(length_scale=i, length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
+            gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+                n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+            gp.fit(X_train_nonlin, Y_train) # set from distances
+            gpR2 = gp.score(X_test_nonlin, Y_test)
+            print(i, '  ', gpR2)
+            gpR2_list.append(gpR2)
+            idx.append(i)
+        index = np.argmax(gpR2_list)
+        print('Index = ', index)
+        print('length_scale ', idx[index])
+        print('R2 ', gpR2_list[index])
+        if index == 0:
+            Start = idx[0]
+        else:
+            Start = idx[index-1]
+        if index == (Len-1):
+            End = idx[index]
+        else:
+            End = idx[index+1]
+        k += 1
     
-    kernel = RBF(length_scale=idx[index], length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
+    kernel = RBF(length_scale=idx[index], length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))
     gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
         n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
     gp.fit(X_train_nonlin, Y_train) # set from distances
     gpR2 = gp.score(X_test_nonlin, Y_test)
     print(gpR2)
-    
-    
-#    kernel = RBF(length_scale=2.2, length_scale_bounds=(1e-02, 1.0)) + WhiteKernel(0.0005)
-#    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer=None,\
-#        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)    
-#    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-10, optimizer='fmin_l_bfgs_b',\
-#        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
-#    gp.fit(X_train_nonlin, Y_train) # set from distances  
     
     f = open(F_ga_structure, "wb") # save GA structure
     pickle.dump(ga, f, pickle.HIGHEST_PROTOCOL)

@@ -8,22 +8,22 @@ import copy
 
 if __name__ == '__main__':
 
-    F = 'SET 1.x'
+    F = 'SET 6.x'
     F_MoleculesDescriptor = 'MoleculesDescriptor.'
     F_Train = 'Training Set.x'
     F_Test = 'Test Set.x'
     F_Filter = 'Filter.dat'
     F_Gaussian = 'datafile.x'
 
-    TrainIntervals = [(0, 5)] # (Low, High)   
+    TrainIntervals = [(2.4, 14)] # (Low, High)   
 #    TrainIntervals = [(0, 5), (7, 9)] # (Low, High) 2 water big
     MoleculePrototypes = IOfunctions.ReadMoleculeDescription(F=F_MoleculesDescriptor)
-    GridStart = 0.0 # initial estimation of min ang max average distances
-    GridEnd = 20.0
+    GridStart = 2.4 # initial estimation of min ang max average distances
+    GridEnd = 14.0
     GridSpacing = 0.2
-    ConfidenceInterval = 0.85 # same as PDF but middle part
+    ConfidenceInterval = 1 # same as PDF but middle part
     TestFraction = 0.2
-    TrainFraction = 0.1
+    TrainFraction = 1
     RandomSeed = 101
     if RandomSeed is not None:
         random.seed(RandomSeed)
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         random.seed()    
     GridTrain = [] # small intervals
     GridTest = [] # small intervals
-    i = 0
+    i = GridStart
     while i < (GridEnd-GridSpacing):
         GridTrain.append((round(i, 2), round(i+GridSpacing, 2)))
         GridTest.append((round(i, 2), round(i+GridSpacing, 2)))
@@ -50,15 +50,19 @@ if __name__ == '__main__':
                 DMax = record.R_Average
             if record.R_Average < DMin:
                 DMin = record.R_Average
-            j = int(record.R_Average / GridSpacing)
-            N[j] += 1
+            if record.R_Average >= GridStart:
+                j = int((record.R_Average - GridStart) / GridSpacing)
+                if j < len(N):
+                    N[j] += 1
         else:
             if record.R_CenterOfMass_Average > DMax:
                 DMax = record.R_CenterOfMass_Average
             if record.R_CenterOfMass_Average < DMin:
                 DMin = record.R_CenterOfMass_Average
-            j = int(record.R_Average / GridSpacing)
-            N[j] += 1
+            if record.R_CenterOfMass_Average >= GridStart:
+                j = int((record.R_CenterOfMass_Average - GridStart) / GridSpacing)
+                if j < len(N):
+                    N[j] += 1
 # Estimate number of points per grid
     n = np.asarray(N.nonzero()).reshape(-1) # indices with nonzero records nonzero   
     nGrids = int(len(n) * ConfidenceInterval)
@@ -76,7 +80,7 @@ if __name__ == '__main__':
     i = 0
     while i < len(N_list): # remove regions where there are not enough points
 # training region        
-        if (library.InInterval(GridTest[i][0], TrainIntervals) != -1) and (library.InInterval(GridTest[i][1], TrainIntervals) != -1):
+        if (library.InInterval(GridTest[i][0], TrainIntervals) != -10) and (library.InInterval(GridTest[i][1], TrainIntervals) != -10):
             if N_list[i] < nPointsGrid: # not enough points for training and test, discard
                 del(N_list[i])
                 del(NTrain[i])
@@ -96,7 +100,7 @@ if __name__ == '__main__':
                 i += 1
     i = 0 # remove remaining train grid that not in training region
     while i < len(GridTrain):
-        if (library.InInterval(GridTrain[i][0], TrainIntervals) != -1) and (library.InInterval(GridTrain[i][1], TrainIntervals) != -1):
+        if (library.InInterval(GridTrain[i][0], TrainIntervals) != -10) and (library.InInterval(GridTrain[i][1], TrainIntervals) != -10):
             i += 1
             continue
         else:
@@ -113,20 +117,22 @@ if __name__ == '__main__':
         else:
             d = record.R_CenterOfMass_Average
         j = library.InInterval(d, GridTrain) 
-        if j != -1: # in training region?
+        if j != -10: # in training region?
             if NTrain[j] < nTrainPointsGrid: # append to training set
                 NTrain[j] += 1
                 RecordsTrain.append(record)
             else:  # if it is full, append to test set
                 j = library.InInterval(d, GridTest) # which interval?
-                if NTest[j] < nTestPointsGrid: 
-                    NTest[j] += 1
-                    RecordsTest.append(record)              
+                if j != -10:
+                    if NTest[j] < nTestPointsGrid: 
+                        NTest[j] += 1
+                        RecordsTest.append(record)              
         else: # not training region
             j = library.InInterval(d, GridTest) # which interval?
-            if NTest[j] < nTestPointsGrid: # append to test set only
-                NTest[j] += 1
-                RecordsTest.append(record)
+            if j != -10:
+                if NTest[j] < nTestPointsGrid: # append to test set only
+                    NTest[j] += 1
+                    RecordsTest.append(record)
         del(Records[r]) 
 
     IOfunctions.store_records(F_Train, RecordsTrain) # store trained set
