@@ -15,7 +15,7 @@ import pickle
 if __name__ == '__main__':
     
 # Global variables
-    DesiredNumberVariables = 6
+    DesiredNumberVariables = 15
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
     UseVIP = False # if true fit will be found in two steps. First step - fit only
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     CrossoverFractionInterval = [0.6, 0.4] # how many genes will be taken from first and second best chromosomes (fraction)
     IterationPerRecord = 50 # Display results of current fit after N iterations
     StopTime = 600 # How long in seconds GA works without improvement
-    nIter = 50 # How many populations will be used before GA stops
+    nIter = 500 # How many populations will be used before GA stops
     RandomSeed = 101
     LinearSolver = 'sklearn' # 'sklearn', 'scipy', 'statsmodels'
     cond=1e-03 # for scipy solver

@@ -16,61 +16,123 @@ import numpy as np
 from project1 import spherical
 from project1 import library
 
-class Atom:
-    Symbol = None # atom symbol. Example: O, H, C, Si
-    Index = None # order in the system 0 .. N-1 where N is number of atoms in the system
-    AtType = None # atom type identification number. Example atom symbol 'O' corresponds to number 0
-    AtTypeDigits = 1 # can be increased
-    MolecularIndex = None # which molecule atom belongs to. In other words number of molecule in the system where this atom exists
-    Mass = None
-    Radius = None
-    Bonds = [] # integers (indices of atoms)
-    def __init__(self, symbol, index, tYpe, molecular_index, Mass=None, Radius=None, Bonds=None):
-        self.Symbol = symbol
-        self.Index = index
-        self.AtType = tYpe
-        self.MolecularIndex = molecular_index
-        self.AtTypeDigids = 1
+class Atom(dict):
+#    Symbol = None # atom symbol. Example: O, H, C, Si
+#    Index = None # order in the system 0 .. N-1 where N is number of atoms in the system
+#    AtType = None # atom type identification number. Example atom symbol 'O' corresponds to number 0
+#    AtTypeDigits = 1 # can be increased
+#    MolecularIndex = None # which molecule atom belongs to. In other words number of molecule in the system where this atom exists
+#    Mass = None
+#    Radius = None
+#    Bonds = [] # integers (indices of atoms)
+    
+    def __init__(self, Symbol=None, Index=None, AtType=None, MolecularIndex=None, AtTypeDigits=1, Mass=None, Radius=None, Bonds=None):
+        self.Symbol = Symbol
+        self.Index = Index
+        self.AtType = AtType
+        self.MolecularIndex = MolecularIndex
+        self.AtTypeDigits = AtTypeDigits
         self.Mass = Mass
         self.Radius = Radius
         self.Bonds = Bonds
-        
-class AtomCoordinates:
-    Atom = None
-    x = None
-    y = None
-    z = None
     
-    def __init__(self, atom, X, Y, Z):
-        self.Atom = atom
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+    
+class AtomCoordinates(dict):
+#    Atom = None
+#    x = None
+#    y = None
+#    z = None
+    
+    def __init__(self, Atom=None, X=None, Y=None, Z=None):
+        self.Atom = Atom
         self.x = X
         self.y = Y
         self.z = Z        
         
-class Molecule:
-    Atoms = [] # type AtomCoordinates
-    AtomIndex = []
-    nAtoms = None
-    Bonds = [] # list of tuples, integers (indices of atoms)
-    Name = None
-    Mass = None
-    CenterOfMass = None # type of spherical.Point
-    
-    def __init__(self, atoms, Name=None):
-        if type(atoms) is Atom or type(atoms) is AtomCoordinates:
-            atoms = [atoms]
-        if type(atoms[0]) is Atom:
-            Atoms = []
-            for i in atoms:
-                atom = AtomCoordinates(i, None, None, None)
-                Atoms.append(atom)
-            self.Atoms = Atoms
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
         else:
-            self.Atoms = atoms # class AtomCoordinates
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())        
+        
+class Molecule(dict):
+#    Atoms = [] # type AtomCoordinates
+#    AtomIndex = []
+#    nAtoms = None
+#    Bonds = [] # list of tuples, integers (indices of atoms)
+#    Name = None
+#    Mass = None
+#    CenterOfMass = None # type of spherical.Point
+    
+    def __init__(self, Atoms=None, Name=None, AtomIndex=None, nAtoms=None,\
+        Bonds=[], Mass=None, CenterOfMass=None):
+        if type(Atoms) is Atom or type(Atoms) is AtomCoordinates:
+            Atoms = [Atoms]
+        if type(Atoms[0]) is Atom:
+            Atoms_list = []
+            for i in Atoms:
+                atom = AtomCoordinates(i, None, None, None)
+                Atoms_list.append(atom)
+            self.Atoms = Atoms_list
+        else:
+            self.Atoms = Atoms # class AtomCoordinates
         self.nAtoms = len(self.Atoms)
         self.Name = Name
         self.Bonds = []
         self._refresh()
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
     
     def _refresh(self):
         mass = 0
@@ -107,23 +169,23 @@ class Molecule:
         if not MissedMass:
             self.Mass = mass
         else:
-            self.Mass = None       
+            self.Mass = None     
         p = spherical.center_of_mass(self.Atoms) # returns False if missing coordinates
         if type(p) is not bool: 
             self.CenterOfMass = p
         else:
             self.CenterOfMass = None
                 
-class System:
-    Atoms=None
-    Molecules=None
-    Prototypes=None
-    nAtoms=None
-    nAtTypes=None
-    nMolecules=None
-    Distances=None
-    nDistances=None
-    nDiTypes=None
+class System(dict):
+#    Atoms=None
+#    Molecules=None
+#    Prototypes=None
+#    nAtoms=None
+#    nAtTypes=None
+#    nMolecules=None
+#    Distances=None
+#    nDistances=None
+#    nDiTypes=None
     def __init__(self, Atoms=None, Molecules=None, Prototypes=None,\
         nAtoms=None, nAtTypes=None, nMolecules=None, Distances=None,\
         nDistances=None, nDiTypes=None):
@@ -136,6 +198,26 @@ class System:
         self.Distances = Distances
         self.nDistances = nDistances
         self.nDiTypes = nDiTypes
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
             
 class Record:
     atoms = None
@@ -144,12 +226,12 @@ class Record:
         self.e = energy
         self.atoms = atoms # class AtomCoordinates
 
-class Distance:
-    Atom1 = None
-    Atom2 = None
-    isIntermolecular = None
-    DiType = None
-    def __init__(self, atom1, atom2):
+class Distance(dict):
+#    Atom1 = None
+#    Atom2 = None
+#    isIntermolecular = None
+#    DiType = None
+    def __init__(self, atom1=None, atom2=None, isIntermolecular=None, DiType=None):
         if (atom1.MolecularIndex != atom2.MolecularIndex):
             self.isIntermolecular = True # atoms belong to different molecules
             i = 1
@@ -180,24 +262,64 @@ class Distance:
                 self.Atom2 = atom2
         self.DiType = 10**self.Atom1.AtTypeDigits*10**self.Atom1.AtTypeDigits*i + 10**self.Atom1.AtTypeDigits*self.Atom1.AtType + self.Atom2.AtType
             
-class Distance_to_Power:
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
+    
+class Distance_to_Power(dict):
 # power cannot be zero
-    Distance = None
-    Power = None
-    PowerDigits = 2 # can be increased if necessary
-    DtpType = 'None'
-    def __init__(self, distance, power):
-        self.Distance = distance
-        self.Power = power   
+#    Distance = None
+#    Power = None
+#    PowerDigits = 2 # can be increased if necessary
+#    DtpType = 'None'
+    def __init__(self, Distance=None, Power=None, PowerDigits=2, DtpType=None):
+        self.Distance = Distance
+        self.Power = Power   
         self.PowerDigits = 2
-        sign = np.sign(power)
+        sign = np.sign(Power)
         if sign == -1:
             sign = 0 # negative sign becomes 0 in type record, positive becomes 1
-        p = str(abs(power))
+        p = str(abs(Power))
         p = p.zfill(self.PowerDigits)
         s = str(sign)
-        d = str(distance.DiType)
+        d = str(Distance.DiType)
         self.DtpType = s + p + d
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
         
 # inactive
 class Harmonic:
@@ -574,3 +696,26 @@ def print_distance(distance):
     print('Atom2:')
     print_atom(distance.Atom2)
     
+class OptimizeResult(dict):
+    def __init__(self, a=1, b=2):
+        self.a=a
+        self.b=b
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())

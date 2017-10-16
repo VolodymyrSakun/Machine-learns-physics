@@ -55,15 +55,35 @@ import random
 # phi = [0..pi]
 # s = sph_harm(m, n, theta, phi).real
         
-class Point:
-    x = None
-    y = None 
-    z = None
-    def __init__(self, X, Y, Z):
-        self.x = X
-        self.y = Y
-        self.z = Z
+class Point(dict):
+#    x = None
+#    y = None 
+#    z = None
+    def __init__(self, x=None, y=None, z=None):
+        self.x = x
+        self.y = y
+        self.z = z
 
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
+    
 class Vector:
     x = None
     y = None 
@@ -258,7 +278,10 @@ def center_of_mass(Object):
         if type(Object) is structure.AtomCoordinates:
             return Point(Object.x, Object.y, Object.z)
         elif type(Object) is structure.Molecule:
-            return center_of_mass(Object.Atoms)
+            if Object.nAtoms == 1: # only one atom in molecule
+                return Point(Object.Atom[0].x, Object.Atom[0].y, Object.Atom[0].z)
+            else:
+                return center_of_mass(Object.Atoms)
     if type(Object) is not list:
         return False
     Mi = 0

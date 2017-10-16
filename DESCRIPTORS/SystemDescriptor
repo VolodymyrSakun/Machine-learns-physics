@@ -1,0 +1,74 @@
+&FEATURES
+&SingleDistances
+SingleDistancesInclude = True
+&SingleDistancesDescription
+&endSingleDistancesDescription
+&DefaultSingleDistances
+SinglePowers: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15
+&endSingleDistances
+
+&DoubleDistances
+DoubleDistancesInclude=True
+&DoubleDistancesDescription
+&endDoubleDistancesDescription
+&DefaultDoubleDistances
+DoublePowers: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15
+IncludeSameType=True
+IncludeAllExcept=True
+ExcludeAllExcept=False
+&IncludeExcludeList
+&endIncludeExcludeList
+&endDoubleDistances
+
+&Harmonics
+HarmonicsInclude=False
+Order: 0
+Degree: 0
+# symbol of atom to be a center of coordinate system to calculate harmonics
+HarmonicCenter: O
+HarmonicAtoms: O,H
+&HarmonicDescription
+O,O,intermolecular: 
+O,H,intermolecular: -1,-2,-3,-4,-5,-6
+H,H,intermolecular: 
+O,H,intramolecular: 
+H,H,intramolecular: 
+&endHarmonicDescription
+&DefaultHarmonics
+HarmonicPowers: -1,-2
+IncludeHarmonicSameType=True
+IncludeHarmonicAllExcept=True
+ExcludeHarmonicAllExcept=False
+&IncludeExcludeHarmonicList
+O,O,intermolecular; O,O,intermolecular
+&endIncludeExcludeHarmonicList
+&endHarmonics
+&endFEATURES
+
+&SYSTEM
+# Atom symbol (string), Molecule number (integer)
+&Molecule=Water2
+O0,0
+H0,0    
+H0,0
+OM,0
+HM,0
+&endMolecule
+&Molecule=Proton
+P,1
+&endMolecule
+&endSYSTEM
+
+&MoleculeDescription
+&Molecule=Water2
+# Atoms Index, Atom symbol, Bonds (indices), Mass, Atomic radius, x, y, z
+0,Symbol=O,Bond=1,2,Mass=15.999,Radius=0.6,Coordinates:0,0,0
+1,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:-0.2886794833,-0.5000075321,0.8164904309
+2,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:-0.2886794833,-0.5000075321,-0.8164904309
+3,Symbol=O,Bond=1,Mass=15.999,Radius=0.6,Coordinates:3.0000000000,0.0000000000,0.0000000000
+4,Symbol=H,Bond=0,Mass=1.008,Radius=0.25,Coordinates:3.3333132476,0.9428161427,0.0000000000
+&endMolecule
+&Molecule=Proton
+5,Symbol=P,Bond=,Mass=1.008,Radius=0.25,Coordinates:-3.0000000000,-3.0000000000,0.0000000000
+&endMolecule
+&endMoleculeDescription

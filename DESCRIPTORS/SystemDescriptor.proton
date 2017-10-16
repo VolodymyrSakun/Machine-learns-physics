@@ -1,0 +1,83 @@
+#F_data = short two water molecules.x
+#F_data = short three water molecules.x
+#F_data = datafile1 from github gaussian process.x
+#F_data = datafile2.x
+#F_data = datafile3 2 water molecules.x
+#F_data = datafile4 3 water molecules small.x
+#F_data = datafile5 3 water molecules big.x
+
+&FEATURES
+&SingleDistances
+SingleDistancesInclude = True
+&SingleDistancesDescription
+&endSingleDistancesDescription
+&DefaultSingleDistances
+SinglePowers: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13
+&endSingleDistances
+
+&DoubleDistances
+DoubleDistancesInclude=True
+&DoubleDistancesDescription
+P,On,intermolecular: -1,-2,-3,-4,-5,-6,-7
+P,Hn,intermolecular: -1,-2,-3,-4,-5,-6,-7
+P,Oi,intermolecular: -1,-2,-3,-4,-5,-6,-7
+P,Hi,intermolecular: -1,-2,-3,-4,-5,-6,-7
+On,Hn,itramolecular:
+On,Oi,itramolecular:
+On,Hi,itramolecular:
+Hn,Oi,itramolecular:
+Hn,Hn,itramolecular:
+Hn,Hi,itramolecular:
+Hn,Hi,itramolecular:
+Oi,Hi,itramolecular:
+#  O,H,intermolecular: -1,-2,-3,-4,-5,-6,-12
+#  H,H,intermolecular: -1,-2,-3,-4,-5,-6,-12
+#  O,H,intramolecular: 
+#  H,H,intramolecular: 
+&endDoubleDistancesDescription
+&DefaultDoubleDistances
+DoublePowers: -1,-2,-3,-4,-5,-6
+IncludeSameType=True
+IncludeAllExcept=False
+ExcludeAllExcept=True
+&IncludeExcludeList
+&endIncludeExcludeList
+&endDoubleDistances
+
+&Harmonics
+HarmonicsInclude=False
+Order: 0
+Degree: 0
+# symbol of atom to be a center of coordinate system to calculate harmonics
+HarmonicCenter: O
+HarmonicAtoms: O,H
+&HarmonicDescription
+O,O,intermolecular: 
+O,H,intermolecular: -1,-2,-3,-4,-5,-6
+H,H,intermolecular: 
+O,H,intramolecular: 
+H,H,intramolecular: 
+&endHarmonicDescription
+&DefaultHarmonics
+HarmonicPowers: -1,-2
+IncludeHarmonicSameType=True
+IncludeHarmonicAllExcept=True
+ExcludeHarmonicAllExcept=False
+&IncludeExcludeHarmonicList
+O,O,intermolecular; O,O,intermolecular
+&endIncludeExcludeHarmonicList
+&endHarmonics
+&endFEATURES
+
+&SYSTEM
+# Atom symbol (string), Molecule number (integer)
+# ion + molecule
+On,0
+Hn,0    
+Hn,0
+Oi,0
+Hi,0
+# proton
+P,1
+&endSYSTEM
+

@@ -510,20 +510,18 @@ if __name__ == '__main__':
         Atoms = [] # create list of atom structures from file
         while ((lines[i].find('&SYSTEM') == -1) and (i < len(lines))):
             i += 1
-        i += 1 # next line after &SYSTEM
-        j = 0 # order in the system 
+        i += 1 # next line in file after &SYSTEM
+        j = 0 # atoms order in the system 
         types_list = []
         idx_list = []
         molecules_idx_list = []
         molecules = []
-        k = 0
-        one_molecule_atoms = []
-        old_molecule_index = None
+        k = 0 # types of atom index
         while ((lines[i].find('&endSYSTEM') == -1) and (i < len(lines))):
-            if (lines[i][0] == '#'):
-                i += 1
-                continue
             x = lines[i]
+            if (x[0] == '#'): # skip remark
+                i += 1
+                continue            
             if (x.find('&Molecule') != -1):
                 s = re.split(Separators, x)
                 del(s[0]) # 'Molecule'
@@ -532,47 +530,40 @@ if __name__ == '__main__':
                     s0 = s0 + ' ' + s[l]
                 MoleculeName = s0
                 i += 1
-                continue
-            s = re.split(Separators, x)
-            s = list(filter(bool, s))
-            symbol = s[0]
-            if symbol not in types_list:
-                types_list.append(symbol)
-                idx_list.append(k)
-                k += 1
-            idx = types_list.index(symbol)    
-            try:
-                molecule_index = int(s[1])
-                if molecule_index not in molecules_idx_list: # next molecule
-                    molecules_idx_list.append(molecule_index)
-                    if j == 0: # first atom
-                        old_molecule_index = molecule_index
-                        one_molecule_atoms.append(structure.Atom(symbol, j, idx_list[idx], old_molecule_index))
-                        j += 1 # to next index
-                        i += 1 # to next line
-                        continue
-                    for l in one_molecule_atoms: # store atoms from previous molecule
-                        Atoms.append(l)
-                    molecules.append(structure.Molecule(one_molecule_atoms, Name=MoleculeName))
-                    one_molecule_atoms = []
-                    old_molecule_index = molecule_index
-                    one_molecule_atoms.append(structure.Atom(symbol, j, idx_list[idx], old_molecule_index))
-                    old_molecule_index = molecule_index
-                    j += 1
-                else: # same molecule
-                    one_molecule_atoms.append(structure.Atom(symbol, j, idx_list[idx], old_molecule_index))
-                    j += 1
-            except:
-                print('Error reading file')
-                break
-            i += 1
-        nMolecules = len(molecules_idx_list)
-        for l in one_molecule_atoms:
-            Atoms.append(l)
-        molecules.append(structure.Molecule(one_molecule_atoms, Name=MoleculeName))
-    else:
-        print('Error reading &SYSTEM section from SystemDescriptor')
-                
+                one_molecule_atoms = []
+                x = lines[i]
+                while not (x.find('&endMolecule') == 0):                    
+                    if (x[0] == '#'): # skip remark
+                        i += 1
+                        continue                             
+                    s = re.split(Separators, x)
+                    s = list(filter(bool, s))
+                    symbol = s[0]
+                    if symbol not in types_list:
+                        types_list.append(symbol)
+                        idx_list.append(k)
+                        k += 1
+                    idx = types_list.index(symbol)    
+                    molecule_index = int(s[1])
+                    if molecule_index not in molecules_idx_list: # next molecule
+                        molecules_idx_list.append(molecule_index)
+                    atom = structure.Atom(Symbol=symbol, Index=j, AtType=idx_list[idx],\
+                        MolecularIndex=molecule_index, AtTypeDigits=1, Mass=None,\
+                        Radius=None, Bonds=None)
+                    one_molecule_atoms.append(atom)
+                    j += 1 # to next index
+                    i += 1 # to next line   
+                    x = lines[i]
+                i += 1    
+                for l in one_molecule_atoms: # store atoms from finished molecule
+                    Atoms.append(l)                    
+                molecules.append(structure.Molecule(one_molecule_atoms, Name=MoleculeName))
+            else:
+                i += 1
+           
+    nMolecules = len(molecules_idx_list)                
+    nAtTypes = len(types_list)       
+    nAtoms = len(Atoms)
     Prototypes = IOfunctions.ReadMoleculeDescription(F_SystemDescriptor) # read molecule prototypes 
     MoleculeNames = []
     for i in Prototypes:
@@ -589,8 +580,6 @@ if __name__ == '__main__':
     for i in molecules:
         i._refresh() # update data from prototype
     # determine number of atom types from list
-    nAtTypes = len(types_list)       
-    nAtoms = len(Atoms)
     Distances = [] # create list of distances from list of atoms
     for i in range(0, nAtoms, 1):
         for j in range(i+1, nAtoms, 1):

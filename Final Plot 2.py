@@ -108,8 +108,8 @@ if __name__ == '__main__':
     nIntervals = len(GridTest)
 
 # main loop
-#    for m in range(0, len(ga.DecreasingChromosomes), 1):
-    for m in range(0, 1, 1):
+    for m in range(0, len(ga.DecreasingChromosomes), 1):
+#    for m in range(0, 1, 1):
         chromosome = ga.DecreasingChromosomes[m] # current LP predictor
         n = np.zeros(shape=(nIntervals), dtype=float) # n[i] = number of observations in interval    
         mSE = np.zeros(shape=(nIntervals), dtype=float) # MSE[i] = cumulative MSE in interval

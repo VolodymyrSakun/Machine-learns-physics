@@ -82,7 +82,10 @@ def ReadMoleculeDescription(F):
                 idx_list.append(k)
                 k += 1
             idx = types_list.index(symbol)
-            atom = structure.Atom(symbol, index, idx_list[idx], nMolecule, Mass, Radius, Bonds)
+            
+            atom = structure.Atom(Symbol=symbol, Index=index, AtType=idx_list[idx],\
+                MolecularIndex=nMolecule, AtTypeDigits=1, Mass=Mass,\
+                Radius=Radius, Bonds=Bonds)
             atoms.append(structure.AtomCoordinates(atom, X, Y, Z))
             j += 1
             i += 1
