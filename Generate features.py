@@ -90,13 +90,14 @@ def ReadData(F_data):
 
 def StoreEnergy(F_Response, record_list):
     Size = len(record_list)
-    energy = np.zeros(shape=(Size, 1), dtype=float)
-    for i in range(0, Size, 1):
-        energy[i, 0] = record_list[i].e # energy    
-    Table = pd.DataFrame(energy, columns=['response'], dtype=float)
-    f = open(F_Response, 'w')
-    Table.to_csv(f, index=False)
-    f.close()
+    if Size > 0:
+        energy = np.zeros(shape=(Size, 1), dtype=float)
+        for i in range(0, Size, 1):
+            energy[i, 0] = record_list[i].e # energy    
+        Table = pd.DataFrame(energy, columns=['response'], dtype=float)
+        f = open(F_Response, 'w')
+        Table.to_csv(f, index=False)
+        f.close()
     return
 
 def StoreDistances(F_Distances, record_list, Distances):
@@ -258,7 +259,8 @@ if __name__ == '__main__':
     F_Response_Test = 'ResponseTest.csv' # response variable (y)
     F_LinearFeaturesTrain = 'LinearFeaturesTrain.csv' # output csv file with combined features and energy
     F_LinearFeaturesTest = 'LinearFeaturesTest.csv' # output csv file with combined features and energy
-    F_Distances = 'Distances.csv' # output csv file. distances
+    F_Distances_Train = 'Distances Train.csv' # output csv file. distances
+    F_Distances_Test = 'Distances Test.csv' # output csv file. distances
     F_NonlinearFeatures = 'NonlinearFeatures.dat'
     F_LinearFeaturesAll = 'LinearFeaturesAll.dat' # output data structure which contains all features
     F_LinearFeaturesReduced = 'LinearFeaturesReduced.dat' # output data structure which contains combined features
@@ -279,7 +281,8 @@ if __name__ == '__main__':
         os.remove(F_Response_Test)
         os.remove(F_LinearFeaturesTrain) # erase old files if exist
         os.remove(F_LinearFeaturesTest)
-        os.remove(F_Distances)
+        os.remove(F_Distances_Train)
+        os.remove(F_Distances_Test)
         os.remove(F_NonlinearFeatures)
         os.remove(F_LinearFeaturesAll) 
         os.remove(F_LinearFeaturesReduced) 
@@ -294,6 +297,8 @@ if __name__ == '__main__':
     f.close()
     F_train_data = Filter['Training Set']
     F_test_data = Filter['Test Set']
+    nTrainPoints = Filter['Train records number']
+    nTestPoints = Filter['Test records number']
     # read descriptor from file
     with open(F_SystemDescriptor) as f:
         lines = f.readlines()
@@ -868,30 +873,20 @@ if __name__ == '__main__':
     library.StoreNonlinearFeaturesDescriprion(F_NonlinearFeaturesList, FeaturesNonlinear) # xlsx
     library.StoreLinearFeaturesDescriprion(F_LinearFeaturesList, FeaturesAll, FeaturesReduced) # xlsx
     library.store_structure(F_Structure, Atoms, Distances, DtP_Double_list, FeaturesAll) # xlsx
-    
     record_list_train = ReadData(F_train_data)
+    record_list_test = ReadData(F_test_data)
+    record_list = record_list_train + record_list_test
+    StoreDistances(F_Distances_Train, record_list_train, Distances)
+    StoreDistances(F_Distances_Test, record_list_test, Distances)  
     StoreEnergy(F_Response_Train, record_list_train)
-    nTrainPoints = len(record_list_train)
-    if F_test_data is not None:
-        record_list_test = ReadData(F_test_data)             
-        record_list_test_reduced = []
-        nTestPoints = int(Filter['Test Fraction for fit'] * len(record_list_test))
-        if Filter['Test Points number'] is not None:
-            nTestPoints = Filter['Test Points number']
-        if nTestPoints > len(record_list_test):
-            nTestPoints = len(record_list_test)
-        for i in range(0, nTestPoints, 1):
-            r = random.randrange(0, len(record_list_test), 1)
-            record_list_test_reduced.append(record_list_test[r])
-            del(record_list_test[r])
-        StoreEnergy(F_Response_Test, record_list_test_reduced)
-        record_list = record_list_train + record_list_test_reduced
-    else:
-        record_list = record_list_train
+    StoreEnergy(F_Response_Test, record_list_test)
+        
     print('Train = ', len(record_list_train))
-    print('Test = ', len(record_list_test_reduced))
-    print('All = ', len(record_list))
+    print('# train points', nTrainPoints)
+    print('Test = ', len(record_list_test))
     print('# test points', nTestPoints)
+    print('All = ', len(record_list))
+
 # split array if too big
     NpArrayCapacity = 1e+8
     Size = len(record_list) # N of observations
@@ -906,6 +901,7 @@ if __name__ == '__main__':
     size_list = []
     size_list_str = []
     nCPU = mp.cpu_count()
+#    nCPU = 1
     print('Start Multiprocessing with ', nCPU, ' cores')
     size = int(Size / nCPU)
     first = 0
@@ -928,7 +924,7 @@ if __name__ == '__main__':
             size_list.append((first, last))
             size_list_str.append(str(first) + '-' + str(last-1) + '.csv')
             i += 1
-    StoreDistances(F_Distances, record_list, Distances)
+
 
     ran = list(range(0, len(size_list_str), 1))
     jobs = (delayed(StoreFeatures)(size_list_str[i], size_list[i][0], size_list[i][1], FeaturesAll, FeaturesReduced, record_list, Atoms) for i in ran)
@@ -951,12 +947,13 @@ if __name__ == '__main__':
         f.write(data[i])
         i += 1
     f.close()
-    f = open(F_LinearFeaturesTest, "w")
-    f.write(data[0])
-    while i < len(data):
-        f.write(data[i])
-        i += 1
-    f.close()       
+    if i < len(data):
+        f = open(F_LinearFeaturesTest, "w")
+        f.write(data[0])
+        while i < len(data):
+            f.write(data[i])
+            i += 1
+        f.close()       
     for i in range(0, len(size_list_str), 1):
         try:
             os.remove(size_list_str[i]) # erase old files if exist
@@ -972,7 +969,8 @@ if __name__ == '__main__':
         shutil.copyfile(F_Response_Test, directory + '\\' + F_Response_Test)
         shutil.copyfile(F_LinearFeaturesTrain, directory + '\\' + F_LinearFeaturesTrain)
         shutil.copyfile(F_LinearFeaturesTest, directory + '\\' + F_LinearFeaturesTest)
-        shutil.copyfile(F_Distances, directory + '\\' + F_Distances)
+        shutil.copyfile(F_Distances_Train, directory + '\\' + F_Distances_Train)
+        shutil.copyfile(F_Distances_Test, directory + '\\' + F_Distances_Test)
         shutil.copyfile(F_LinearFeaturesAll, directory + '\\' + F_LinearFeaturesAll)
         shutil.copyfile(F_NonlinearFeatures, directory + '\\' + F_NonlinearFeatures)
         shutil.copyfile(F_LinearFeaturesReduced, directory + '\\' + F_LinearFeaturesReduced)

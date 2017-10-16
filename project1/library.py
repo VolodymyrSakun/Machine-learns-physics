@@ -59,6 +59,19 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process.kernels import WhiteKernel
 
+RED   = "\033[1;31m"  
+BLUE  = "\033[1;34m"
+CYAN  = "\033[1;36m"
+GREEN = "\033[0;32m"
+RESET = "\033[0;0m"
+BOLD    = "\033[;1m"
+REVERSE = "\033[;7m"
+
+#sys.stdout.write(RED)
+#sys.stdout.write("\033[1;31m")
+#print("All following prints will be red ...")
+#sys.stdout.write(RESET)
+#print("All following prints will be red ...")
 
 def isfloat(value):
     try:
@@ -2784,10 +2797,10 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False, UseCorrelationBestFit=False, Sto
     MutationMethod = 'Correlated' # 'Random' or 'Correlated'
     verbose = True
 # gaussian parameters    
-    GaussianPrecision = 10
+    GaussianPrecision = 12
     Start = 0.01
-    End = 5
-    Len = 4
+    End = 20
+    Len = 5
     
     FilterResults = IOfunctions.ReadFeatures(\
         F_Nonlinear_Train='Distances Train.csv', F_Nonlinear_Test='Distances Test.csv', F_linear_Train='LinearFeaturesTrain.csv',\
@@ -3058,38 +3071,48 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False, UseCorrelationBestFit=False, Sto
     Y_train = FilterResults['Response Train']
     Y_test = FilterResults['Response Test']
     
-
-    k = 0
-    while k < GaussianPrecision: # estimate best parameter for gaussian
+    k = 0 # estimate best gaussian
+    gpR2_array = np.zeros(shape=(Len), dtype=float)
+    while k < GaussianPrecision:
         print('Start = ', Start)
-        print('End = ', End)
-        gpR2_list = [] 
-        gr = np.linspace(Start, End, Len)
-        idx = []
-        for i in gr:
-            kernel = RBF(length_scale=i, length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
-            gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
-                n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
-            gp.fit(X_train_nonlin, Y_train) # set from distances
-            gpR2 = gp.score(X_test_nonlin, Y_test)
-            print(i, '  ', gpR2)
-            gpR2_list.append(gpR2)
-            idx.append(i)
-        index = np.argmax(gpR2_list)
+        print('End = ', End)        
+        grid = np.linspace(Start, End, Len)
+        for i in range(0, Len, 1):
+            if gpR2_array[i] == 0:
+                kernel = RBF(length_scale=grid[i], length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))# + RationalQuadratic(length_scale=1.2, alpha=0.78)
+                gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+                    n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+                gp.fit(X_train_nonlin, Y_train) # set from distances
+                gpR2 = gp.score(X_test_nonlin, Y_test)
+                print(grid[i], '  ', gpR2)
+                gpR2_array[i] = gpR2
+        index = np.argmax(gpR2_array)
+        gpR2_new = np.zeros(shape=(Len), dtype=float)
         print('Index = ', index)
-        print('length_scale ', idx[index])
-        print('R2 ', gpR2_list[index])
+        print('length_scale ', grid[index])
+        print('R2 ', gpR2_array[index])
         if index == 0:
-            Start = idx[0]
+            sys.stdout.write(RED)                                
+            print('Check gaussian lower interval')
+            sys.stdout.write(RESET)
+            Start = grid[index]
+            gpR2_new[0] = gpR2_array[index]
         else:
-            Start = idx[index-1]
+            Start = grid[index-1]
+            gpR2_new[0] = gpR2_array[index-1]
         if index == (Len-1):
-            End = idx[index]
+            sys.stdout.write(RED)                                
+            print('Check gaussian upper interval')
+            sys.stdout.write(RESET)
+            End = grid[index]
+            gpR2_new[-1] = gpR2_array[index]
         else:
-            End = idx[index+1]
+            End = grid[index+1]
+            gpR2_new[-1] = gpR2_array[index+1]
         k += 1
-    
-    kernel = RBF(length_scale=idx[index], length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))
+        gpR2_array = copy.deepcopy(gpR2_new)
+   
+    kernel = RBF(length_scale=grid[index], length_scale_bounds=(1e-10, 1e+10)) + WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-10, 1e+1))
     gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
         n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
     gp.fit(X_train_nonlin, Y_train) # set from distances

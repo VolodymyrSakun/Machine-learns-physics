@@ -41,24 +41,8 @@ from project1 import library
 from project1 import regression
 from time import time
 import copy
-from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import pandas as pd
-
-RED   = "\033[1;31m"  
-BLUE  = "\033[1;34m"
-CYAN  = "\033[1;36m"
-GREEN = "\033[0;32m"
-RESET = "\033[0;0m"
-BOLD    = "\033[;1m"
-REVERSE = "\033[;7m"
-
-#sys.stdout.write(RED)
-#sys.stdout.write("\033[1;31m")
-#print("All following prints will be red ...")
-#sys.stdout.write(RESET)
-#print("All following prints will be red ...")
-
 
 class GA:
     VIP_Chromosome = None
@@ -367,9 +351,9 @@ class GA:
                         idx_lin.insert(i, tmp)
                         mse_lin_list.append(mse)
                 else: 
-                    sys.stdout.write(RED)
+                    sys.stdout.write(library.RED)
                     print('Crash: rank_sort')
-                    sys.stdout.write(RESET)
+                    sys.stdout.write(library.RESET)
                     return
             j = 0
             k = 0
@@ -515,9 +499,9 @@ class GA:
         n_nonlin = len(pool_nonlin_free)
         n_lin = len(pool_lin_free)
         if (n_nonlin + n_lin) == 0:
-            sys.stdout.write(RED)
+            sys.stdout.write(library.RED)
             print('Crash: create_random_gene. No pool.')
-            sys.stdout.write(RESET)
+            sys.stdout.write(library.RESET)
             return None
         rand = random.randrange(0, n_nonlin+n_lin, 1) # get random number of feature
         if rand < n_nonlin: # non-linear feature
@@ -564,9 +548,9 @@ class GA:
             chromosome.Origin = 'Pool'
             return chromosome
         else:
-            sys.stdout.write(RED)
+            sys.stdout.write(library.RED)
             print('Crash: generate_new_chromosome')
-            sys.stdout.write(RESET)
+            sys.stdout.write(library.RESET)
             return None
 
 # mutate one gene
@@ -607,9 +591,9 @@ class GA:
                     if not chromosome.has_duplicates():
                         return chromosome
                 else:
-                    sys.stdout.write(RED)
+                    sys.stdout.write(library.RED)
                     print('Crash: mutate Correlated')
-                    sys.stdout.write(RESET)
+                    sys.stdout.write(library.RESET)
         new_gene = self.create_random_gene(chromosome=chromosome)
         if new_gene is not None:
             chromosome.Genes.append(new_gene)
@@ -618,13 +602,13 @@ class GA:
             if not chromosome.has_duplicates():
                 return chromosome
             else:
-                sys.stdout.write(RED)
+                sys.stdout.write(library.RED)
                 print('Chash: Duplicates in mutation')
-                sys.stdout.write(RESET)
+                sys.stdout.write(library.RESET)
         else:
-            sys.stdout.write(RED)
+            sys.stdout.write(library.RED)
             print('Crash: mutate. Cannot create random gene')
-            sys.stdout.write(RESET)
+            sys.stdout.write(library.RESET)
             return None
                
 # mutate more than one gene
@@ -695,9 +679,9 @@ class GA:
                     chromosome.Genes.append(new_gene)
                     chromosome.erase_score()
                 else:
-                    sys.stdout.write(RED)
+                    sys.stdout.write(library.RED)
                     print('Crash: crossover n1')
-                    sys.stdout.write(RESET)
+                    sys.stdout.write(library.RESET)
                     break
 # append features from first chromosone
             for i in range(0, n2, 1):
@@ -706,11 +690,11 @@ class GA:
                     chromosome.Genes.append(new_gene)
                     chromosome.erase_score()
                 else:
-                    sys.stdout.write(RED)
+                    sys.stdout.write(library.RED)
                     print('Crash: crossover n2')
                     print('pool_nonlin: ', idx_nonlin2)
                     print('pool_lin: ', idx_lin2)
-                    sys.stdout.write(RESET)
+                    sys.stdout.write(library.RESET)
                     chromosome.print_score()
                     break
         if (self.CrossoverMethod == 'Best'):
@@ -739,18 +723,18 @@ class GA:
                 chromosome.Genes.append(new_gene)
                 chromosome.erase_score()
             else:
-                sys.stdout.write(RED)
+                sys.stdout.write(library.RED)
                 print('Crash: crossover')
-                sys.stdout.write(RESET)
+                sys.stdout.write(library.RESET)
                 return None
         chromosome.erase_score()
         chromosome.Origin = 'Crossover'
         if not chromosome.has_duplicates():
             return chromosome # return a new child
         else:
-            sys.stdout.write(RED)
+            sys.stdout.write(library.RED)
             print('Crash: crossover produces duplicates')
-            sys.stdout.write(RESET)
+            sys.stdout.write(library.RESET)
             return None
    
     def init_population(self):
@@ -762,9 +746,9 @@ class GA:
             if (chromosome is not None) and (not chromosome.has_duplicates()):
                 self.Population.append(chromosome)
         if len(self.Population) != self.PopulationSize:
-            sys.stdout.write(RED)
+            sys.stdout.write(library.RED)
             print('Crash: init_population')
-            sys.stdout.write(RESET)
+            sys.stdout.write(library.RESET)
         return 
     
 
@@ -809,11 +793,11 @@ class GA:
             random.seed(self.RandomSeed)
         # get initial population
         self.init_population()
-        sys.stdout.write(RED)        
+        sys.stdout.write(library.RED)        
         print('VIP: ', self.VIP_idx_lin)
         if self.VIP_Chromosome is not None:
             self.VIP_Chromosome.print_score()
-        sys.stdout.write(RESET)            
+        sys.stdout.write(library.RESET)            
         StartTime = time()
         BestChromosome = None
         LastChangeTime = time()
@@ -878,17 +862,17 @@ class GA:
                                 c1 = c2
                                 k += 1
                         if k >= 100:
-                            sys.stdout.write(RED)
+                            sys.stdout.write(library.RED)
                             print('Crash: fit main loop. crossover')
                             print('Might want to increase EliteFracrion')
-                            sys.stdout.write(RESET)
+                            sys.stdout.write(library.RESET)
                             chromosome = self.generate_new_chromosome()
                         else:
                             chromosome = self.crossover(chromosome1, chromosome2)
                     if chromosome is None:
-                        sys.stdout.write(RED)
+                        sys.stdout.write(library.RED)
                         print('Crash: crossover')
-                        sys.stdout.write(RESET)
+                        sys.stdout.write(library.RESET)
                         chromosome = self.generate_new_chromosome()
                     new_population.append(chromosome)
                 while len(new_population) < self.PopulationSize:
@@ -939,9 +923,9 @@ class GA:
             elif YAxis == 'Mallow statistics Test':
                 YPlot.append(i.Mallow_Test)  
             else:
-                sys.stdout.write(RED)
+                sys.stdout.write(library.RED)
                 print('Crash: PlotChromosomes')
-                sys.stdout.write(RESET)
+                sys.stdout.write(library.RESET)
                 return
         plt.ylabel(YAxis)
         if PlotType == 'Line':
@@ -1067,9 +1051,9 @@ class GA:
                             Best = copy.deepcopy(j)    
                             Found = True
                             if verbose:
-                                sys.stdout.write(GREEN)
+                                sys.stdout.write(library.GREEN)
                                 print('Best fit new chromosome')
-                                sys.stdout.write(RESET)
+                                sys.stdout.write(library.RESET)
                                 Best.print_score()
             if Found:                
                 Best.rank_sort(x_nonlin=x_nonlin, x_lin=x_lin, y=y, MSEall=self.MSEall_train, NonlinearFunction=self.NonlinearFunction,\

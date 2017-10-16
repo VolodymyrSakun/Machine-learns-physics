@@ -10,7 +10,7 @@ import sklearn.metrics as skm
 if __name__ == '__main__':
     initial_directory = os.getcwd()
     F_Set = 'SET 6.x'
-    TrainIntervals = [(2.4, 15)] # (Low, High)   
+    TrainIntervals = [(2.4, 5), (7, 9)] # (Low, High)   
     GridStart = 2.4
     GridEnd = 15 # for set 3 use 14, for set 1 use 7.4
     GridSpacing = 0.2
@@ -232,7 +232,7 @@ if __name__ == '__main__':
             plt.xlabel('Average distance between centers of masses of molecules')
             plt.title('RMSE vs. average distance')
             plt.show(fig1)
-            F = "RMSE. Number of predictors = " + str(chromosome.Size) + ".png"
+            F = '{} {}{}'.format('RMSE. Number of predictors =', chromosome.Size, '.png')
             plt.savefig(F, bbox_inches='tight')
             plt.close(fig1)
     # plot Energy
@@ -266,45 +266,70 @@ if __name__ == '__main__':
             plt.xlabel('Average distance between centers of masses of molecules')
             plt.title('Energy vs. average distance')
             plt.show(fig2)
-            F = "Energy. Number of predictors = " + str(chromosome.Size) + ".png"
+            F = '{} {}{}'.format('Energy. Number of predictors =', chromosome.Size, '.png')
             plt.savefig(F, bbox_inches='tight')
             plt.close(fig2)
         o += 1
         os.chdir(parent_directory) # set parent dir
 
     os.chdir(parent_directory) # back to parent dir
+# plot RMSE vs. % of used training points
     fig3 = plt.figure(3, figsize=(19,10))
-#    plt.xlim((XMin, XMax))
-#    plt.ylim((YMin, YMax))
     plt.plot(X3Plot, Y3PlotGP_RMSE, c='red', marker='*', label='Gaussian')
     for i in range(0, Y3PlotLP_RMSE.shape[0], 1):
-        Label = 'LM with ' + str(chromosome_size_list[i]) + ' predictors'
+        Label = '{} {} {}'.format('LM with', chromosome_size_list[i], 'predictors')
         plt.plot(X3Plot, Y3PlotLP_RMSE[i, :], marker='.', label=Label)
     plt.legend()
     plt.ylabel('RMSE')
     plt.xlabel('% of usage of trained points')
     plt.title('RMSE vs. % of used training points')
     plt.show(fig3)
-    F = "Graph 3" + ".png"
+    F = '{} {} {}'.format('RMSE for Gaussian and', len(chromosome_size_list), 'LM models.png')
     plt.savefig(F, bbox_inches='tight')
     plt.close(fig3)    
-            
+# plot R2 vs. % of used training points            
     fig4 = plt.figure(4, figsize=(19,10))
-#    plt.xlim((XMin, XMax))
-#    plt.ylim((YMin, YMax))
     plt.plot(X3Plot, Y3PlotGP_R2, c='red', marker='*', label='Gaussian')
     for i in range(0, Y3PlotLP_R2.shape[0], 1):
-        Label = 'LM with ' + str(chromosome_size_list[i]) + ' predictors'
+        Label = '{} {} {}'.format('LM with', chromosome_size_list[i], 'predictors')
         plt.plot(X3Plot, Y3PlotLP_R2[i, :], marker='.', label=Label)
     plt.legend()
     plt.ylabel('R2')
     plt.xlabel('% of usage of trained points')
     plt.title('R2 vs. % of used training points')
     plt.show(fig4)
-    F = "Graph 4" + ".png"
+    F = '{} {} {}'.format('R2 for Gaussian and', len(chromosome_size_list), 'LM models.png')
     plt.savefig(F, bbox_inches='tight')
     plt.close(fig4) 
-    os.chdir(initial_directory)
-    
-    # erase *.csv, *.dat, *.x at the end
+# plot each graph separately. RMSE vs. % of used training points
+    for i in range(0, Y3PlotLP_RMSE.shape[0], 1):
+        fig3 = plt.figure(5, figsize=(19,10))
+        plt.plot(X3Plot, Y3PlotGP_RMSE, c='red', marker='*', label='Gaussian')       
+        Label = '{} {} {}'.format('LM with', chromosome_size_list[i], 'predictors')
+        plt.plot(X3Plot, Y3PlotLP_RMSE[i, :], c='green', marker='.', label=Label)
+        plt.legend()
+        plt.ylabel('RMSE')
+        plt.xlabel('% of usage of trained points')
+        plt.title('RMSE vs. % of used training points')
+        plt.show(fig3)
+        F = '{} {} {}{}'.format('RMSE.', 'Predictors =', chromosome_size_list[i], '.png')
+        plt.savefig(F, bbox_inches='tight')
+        plt.close(fig3)    
+
+    for i in range(0, Y3PlotLP_R2.shape[0], 1):
+        fig4 = plt.figure(4, figsize=(19,10))
+        plt.plot(X3Plot, Y3PlotGP_R2, c='red', marker='*', label='Gaussian')        
+        Label = '{} {} {}'.format('LM with', chromosome_size_list[i], 'predictors')
+        plt.plot(X3Plot, Y3PlotLP_R2[i, :], c='green', marker='.', label=Label)
+        plt.legend()
+        plt.ylabel('R2')
+        plt.xlabel('% of usage of trained points')
+        plt.title('R2 vs. % of used training points')
+        plt.show(fig4)
+        F = '{} {} {}{}'.format('R2.', 'Predictors =', chromosome_size_list[i], '.png')
+        plt.savefig(F, bbox_inches='tight')
+        plt.close(fig4)         
+        
+    os.chdir(initial_directory)   
+    print('DONE')
     

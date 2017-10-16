@@ -15,15 +15,15 @@ if __name__ == '__main__':
     F_Filter = 'Filter.dat'
     F_Gaussian = 'datafile.x'
 
-    TrainIntervals = [(2.4, 14)] # (Low, High)   
+    TrainIntervals = [(2.4, 15)] # (Low, High)   
 #    TrainIntervals = [(0, 5), (7, 9)] # (Low, High) 2 water big
     MoleculePrototypes = IOfunctions.ReadMoleculeDescription(F=F_MoleculesDescriptor)
     GridStart = 2.4 # initial estimation of min ang max average distances
-    GridEnd = 14.0
+    GridEnd = 15.0
     GridSpacing = 0.2
     ConfidenceInterval = 1 # same as PDF but middle part
     TestFraction = 0.2
-    TrainFraction = 1
+    TrainFraction = 0.1
     RandomSeed = 101
     if RandomSeed is not None:
         random.seed(RandomSeed)

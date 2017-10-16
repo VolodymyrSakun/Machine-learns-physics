@@ -15,7 +15,7 @@ import pickle
 if __name__ == '__main__':
     
 # Global variables
-    DesiredNumberVariables = 5
+    DesiredNumberVariables = 6
     FirstAlgorithm = 'GA' # specifies algorithm that will give rough initial fit. 
     # Can be 'ENet' or 'GA' 
     UseVIP = False # if true fit will be found in two steps. First step - fit only
@@ -34,7 +34,7 @@ if __name__ == '__main__':
 #    MaxBottom = 50 # integer - number of finished branches
     UseCorrelationMutation=True
     MinCorrMutation=0.8
-    UseCorrelationBestFit=False
+    UseCorrelationBestFit=True
     MinCorrBestFit=0.9
     
     # for Best Fit algorithm. If False, all features will be used in trials 
