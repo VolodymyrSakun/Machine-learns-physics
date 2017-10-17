@@ -689,9 +689,9 @@ def generate_random_molecule(prototype, SphereRadius=10, max_trials=100):
             return molecule
         n_trials += 1
     print('Unable to generate molecule with provided configuration')
-    return -1
+    return None
 
-def generate_random_molecules2(prototype, DMin=0, DMax=10, max_trials=100):
+def generate_random_molecule2(prototype, DMin=0, DMax=10, max_trials=100):
 # molecule prototype must be aligned by function align_molecule
 # generates one molecule that has center of mass farther than DMin and closer than DMax from COM of prototype
     n_trials = 0
@@ -787,18 +787,18 @@ def generate_molecule_coordinates_list(prototype, nMolecules=2, nRecords=100,\
             if PrototypeFirst:
                 molecules.append(prototype)
             else:
-                molecules.append(generate_random_molecule(prototype, SphereRadius=SphereRadius, max_trials=max_gen_trials))
+                molecules.append(generate_random_molecule2(prototype, 0, SphereRadius, max_trials=max_gen_trials))
             n_inner_trials = 0
             while (len(molecules) < nMolecules) and (n_inner_trials < max_inner_trials):
-                new_molecule = generate_random_molecule(prototype, SphereRadius=SphereRadius, max_trials=max_gen_trials)
-                if type(new_molecule) is int:
-                    return -1
+                new_molecule = generate_random_molecule2(prototype, 0, SphereRadius, max_trials=max_gen_trials)
+                if new_molecule is None:
+                    return None
                 molecules = check_new_molecule(molecules, new_molecule, additional_gap=additional_gap)
                 n_inner_trials += 1
             n_outer_trials += 1
         if len(molecules) < nMolecules:
             print('Unable to generate moleculeS with provided configuration')
-            return -1
+            return None
         if (not generate_records):
             return molecules
         record = []

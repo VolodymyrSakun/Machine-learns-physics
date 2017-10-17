@@ -19,46 +19,67 @@ RandomSeed = None # if none use seed()
 DMin = 2.0 # minimal distance between center of mass of 2 water
 DMax = 15.0 # max distance between center of mass of 2 water
 Inc = 0.2 # length of interval
-nRecords_per_interval = 10 # number of records per interval
+nRecords_per_interval = 1 # number of records per interval
 MoleculeName = 'Water' # name of molecule in prototype
+nMolecules = 3
+R = 5 # for 3 and more molecules. Radius of sphere where molecules are
+nRecords = 10 # for 3 and more molecules
 
 # read molecules from descriptor file
 Prototypes = IOfunctions.ReadMoleculeDescription(F=MoleculePrototype) 
-# align molecules that its center of mass it in 0,0,0 and principal axis aligned along x, y, z
+# find required molecule in prototypes
 for molecule in Prototypes:
     if molecule.Name == MoleculeName:
         prototype = copy.deepcopy(molecule)
         break
-# place prototypes center of mass at 0,0,0
-prototype = spherical.align_molecule(prototype)
-# Create intervals
-Intervals = []
-i = DMin
-while i+Inc <= DMax:
-    Intervals.append((round(i,2), round(i+Inc,2)))
-    i += Inc
-    
+
 if RandomSeed is not None:
-    random.seed(RandomSeed)
+        random.seed(RandomSeed)
 else:
-    random.seed()
-# Generate records
+    random.seed()  
+    
+# align molecules that its center of mass it in 0,0,0 and principal axis aligned along x, y, z
+prototype = spherical.align_molecule(prototype)
 
-Records = []
-for interval in Intervals:
-    for i in range(0, nRecords_per_interval, 1):
-        molecule = spherical.generate_random_molecules2(prototype, DMin=interval[0], DMax=interval[1], max_trials=1000)
-        if molecule is None:
+if nMolecules == 2:
+    # Create intervals
+    Intervals = []
+    i = DMin
+    while i+Inc <= DMax:
+        Intervals.append((round(i,2), round(i+Inc,2)))
+        i += Inc
+        
+    # Generate records    
+    Records = []
+    for interval in Intervals:
+        for i in range(0, nRecords_per_interval, 1):
+            molecule = spherical.generate_random_molecule2(prototype, DMin=interval[0], DMax=interval[1], max_trials=1000)
+            if molecule is None:
+                break
+            else:
+                Molecules = [prototype, molecule]
+                rec = structure.Rec(Molecules)
+                Records.append(rec)
+    
+    print('Number of records =', len(Records))
+    print('Records per interval =', nRecords_per_interval)
+    print('Intervals: ', Intervals)
+
+else:
+    i = 0
+    Records = []
+    while i < nRecords:
+        Molecules = spherical.generate_molecule_coordinates_list(prototype,\
+            nMolecules=nMolecules, nRecords=None,\
+            SphereRadius=R, additional_gap=0, PrototypeFirst=False, max_gen_trials=100,\
+            max_inner_trials=100, max_outer_trials=10, verbose=False, n_verbose=10)
+        if Molecules is None:
             break
-        else:
-            Molecules = [prototype, molecule]
-            rec = structure.Rec(Molecules)
-            Records.append(rec)
-
-print('Number of records =', len(Records))
-print('Records per interval =', nRecords_per_interval)
-print('Intervals: ', Intervals)
-
+        rec = structure.Rec(Molecules)
+        Records.append(rec)  
+        i += 1
+    print('Number of records =', len(Records))
+    
 InitialDir = os.getcwd()
 ParentDir = os.path.join(InitialDir,ParentDir)
 if os.path.exists(ParentDir):
