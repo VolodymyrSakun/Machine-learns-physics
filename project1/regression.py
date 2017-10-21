@@ -13,19 +13,6 @@ from sklearn.linear_model import ElasticNetCV
 from sklearn.linear_model import enet_path
 import matplotlib.pyplot as plt
 import statsmodels.regression.linear_model as sm
-from project1 import genetic
-    
-#def Standardize(x, y):
-#    y = y.reshape(-1, 1)
-#    x_scale = StandardScaler(copy=True, with_mean=True, with_std=True)
-#    y_scale = StandardScaler(copy=True, with_mean=True, with_std=False)
-#    x_scale.fit(x)
-#    y_scale.fit(y)
-#    x_std = x_scale.transform(x)
-#    y_std = y_scale.transform(y)
-#    y = y.reshape(-1)
-#    variances = x_scale.var_
-#    return x_std , y_std, variances
 
 def Standardize(x):
     x_scale = StandardScaler(copy=True, with_mean=True, with_std=True)
@@ -70,12 +57,10 @@ def predict_exp(c, x_exp, x_lin, y):
         len_exp = 0
     else:
         len_exp = x_exp.shape[1]
-#        Size = x_exp.shape[0]
     if x_lin is None:
         len_lin = 0
     else:            
         len_lin = x_lin.shape[1]
-#        Size = x_lin.shape[0]
     Size = y.size
     len_vars = len(c)
     y_pred = np.zeros(shape=(Size), dtype=float)

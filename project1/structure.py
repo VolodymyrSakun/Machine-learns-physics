@@ -219,13 +219,33 @@ class System(dict):
     def __dir__(self):
         return list(self.keys()) 
             
-class Record:
-    atoms = None
-    e = None
-    def __init__(self, energy, atoms):
-        self.e = energy
-        self.atoms = atoms # class AtomCoordinates
+class Record(dict):
+#    atoms = None
+#    e = None
+    def __init__(self, Energy=None, Atoms=None):
+        self.e = Energy
+        self.atoms = Atoms # class AtomCoordinates
 
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+    
 class Distance(dict):
 #    Atom1 = None
 #    Atom2 = None
@@ -320,39 +340,18 @@ class Distance_to_Power(dict):
 
     def __dir__(self):
         return list(self.keys()) 
-        
-# inactive
-class Harmonic:
-    Order = None # Can be ... -3, -2, -1, 0, 1, 2, 3 ... use only positive. Less or = to Degree 
-    Degree = None # 0, 1, 2, 3 ....
-    Center = None # which atom is taken as zero reference
-    Atom = None # atom from another molecule that harmonic is calculated for
-    HaType = None # type of harmonic. each harmonic is unique I hope
-    def __init__(self, order, degree, center, atom):
-        self.Order = order
-        self.Degree = degree
-        self.Center = center
-        self.Atom = atom
-        if order != 0:
-            sign = np.sign(order)
-        else:
-            sign = 1
-        if sign == -1:
-            sign = 0
-        self.HaType = 10000*sign + 1000*abs(self.Order) + 100*self.Degree + 10*self.Center.AtType +self.Atom.AtType
-        
+                
 # only for single and double distances
-class Feature:
-    nDistances = 0
-    nHarmonics = 0
-    DtP1 = None
-    DtP2 = None
-    FeType = 'None'
-    Harmonic1 = None
-    Harmonic2 = None
-    idx = []
+class Feature(dict):
+#    nDistances = 0
+#    DtP1 = None
+#    DtP2 = None
+#    FeType = None
+#    idx = []
     
-    def __init__(self, DtP1, DtP2=None, Harmonic1=None, Harmonic2=None):
+    def __init__(self, nDistances=1, DtP1=None, DtP2=None, FeType=None, idx=[]):
+        self.DtP1=None
+        self.DtP2=None
         
         def count_unique(d1, d2):
             l = []
@@ -370,7 +369,7 @@ class Feature:
                 return 2
             return 1                
         
-        self.idx = []
+        self.idx = idx
         if (DtP1 is not None) and (DtP2 is None): # one distance in feature
             self.nDistances = 1
             # get category based on molecular index
@@ -394,12 +393,10 @@ class Feature:
         if (DtP1 is not None) and (DtP2 is not None): # two distances in feature
             self.nDistances = 2
             # arrange distances
-#            Swapped = False
             if DtP1.Distance.isIntermolecular and (not DtP2.Distance.isIntermolecular): 
                 # first inter second intra
                 self.DtP1 = DtP2 # intra first
-                self.DtP2 = DtP1
-#                Swapped = True   
+                self.DtP2 = DtP1  
             else:
                 if DtP2.Distance.isIntermolecular and (not DtP1.Distance.isIntermolecular):
                 # first intra second inter
@@ -411,7 +408,6 @@ class Feature:
                         if DtP1.Distance.Atom1.AtType > DtP2.Distance.Atom1.AtType: 
                             self.DtP1 = DtP2 # lowest type first
                             self.DtP2 = DtP1
-#                            Swapped = True
                         else:
                             self.DtP1 = DtP1
                             self.DtP2 = DtP2                    
@@ -422,7 +418,6 @@ class Feature:
                             if DtP1.Distance.Atom2.AtType > DtP2.Distance.Atom2.AtType:
                                 self.DtP1 = DtP2 # lowest index first
                                 self.DtP2 = DtP1
-#                                Swapped = True
                             else:
                                 self.DtP1 = DtP1 
                                 self.DtP2 = DtP2  
@@ -487,39 +482,82 @@ class Feature:
         c2 = str(CategoryAtomic)
         self.FeType = p1 + p2 + t11 + t12 + t21 + t22 + c1 + c2
         return
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
     
-class FeatureNonlinear:
-    idx = None
-    Distance = None
-    nDistances = None
-    FeType = 'exp'
-    nConstants = None 
+class FeatureNonlinear(dict):
+#    idx = None
+#    Distance = None
+#    nDistances = None
+#    FeType = 'exp'
+#    nConstants = None 
     
-    def __init__(self, idx, Distance, FeType='exp', nDistances=1, nConstants=2):
+    def __init__(self, idx=None, Distance=None, FeType='exp', nDistances=1, nConstants=2):
         self.idx = idx
         self.Distance = Distance
         self.FeType=FeType
         self.nDistances=nDistances
         self.nConstants=nConstants
         return
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
         
-class Rec:
-    Molecules = []
-    nMolecules = None
-    E_True = None
-    E_Predicted = None # from get_energy
-    MSE = None # from get_energy
-    CenterOfMass = None # of all molecules in one record
-    R_CenterOfMass_Average = None # 
-    R_Average = None
+class Rec(dict):
+#    Molecules = []
+#    nMolecules = None
+#    E_True = None
+#    E_Predicted = None # from get_energy
+#    MSE = None # from get_energy
+#    CenterOfMass = None # of all molecules in one record
+#    R_CenterOfMass_Average = None # 
+#    R_Average = None
     
-    def __init__(self, Molecules, E_True=None):
+    def __init__(self, Molecules=None, E_True=None, nMolecules=None, E_Predicted=None,\
+            MSE=None, CenterOfMass=None, R_CenterOfMass_Average=None, R_Average=None):
         self.Molecules = Molecules
         self.E_True = E_True
-        self.E_Predicted = None
-        self.MSE = None
+        self.E_Predicted = E_Predicted
+        self.MSE = MSE
         self.nMolecules = len(Molecules)
         self.CenterOfMass = spherical.center_of_mass(Molecules)
+        self.R_CenterOfMass_Average = None
+        self.R_Average = None
         R = 0
         for molecule in Molecules:
             v = spherical.vector_from_points(self.CenterOfMass, molecule.CenterOfMass)
@@ -536,6 +574,26 @@ class Rec:
             self.R_Average = R / n
         return
 
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
+        
 # only for linear now    
     def get_energy(self, chromosome, FeaturesAll, FeaturesReduced):
         idx_lin = chromosome.get_genes_list(Type=0)
@@ -543,7 +601,7 @@ class Rec:
         E = 0
         for i in range(0, chromosome.Size, 1): # for each nonzero coefficient
             current_feature_idx = idx_lin[i] # idx of FeaturesReduced
-            FeaturesReduced[current_feature_idx].idx # list of idx in FeaturesAll
+#            FeaturesReduced[current_feature_idx].idx # list of idx in FeaturesAll
             variable = 0
             for j in FeaturesReduced[current_feature_idx].idx:
                 if FeaturesAll[j].nDistances == 1:
@@ -696,26 +754,4 @@ def print_distance(distance):
     print('Atom2:')
     print_atom(distance.Atom2)
     
-class OptimizeResult(dict):
-    def __init__(self, a=1, b=2):
-        self.a=a
-        self.b=b
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError:
-            raise AttributeError(name)
 
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-    def __repr__(self):
-        if self.keys():
-            m = max(map(len, list(self.keys()))) + 1
-            return '\n'.join([k.rjust(m) + ': ' + repr(v)
-                              for k, v in sorted(self.items())])
-        else:
-            return self.__class__.__name__ + "()"
-
-    def __dir__(self):
-        return list(self.keys())

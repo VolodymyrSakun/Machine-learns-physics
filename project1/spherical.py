@@ -84,16 +84,36 @@ class Point(dict):
     def __dir__(self):
         return list(self.keys()) 
     
-class Vector:
-    x = None
-    y = None 
-    z = None
-    length = None
-    def __init__(self, X, Y, Z):
+class Vector(dict):
+#    x = None
+#    y = None 
+#    z = None
+#    length = None
+    def __init__(self, X=None, Y=None, Z=None, length=None):
         self.x = X
         self.y = Y
         self.z = Z
         self.length = np.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
         
 class Plane:
 # a*x + b*y + c*z = d
@@ -577,7 +597,6 @@ def ReadMolecules(F='MoleculesDescriptor.'): # inactive
     while i < len(lines):    
         x = lines[i]
         if (x.find('Molecule') != -1):
-#            x = lines[i]
             s = re.split(Separators, x)
             del(s[0])
             s0 = s[0]
@@ -765,7 +784,7 @@ def check_new_molecule(molecules, molecule, additional_gap=0):
     return molecules
 
 def generate_molecule_coordinates_list(prototype, nMolecules=2, nRecords=100,\
-        SphereRadius=10, additional_gap=0, PrototypeFirst=False, max_gen_trials=10,\
+        InnerRadius=0, OuterRadius=10, additional_gap=0, PrototypeFirst=False, max_gen_trials=10,\
         max_inner_trials=100, max_outer_trials=10, verbose=False, n_verbose=10):
 # generate molecule coordinates inside sphere with radius = Radius
 # if nRecords=None - returns molecules list with nMolecules molecules
@@ -787,10 +806,10 @@ def generate_molecule_coordinates_list(prototype, nMolecules=2, nRecords=100,\
             if PrototypeFirst:
                 molecules.append(prototype)
             else:
-                molecules.append(generate_random_molecule2(prototype, 0, SphereRadius, max_trials=max_gen_trials))
+                molecules.append(generate_random_molecule2(prototype, InnerRadius, OuterRadius, max_trials=max_gen_trials))
             n_inner_trials = 0
             while (len(molecules) < nMolecules) and (n_inner_trials < max_inner_trials):
-                new_molecule = generate_random_molecule2(prototype, 0, SphereRadius, max_trials=max_gen_trials)
+                new_molecule = generate_random_molecule2(prototype, InnerRadius, OuterRadius, max_trials=max_gen_trials)
                 if new_molecule is None:
                     return None
                 molecules = check_new_molecule(molecules, new_molecule, additional_gap=additional_gap)

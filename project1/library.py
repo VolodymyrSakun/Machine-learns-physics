@@ -748,26 +748,6 @@ def StoreLinearFeaturesDescriprion(FileName, FeaturesAll, FeaturesReduced):
             Results.loc[i]['Power 2'] = ''
             Results.loc[i]['Intermolecular 2'] = ''
             Results.loc[i]['Distance 2 type'] = ''
-        if FeaturesReduced[index].nHarmonics >= 1:   
-            Results.loc[i]['Order 1'] = FeaturesReduced[index].Harmonic1.Order
-            Results.loc[i]['Degree 1'] = FeaturesReduced[index].Harmonic1.Degree
-            Results.loc[i]['HaType 1'] = FeaturesReduced[index].Harmonic1.HaType
-            if max_harmonics_in_feature < 1:
-                max_harmonics_in_feature = 1
-        else:
-            Results.loc[i]['Order 1'] = ''
-            Results.loc[i]['Degree 1'] = ''
-            Results.loc[i]['HaType 1'] = ''
-        if FeaturesReduced[index].nHarmonics >= 2:   
-            Results.loc[i]['Order 2'] = FeaturesReduced[index].Harmonic2.Order
-            Results.loc[i]['Degree 2'] = FeaturesReduced[index].Harmonic2.Degree
-            Results.loc[i]['HaType 2'] = FeaturesReduced[index].Harmonic2.HaType
-            if max_harmonics_in_feature < 2:
-                max_harmonics_in_feature = 2
-        else:
-            Results.loc[i]['Order 2'] = ''
-            Results.loc[i]['Degree 2'] = ''
-            Results.loc[i]['HaType 2'] = ''            
         counter = 0
         current_feature_type = FeaturesReduced[index].FeType
         for j in range(0, len(FeaturesAll), 1):
@@ -2746,7 +2726,7 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False, UseCorrelationBestFit=False, Sto
     UseCorrelationMutation=True
     MinCorrMutation=0.8
     UseCorrelationBestFit=UseCorrelationBestFit
-    MinCorrBestFit=0.9
+    MinCorrBestFit=0.8
     
     # for Best Fit algorithm. If False, all features will be used in trials 
     # to find Best Fit. Overwise, only most correlated features will be used.
@@ -2786,7 +2766,7 @@ def GetFit(nVarMin=5, nVarMax=15, UseVIP=False, UseCorrelationBestFit=False, Sto
     MutationMethod = 'Correlated' # 'Random' or 'Correlated'
     verbose = True
 # gaussian parameters    
-    GaussianPrecision = 12
+    GaussianPrecision = 10
     Start = 0.01
     End = 20
     Len = 5
