@@ -6,6 +6,7 @@
 from scipy.linalg import lstsq
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+import pandas as pd
 import sklearn.metrics as skm
 from scipy.optimize import least_squares
 from sklearn.linear_model import LinearRegression
@@ -19,9 +20,9 @@ def Standardize(x):
     x_scale.fit(x)
     x_std = x_scale.transform(x)
     variances = x_scale.var_
-    return x_std , variances
+    return x_std , variances.reshape(-1)
     
-def jac_exp(c, x_exp, x_lin, y):
+def jac_exp_simple(c, x_exp, x_lin, y):
     if x_exp is None:
         len_exp = 0
     else:
@@ -38,21 +39,69 @@ def jac_exp(c, x_exp, x_lin, y):
         len_vars = c.size
     J = np.empty((Size, len_vars))    
     for i in range(0, len_exp, 1):
-        J[:, 2*i] = np.exp(c[2*i+1] * x_exp[:, i])
+        J[:, 2*i] = np.exp(c[2*i+1] * x_exp[:, i])# coeff * exp
     for i in range(1, len_exp, 1):
-        J[:, 2*i+1] = c[2*i] * x_exp[:, i] * np.exp(c[2*i+1] * x_exp[:, i])
+        J[:, 2*i+1] = c[2*i] * x_exp[:, i] * np.exp(c[2*i+1] * x_exp[:, i]) # e^coeff
     for i in range(0, len_lin, 1):
         J[:, i+2*len_exp] = x_lin[:, i]   
     return J
 
-def residual_exp(c, x_exp, x_lin, y):
-    y_pred = predict_exp(c, x_exp, x_lin, y)
-    residuals = y - y_pred
-    if residuals is None:
-        print('Crash: residual_exp')
+# beta*R**(-n)*e**(alpha*R)
+# c - vector c[0] - alpha, c[1] - beta; before linear
+# c [i] - linear coeff; last
+# x_exp - 2D array of tuples (R, R**(-n))
+def jac_exp(c, x_expD, x_expDn, x_lin, y):
+    if x_expD is None or x_expDn is None:
+        len_exp = 0 # number of exponential terms
+    else:
+        len_exp = x_expD.shape[1]
+        Size = x_expD.shape[0]
+    if x_lin is None:
+        len_lin = 0 # number of linear terms
+    else:            
+        len_lin = x_lin.shape[1]
+        Size = x_lin.shape[0]
+    if type(c) is list:
+        len_vars = len(c)
+    else:
+        len_vars = c.size # total number of fitting coeficients
+    J = np.empty((Size, len_vars))   
+    for i in range(0, len_exp, 1):
+        J[:, 2*i] = c[2*i+1] * x_expDn[:, i] * x_expD[:, i] * np.exp(c[2*i] * x_expD[:, i]) # e^coeff [alpha]
+    #   d/d_alpha = beta     * R**(-n)        * R              * e**(   alpha  * R)
+    for i in range(0, len_exp, 1):
+        J[:, 2*i+1] = x_expDn[:, i] * np.exp(c[2*i] * x_expD[:, i])# R**(-n)*e**(alpha*R)
+    #   d/d_beta    = R**(-n)        * e**(   alpha  * R) 
+    for i in range(0, len_lin, 1):
+        J[:, i+2*len_exp] = x_lin[:, i]   
+    #   d/d_gamma         = R**(-m)  
+    return J
+
+def residual_exp(c, x_expD, x_expDn, x_lin, y):
+    y_pred = predict_exp(c, x_expD, x_expDn, x_lin, y)
+    residuals = np.zeros(shape=(y.size), dtype=float)
+    residuals[:] = y[:] - y_pred[:]
     return residuals
 
-def predict_exp(c, x_exp, x_lin, y):
+def predict_exp(c, x_expD, x_expDn, x_lin, y):
+    if x_expD is None or x_expDn is None:
+        len_exp = 0
+    else:
+        len_exp = x_expD.shape[1]
+    if x_lin is None:
+        len_lin = 0
+    else:            
+        len_lin = x_lin.shape[1]
+    y_pred = np.zeros(shape=(y.size), dtype=float)
+    for i in range(0, len_exp, 1):
+        y_pred[:] += c[2*i+1] * x_expDn[:, i] * np.exp(c[2*i] * x_expD[:, i])
+    #   E         += beta     * R**(-n)        * e**(   alpha  * R)    
+    for i in range(0, len_lin, 1):
+        y_pred[:] += c[i+2*len_exp] * x_lin[:, i] 
+    #   E         += gamma          * R**(-m)
+    return y_pred
+
+def predict_exp_simple(c, x_exp, x_lin, y):
     if x_exp is None:
         len_exp = 0
     else:
@@ -62,7 +111,10 @@ def predict_exp(c, x_exp, x_lin, y):
     else:            
         len_lin = x_lin.shape[1]
     Size = y.size
-    len_vars = len(c)
+    if type(c) is list:
+        len_vars = len(c)
+    else:
+        len_vars = c.size # total number of fitting coeficients
     y_pred = np.zeros(shape=(Size), dtype=float)
     if len_exp != 0:
         vars_exp = np.zeros(shape=(2*len_exp), dtype=float)
@@ -96,13 +148,13 @@ def get_Mallow(idx_nonlin, idx_lin, x_nonlin, x_lin, y, MSEall=None, MSEp=None):
         else:
             p = len(idx_nonlin) + len(idx_lin) # both features
         if MSEall is None: # calculate MSE for all features using non-linear regression        
-            r = nonLR(NonlinearFunction='exp')
+            r = expRegression()
             r.fit(x_nonlin, x_lin, y, jac=None, c0=None)
             if r.MSE is None:
                 return None, None, None
             MSEall = r.MSE
         if MSEp is None:
-            results = fit_nonlinear(idx_nonlin, idx_lin, x_nonlin, x_lin, y,\
+            results = fit_exp(idx_nonlin, idx_lin, x_nonlin, x_lin, y,\
                 NonlinearFunction='exp', jac=None, c0=None)    
             MSEp = results['MSE Train']
             if MSEp is None:
@@ -114,11 +166,14 @@ def compute_Mallow(nObservations, nFeatures, MSEall, MSEp):
     Cp = nFeatures + ((MSEp - MSEall) / MSEall) * (nObservations - nFeatures)
     return Cp
 
-def fit_linear(idx, x_train, y_train, x_test=None, y_test=None, MSEall_train=None, MSEall_test=None,\
-        normalize=False, LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'):
+def fit_linear(idx, x_train, y_train, x_test=None, y_test=None,\
+        normalize=True, LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'):
 # solver = 'sklearn'
 # solver = 'scipy'   
-# solver = 'statsmodels'    
+# solver = 'statsmodels'  
+    if idx == [] or idx is None:
+        print('Crash fit_linear')
+        return
     Size_train = x_train.shape[0] # number of observations
     size = len(idx) # number of variables
     x_sel_train = np.zeros(shape=(Size_train, size), dtype=float)
@@ -133,48 +188,52 @@ def fit_linear(idx, x_train, y_train, x_test=None, y_test=None, MSEall_train=Non
     else:
         x_sel_test = None
     lr = LR(normalize=normalize, LinearSolver=LinearSolver, cond=cond, lapack_driver=lapack_driver)        
-    if (MSEall_train is None):
-        lr.fit(x_train, y_train, x_test=x_test, y_test=y_test)
-        MSEall_train = lr.MSE_Train
-        MSEall_test = lr.MSE_Test
     lr.fit(x_sel_train, y_train, x_test=x_sel_test, y_test=y_test)
-    if (MSEall_train is not None) and (lr.MSE_Train is not None):
-        Mallow_train = compute_Mallow(Size_train, size, MSEall_train, lr.MSE_Train)
+    if lr.p_Values is None:
+        a = np.zeros(shape=(1, len(idx)), dtype=float)
+        Table = pd.DataFrame(a, index=['Coefficient'], columns=idx, dtype=float)
     else:
-        Mallow_train = None
-    if (MSEall_test is not None) and (lr.MSE_Test is not None):
-        Mallow_test = compute_Mallow(Size_train, size, MSEall_test, lr.MSE_Test)
-    else:
-        Mallow_test = None
-    return {'Coefficients': lr.coef_, 'p-Values': lr.p_Values, 'MSE Train': lr.MSE_Train,\
-            'RMSE Train': lr.RMSE_Train, 'R2 Train': lr.R2_Train, 'R2 Adjusted Train': lr.R2Adj_Train,\
-            'Mallow Train': Mallow_train, 'MSE Test': lr.MSE_Test, 'RMSE Test': lr.RMSE_Test,\
-            'R2 Test': lr.R2_Test, 'R2 Adjusted Test': lr.R2Adj_Test, 'Mallow Test': Mallow_test}
+        a = np.zeros(shape=(2, len(idx)), dtype=float)
+        Table = pd.DataFrame(a, index=['Coefficient', 'p-Value'], columns=idx, dtype=float)        
+    for i in range(0, Table.shape[1], 1):
+        Table.iloc[0, i] = lr.coef_[i]
+        if Table.shape[0] == 2:
+            Table.iloc[1, i] = lr.p_Values[i]
+    return {'Coefficients': Table, 'MSE Train': lr.MSE_Train,\
+            'RMSE Train': lr.RMSE_Train, 'R2 Train': lr.R2_Train,\
+            'R2 Adjusted Train': lr.R2Adj_Train,\
+            'MSE Test': lr.MSE_Test, 'RMSE Test': lr.RMSE_Test,\
+            'R2 Test': lr.R2_Test, 'R2 Adjusted Test': lr.R2Adj_Test}
 
-def fit_nonlinear(idx_nonlin, idx_lin, x_nonlin_train, x_lin_train, y_train,\
-        x_nonlin_test=None, x_lin_test=None, y_test=None, NonlinearFunction='exp',\
-        jac=None, c0=None):
-    if NonlinearFunction != 'exp':
-        return None, None, None, None
-    if idx_nonlin is None:
-        size_nonlin = 0
-        x_sel_nonlin_train = None
-        x_sel_nonlin_test = None
+def fit_exp(idx_exp, idx_lin, x_expD_train, x_expDn_train, x_lin_train, y_train,\
+        x_expD_test=None, x_expDn_test=None, x_lin_test=None, y_test=None,\
+        jac=None, c0=None, verbose=False):
+    if idx_exp is None or idx_exp == [] or x_expD_train is None or x_expDn_train is None: # no exponential features
+        size_exp = 0
+        x_sel_expD_train = None
+        x_sel_expDn_train = None
+        x_sel_expD_test = None
+        x_sel_expDn_test = None
     else:
-        Size_train = x_nonlin_train.shape[0] # number of observations training set        
-        size_nonlin = len(idx_nonlin) # number of variables
-        x_sel_nonlin_train = np.zeros(shape=(Size_train, size_nonlin), dtype=float)
+        Size_train = x_expD_train.shape[0] # number of observations training set        
+        size_exp = len(idx_exp) # number of variables
+        x_sel_expD_train = np.zeros(shape=(Size_train, size_exp), dtype=float)
+        x_sel_expDn_train = np.zeros(shape=(Size_train, size_exp), dtype=float)
 # creating selected features array
-        for i in range(0, size_nonlin, 1):
-            x_sel_nonlin_train[:, i] = x_nonlin_train[:, idx_nonlin[i]] # copy selected features from initial set
-        if (x_nonlin_test is not None) and (y_test is not None):
-            Size_test = x_nonlin_test.shape[0]
-            x_sel_nonlin_test = np.zeros(shape=(Size_test, size_nonlin), dtype=float)
-            for i in range(0, size_nonlin, 1):
-                x_sel_nonlin_test[:, i] = x_nonlin_test[:, idx_nonlin[i]] # copy selected features from initial set
+        for i in range(0, size_exp, 1):
+            x_sel_expD_train[:, i] = x_expD_train[:, idx_exp[i]] # copy selected features from initial set
+            x_sel_expDn_train[:, i] = x_expDn_train[:, idx_exp[i]] # copy selected features from initial set        
+        if (x_expD_test is not None) and (x_expDn_test is not None) and (y_test is not None): # test set exists
+            Size_test = x_expD_test.shape[0]
+            x_sel_expD_test = np.zeros(shape=(Size_test, size_exp), dtype=float)
+            x_sel_expDn_test = np.zeros(shape=(Size_test, size_exp), dtype=float)
+            for i in range(0, size_exp, 1):
+                x_sel_expD_test[:, i] = x_expD_test[:, idx_exp[i]] # copy selected features from initial set
+                x_sel_expDn_test[:, i] = x_expDn_test[:, idx_exp[i]] # copy selected features from initial set
         else:
-            x_sel_nonlin_test = None
-    if idx_lin is None:
+            x_sel_expD_test = None
+            x_sel_expDn_test = None
+    if idx_lin is None or idx_lin == [] or x_lin_train is None:
         size_lin = 0
         x_sel_lin_train = None   
         x_sel_lin_test = None   
@@ -185,47 +244,79 @@ def fit_nonlinear(idx_nonlin, idx_lin, x_nonlin_train, x_lin_train, y_train,\
 # creating selected features array
         for i in range(0, size_lin, 1):
             x_sel_lin_train[:, i] = x_lin_train[:, idx_lin[i]] # copy selected features from initial set
-        if (x_lin_test is not None) and (y_test is not None): 
+        if (x_lin_test is not None) and (y_test is not None): # test set exists
             Size_test = x_lin_test.shape[0] # number of observations test set
             x_sel_lin_test = np.zeros(shape=(Size_test, size_lin), dtype=float)
             for i in range(0, size_lin, 1):
                 x_sel_lin_test[:, i] = x_lin_test[:, idx_lin[i]] # copy selected features from initial set
         else:
             x_sel_lin_test = None
-    lr = nonLR(NonlinearFunction=NonlinearFunction)  
-    lr.fit(x_sel_nonlin_train, x_sel_lin_train, y_train, x_exp_test=x_sel_nonlin_test,\
+    non_lr = expRegression(verbose=verbose)  
+    non_lr.fit(x_sel_expD_train, x_sel_expDn_train, x_sel_lin_train, y_train,\
+        x_expD_test=x_sel_expD_test, x_expDn_test=x_sel_expDn_test,\
         x_lin_test=x_sel_lin_test, y_test=y_test, jac=jac, c0=c0)
-    return {'Fit Result': lr.fit_result, 'Success': lr.success, 'Coefficients': lr.coef_,\
-            'MSE Train': lr.MSE_Train, 'RMSE Train': lr.RMSE_Train, 'R2 Train': lr.R2_Train,\
-            'R2 Adjusted Train': lr.R2Adj_Train, 'Mallow Train': lr.Mallow_Train,\
-            'MSE Test': lr.MSE_Test, 'RMSE Test': lr.RMSE_Test, 'R2 Test': lr.R2_Test,\
-            'R2 Adjusted Test': lr.R2Adj_Test, 'Mallow Test': lr.Mallow_Test}
+    if size_exp != 0:
+#        exp_array = np.zeros(shape=(1, len(idx_exp)), dtype=float)
+        exp_array = [[(0, 0) for j in range(0, len(idx_exp), 1)] for i in [0]]
+        Table_exp = pd.DataFrame(exp_array, index=['Coefficient'], columns=idx_exp)
+        for i in range(0, Table_exp.shape[1], 1):
+            Table_exp.iloc[0, i] = non_lr.coef_exp[i]
+    else:
+        Table_exp = None        
+    if size_lin != 0:
+        lin_array = np.zeros(shape=(1, len(idx_lin)), dtype=float)
+        Table_lin = pd.DataFrame(lin_array, index=['Coefficient'], columns=idx_lin, dtype=float)
+        for i in range(0, Table_lin.shape[1], 1):
+            Table_lin.iloc[0, i] = non_lr.coef_lin[i]
+    else:
+        Table_lin = None        
+    return {'Fit Result': non_lr.fit_result,'Success': non_lr.success,\
+            'Coefficients exponential': Table_exp,\
+            'Coefficients linear': Table_lin,'MSE Train': non_lr.MSE_Train,\
+            'RMSE Train': non_lr.RMSE_Train,'R2 Train': non_lr.R2_Train,\
+            'R2 Adjusted Train': non_lr.R2Adj_Train,'MSE Test': non_lr.MSE_Test,\
+            'RMSE Test': non_lr.RMSE_Test, 'R2 Test': non_lr.R2_Test,\
+            'R2 Adjusted Test': non_lr.R2Adj_Test}
 
-class LR:
-    normalize=False
-    coef_=None
-    var=None # if normalize
-    p_Values=None # if solver is statsmodels
-    MSE_Train=None
-    RMSE_Train=None
-    R2_Train=None
-    R2Adj_Train=None
-    MSE_Test=None
-    RMSE_Test=None
-    R2_Test=None
-    R2Adj_Test=None
-    LinearSolver='sklearn' # 'sklearn', 'scipy', 'statsmodels'
-    cond=1e-20 # for scipy solver
-    lapack_driver='gelsy' # 'gelsd', 'gelsy', 'gelss', for scipy solver
+class LR(dict):
 
-    def __init__(self, normalize=False, LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'):
-        self.normalize = normalize
-        self.LinearSolver = LinearSolver
-        self.cond = cond
-        self.lapack_driver = lapack_driver
-        self.p_Values = None
+    def __init__(self, normalize=True, LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'):
+        self.normalize = True
+        self.LinearSolver = LinearSolver # 'sklearn', 'scipy', 'statsmodels'
+        self.cond = cond # for scipy solver
+        self.lapack_driver = lapack_driver # 'gelsd', 'gelsy', 'gelss', for scipy solver
+        self.p_Values = None # if solver is statsmodels
         self.coef_ = None
+        self.var = None # if need to be normalized
+        self.MSE_Train=None    
+        self.RMSE_Train=None
+        self.R2_Train=None
+        self.R2Adj_Train=None
+        self.MSE_Test=None
+        self.RMSE_Test=None
+        self.R2_Test=None
+        self.R2Adj_Test=None
         return
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
     
     def fit(self, x_train, y_train, x_test=None, y_test=None):
         if self.LinearSolver == 'sklearn': # 
@@ -241,16 +332,19 @@ class LR:
             if self.LinearSolver == 'scipy':
                 coef, _, _, _ = lstsq(x_std, y_train, cond=self.cond, overwrite_a=False,\
                     overwrite_b=False, check_finite=False, lapack_driver=self.lapack_driver)
-            if self.LinearSolver == 'statsmodels':
+            elif self.LinearSolver == 'statsmodels':
                 ols = sm.OLS(endog = y_train, exog = x_std, hasconst = False).fit()
                 self.p_Values = ols.pvalues
                 coef = ols.params
+            else:
+                print('Wrong solver')
+                return False
+            coef = coef.reshape(-1)
             if self.normalize:
                 self.coef_ = np.zeros(shape=(len(coef)), dtype=float)
-                for i in range(0, len(coef), 1):
-                    self.coef_[i] = coef[i] / np.sqrt(self.var[i])
+                self.coef_[:] = coef[:] / np.sqrt(self.var[:])                    
             else:
-                self.coef_ = coef.reshape(-1)
+                self.coef_ = coef
                 
 # calculating scores                
         y_pred = self.predict(x_train)
@@ -270,120 +364,159 @@ class LR:
     
     def predict(self, x):
         y = np.dot(x, self.coef_)
-        return y
+        return y.reshape(-1)
     
-class nonLR:
-    coef_=None
-    MSE_Train=None
-    RMSE_Train=None
-    R2_Train=None
-    R2Adj_Train=None
-    Mallow_Train=None
-    MSE_Test=None
-    RMSE_Test=None
-    R2_Test=None
-    R2Adj_Test=None
-    Mallow_Test=None
-    fit_result=None
-    NonlinearFunction='exp'
-    success=None
-    verbose=0
-    jac=None # 'exp' or None
+class expRegression(dict):
     
-    def __init__(self, NonlinearFunction='exp', verbose=0):
-        self.NonlinearFunction = NonlinearFunction
+    def __init__(self, verbose=0):
         self.verbose = verbose
+        self.coef_exp=None
+        self.coef_lin=None
+        self.MSE_Train=None
+        self.RMSE_Train=None
+        self.R2_Train=None
+        self.R2Adj_Train=None
+        self.Mallow_Train=None
+        self.MSE_Test=None
+        self.RMSE_Test=None
+        self.R2_Test=None
+        self.R2Adj_Test=None
+        self.Mallow_Test=None
+        self.fit_result=None
+        self.success=None
+        self.jac=None 
         return    
 
-    def fit(self, x_exp_train, x_lin_train, y_train, x_exp_test=None,\
-            x_lin_test=None, y_test=None, jac=None, c0=None): 
-        if self.NonlinearFunction != 'exp': # now works only with exp function
-            return
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
+
+    def fit(self, x_expD_train, x_expDn_train, x_lin_train, y_train, x_expD_test=None,\
+            x_expDn_test=None, x_lin_test=None, y_test=None, jac=None, c0=None): 
         residual = residual_exp
         predict = predict_exp
         if jac is None:
             jac = '3-point'
         elif jac == 'exp':
             jac = jac_exp
-        if x_exp_train is None:
+        if x_expD_train is None or x_expDn_train is None:
             size_exp = 0
         else:
-            size_exp = x_exp_train.shape[1]
+            size_exp = x_expD_train.shape[1]
         if x_lin_train is None:
             size_lin = 0   
         else:
             size_lin = x_lin_train.shape[1]            
         if (size_exp + size_lin) == 0:
             return
-        if c0 is None: # start from zeros
-            c0 = np.zeros(shape=(2*size_exp + size_lin)) # each exp feature requires 2 comstants 
+        if c0 is None: # start from -1
+            c0 = np.ones(shape=(2*size_exp + size_lin))
+            c0[:] = -1 * c0[:]
         results = least_squares(residual, c0, jac=jac, method='trf',\
             ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,\
             diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None,\
-            max_nfev=None, verbose=self.verbose, args=(x_exp_train, x_lin_train, y_train))
-        if not results.success: # try ones
-            c0 = np.ones(shape=(2*size_exp + size_lin))
+            max_nfev=None, verbose=self.verbose, args=(x_expD_train, x_expDn_train, x_lin_train, y_train))
+        if not results.success: # try zeros
+            c0 = np.zeros(shape=(2*size_exp + size_lin))
             results = least_squares(residual, c0, jac=jac, method='trf',\
                 ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,\
                 diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None,\
-                max_nfev=None, verbose=self.verbose, args=(x_exp_train, x_lin_train, y_train))
+                max_nfev=None, verbose=self.verbose, args=(x_expD_train, x_expDn_train, x_lin_train, y_train))
             if (not results.success) and (jac != '3-point'): # not successfull with user provided jacobian
 # try jacobian estimation
                 c0 = np.zeros(shape=(2*size_exp + size_lin))
                 results = least_squares(residual, c0, jac='3-point', method='trf',\
                     ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,\
                     diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None,\
-                    max_nfev=None, verbose=self.verbose, args=(x_exp_train, x_lin_train, y_train))
+                    max_nfev=None, verbose=self.verbose, args=(x_expD_train, x_expDn_train, x_lin_train, y_train))
                 if not results.success:# try ones and 3-point estimation
                     c0 = np.ones(shape=(2*size_exp + size_lin))
                     results = least_squares(residual, c0, jac='3-point', method='trf',\
                         ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,\
                         diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None,\
-                        max_nfev=None, verbose=self.verbose, args=(x_exp_train, x_lin_train, y_train))
+                        max_nfev=None, verbose=self.verbose, args=(x_expD_train, x_expDn_train, x_lin_train, y_train))
                     if not results.success:
                         self.success = False                
                         return            
-        self.coef_ = results.x
+        coef = results.x.reshape(-1)
         self.fit_result = results.status
         self.success = True
-        y_pred = predict(self.coef_, x_exp_train, x_lin_train, y_train)
+        y_pred = predict(coef, x_expD_train, x_expDn_train, x_lin_train, y_train)
         self.MSE_Train = skm.mean_squared_error(y_train, y_pred)
         self.RMSE_Train = np.sqrt(self.MSE_Train)
         self.R2_Train = skm.r2_score(y_train, y_pred)
         self.R2Adj_Train = 1 - (1-self.R2_Train)*(y_train.size-1)/(y_train.size-size_exp-size_lin-1)
-        if (x_exp_test is not None) or (x_lin_test is not None):
-            y_pred = predict(self.coef_, x_exp_test, x_lin_test, y_test)
+        if (x_expD_test is not None) or (x_expDn_test is not None) or (x_lin_test is not None):
+            y_pred = predict(coef, x_expD_test, x_expDn_test, x_lin_test, y_test)
             self.MSE_Test = skm.mean_squared_error(y_test, y_pred)
             self.RMSE_Test = np.sqrt(self.MSE_Test)
             self.R2_Test = skm.r2_score(y_test, y_pred)
-            self.R2Adj_Test = 1 - (1-self.R2_Test)*(y_test.size-1)/(y_test.size-size_exp-size_lin-1)
+            self.R2Adj_Test = 1 - (1-self.R2_Test)*(y_test.size-1)/(y_test.size-size_exp-size_lin-1)        
+# append tuples of exponential coefficients (alpha, beta)
+# alpha = power of exponent, beta = coefficiant in front of exponent
+        if size_exp != 0:
+            self.coef_exp = []
+            for i in range(0, size_exp, 1): 
+                self.coef_exp.append((coef[i*2], coef[i*2+1])) 
+        if size_lin != 0:
+            self.coef_lin = []
+            for i in range(0, size_lin, 1):
+                self.coef_lin.append(coef[i+2*size_exp])
         return
 
-class ENet:
-    idx = None
-    F_ENet = 'ENet path.png'
-    L1 = 0.7
-    eps = 1e-3
-    nAlphas = 100
-    alpha = None
-    alphas = None
-    var=None
-    random_state=None
-    coefs=None
-    mse_list=None
-    Cp_list=None
-    nonzero_count_list=None
-    
+class ENet(dict):
+        
     def __init__(self, L1=0.7, eps=1e-3, nAlphas=100, alphas=None, random_state=None):
+        self.idx = None
         self.L1 = L1
         self.eps = eps
         self.nAlphas = nAlphas
         self.random_state = random_state
-        if alphas is not None:
-            self.alphas = alphas
-        return
+        self.alpha = None
+        self.alphas = alphas
+        self.var=None
+        self.coefs=None
+        self.mse_list=None
+        self.Cp_list=None
+        self.nonzero_count_list=None            
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
     
-    def fit(self, x, y, VIP_idx=None, Criterion='CV', max_iter=10000, tol=0.0001,\
+    def fit(self, x, y, VIP_idx=None, Criterion='Mallow', max_iter=10000, tol=0.0001,\
             cv=None, n_jobs=1, selection='random', verbose=True, normalize=True):
         if normalize:
             x_std, self.var = Standardize(x)
@@ -392,9 +525,10 @@ class ENet:
         if VIP_idx is None:
             VIP_idx = []
         if (Criterion == 'CV'):
-            enet_cv = ElasticNetCV(l1_ratio=self.L1, eps=self.eps, n_alphas=self.nAlphas, alphas=self.alphas, fit_intercept=False,\
-                normalize=False, precompute='auto', max_iter=max_iter, tol=tol, cv=cv, copy_X=True, \
-                verbose=verbose, n_jobs=n_jobs, positive=False, random_state=self.random_state, selection=selection)
+            enet_cv = ElasticNetCV(l1_ratio=self.L1, eps=self.eps, n_alphas=self.nAlphas,\
+                alphas=self.alphas, fit_intercept=False,normalize=False, precompute='auto',\
+                max_iter=max_iter, tol=tol, cv=cv, copy_X=True, verbose=verbose,\
+                n_jobs=n_jobs, positive=False, random_state=self.random_state, selection=selection)
             enet_cv.fit(x_std, y)
             self.coefs = enet_cv.coef_
             self.alpha = enet_cv.alpha_
@@ -415,7 +549,6 @@ class ENet:
         self.Cp_list = []
         self.mse_list = []
         self.nonzero_count_list = []
-        MSEall = None
         for i in range(0, self.coefs.shape[1], 1): # columns
             nonzero_idx = []
             for j in range(0, self.coefs.shape[0], 1):
@@ -427,7 +560,7 @@ class ENet:
                 continue
             self.nonzero_count_list.append(len(nonzero_idx))
             Cp, MSEall, MSEp = get_Mallow(idx_nonlin=None, idx_lin=nonzero_idx,\
-                x_nonlin=None, x_lin=x_std, y=y, MSEall=MSEall, MSEp=None)
+                x_nonlin=None, x_lin=x_std, y=y, MSEall=None, MSEp=None)
             self.Cp_list.append(Cp)
             self.mse_list.append(MSEp)
         if Criterion == 'MSE':
@@ -442,22 +575,7 @@ class ENet:
         self.idx = nonzero_idx
         return
     
-# returns list of indices of selected features
-# default setting: use ElasticNetCV assigned by Method
-# x_std - standardized set of features
-# y_std - response with mean = 0
-# Method='CV' - use ElasticNEtCV, Method='grid' - use enet_path
-# MSE_threshold - treshhold for selecting min nonzero coefficients which gives fit better than MSE_threshold
-# R2_threshold - treshhold for selecting min nonzero coefficients which gives fit better than R2_threshold
-# L1_ratio - portion of L1 regularization. For Method='CV' can be array of floats
-# eps - Length of the path. eps=1e-3 means that alpha_min / alpha_max = 1e-3. Relevant if alphas is not assigned
-# N_alphas - size of grid
-# Alphas - array of regularization strengths
-# cv - number of cross-folds. only for Method='CV'
-# selection='cyclic' or 'random'. If set to ‘random’, a random coefficient is updated every iteration rather than looping over features sequentially by default. This (setting to ‘random’) often leads to significantly faster convergence especially when tol is higher than 1e-4.
-# PlotPath - plot 2 graphs: Number of nonzero coefficients vs. alpha and MSE vs. alpha. Only for Method='grid'
-
-    def plot_path(self, fig_number, FileName=None):
+    def plot_path(self, fig_number, F_ENet):
         nonzero = []
         for i in range(0, self.coefs.shape[1], 1):
             nonzero_count = np.count_nonzero(self.coefs[:, i])
@@ -479,9 +597,8 @@ class ENet:
         plt.ylabel('MSE')
         plt.title('Mean squared error vs. regularization strength')
         plt.show()
-        if FileName is not None:
-            plt.savefig(FileName, bbox_inches='tight')
-            plt.close(fig)
+        plt.savefig(F_ENet, bbox_inches='tight')
+        plt.close(fig)
         return
         
     

@@ -56,13 +56,67 @@ import random
 # s = sph_harm(m, n, theta, phi).real
         
 class Point(dict):
-#    x = None
-#    y = None 
-#    z = None
-    def __init__(self, x=None, y=None, z=None):
+
+    def __init__(self, x, y, z):
         self.x = x
         self.y = y
         self.z = z
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
+    
+class Vector(dict):
+
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.length = np.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys()) 
+        
+class Plane(dict):
+
+    def __init__(self, a, b, c, d):
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
 
     def __getattr__(self, name):
         try:
@@ -84,49 +138,6 @@ class Point(dict):
     def __dir__(self):
         return list(self.keys()) 
     
-class Vector(dict):
-#    x = None
-#    y = None 
-#    z = None
-#    length = None
-    def __init__(self, X=None, Y=None, Z=None, length=None):
-        self.x = X
-        self.y = Y
-        self.z = Z
-        self.length = np.sqrt(self.x**2 + self.y**2 + self.z**2)
-
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError:
-            raise AttributeError(name)
-
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-    def __repr__(self):
-        if self.keys():
-            m = max(map(len, list(self.keys()))) + 1
-            return '\n'.join([k.rjust(m) + ': ' + repr(v)
-                              for k, v in sorted(self.items())])
-        else:
-            return self.__class__.__name__ + "()"
-
-    def __dir__(self):
-        return list(self.keys()) 
-        
-class Plane:
-# a*x + b*y + c*z = d
-    a = None
-    b = None
-    c = None
-    d = None
-    def __init__(self, A, B, C, D):
-        self.a = A
-        self.b = B
-        self.c = C
-        self.d = D
-  
 def plane_from3points(p1, p2, p3):
     M = np.array([[p1.x, p1.y, p1.z], [p2.x, p2.y, p2.z], [p3.x, p3.y, p3.z]])
     d = determinant_3x3(M)
@@ -282,7 +293,6 @@ def get_real_form2(m, n, theta, phi):
         s = 1/np.sqrt(2)*(s_minus_abs_m + (-1)**m * s_abs_m)
     return s.real
 
-
 def get_real_form3(m, n, theta, phi):
     if m == 0:
         s = sph_harm(0, n, theta, phi)
@@ -295,7 +305,7 @@ def get_real_form3(m, n, theta, phi):
 
 def center_of_mass(Object):
     if type(Object) is not list:
-        if type(Object) is structure.AtomCoordinates:
+        if type(Object) is structure.Atom:
             return Point(Object.x, Object.y, Object.z)
         elif type(Object) is structure.Molecule:
             if Object.nAtoms == 1: # only one atom in molecule
@@ -308,13 +318,13 @@ def center_of_mass(Object):
     MiXi = 0
     MiYi = 0
     MiZi = 0    
-    if type(Object[0]) is structure.AtomCoordinates:
+    if type(Object[0]) is structure.Atom:
         try:
             for i in range(0, len(Object), 1):
-                Mi += Object[i].Atom.Mass
-                MiXi += Object[i].Atom.Mass * Object[i].x
-                MiYi += Object[i].Atom.Mass * Object[i].y
-                MiZi += Object[i].Atom.Mass * Object[i].z
+                Mi += Object[i].Mass
+                MiXi += Object[i].Mass * Object[i].x
+                MiYi += Object[i].Mass * Object[i].y
+                MiZi += Object[i].Mass * Object[i].z
             X = MiXi / Mi
             Y = MiYi / Mi
             Z = MiZi / Mi
@@ -335,18 +345,16 @@ def center_of_mass(Object):
         except:
             return False        
         
-        
-        
 # molecule - class Molecule; new_origin - class Point
 # change coordinate system to have new origine = new_origin
 def translate_molecule_to_new_coordinate_system(molecule, new_origin):
     Atoms = []
     for i in range(0, len(molecule.Atoms), 1):
         atom = molecule.Atoms[i].Atom
-        X = molecule.Atoms[i].x - new_origin.x
-        Y = molecule.Atoms[i].y - new_origin.y
-        Z = molecule.Atoms[i].z - new_origin.z
-        Atoms.append(structure.AtomCoordinates(atom, X, Y, Z))
+        atom.x = molecule.Atoms[i].x - new_origin.x
+        atom.y = molecule.Atoms[i].y - new_origin.y
+        atom.z = molecule.Atoms[i].z - new_origin.z
+        Atoms.append(structure.Atom(atom))
     new_molecule = structure.Molecule(Atoms, Name=molecule.Name)
     return new_molecule
 
@@ -356,10 +364,10 @@ def translate_molecule_to_new_center(molecule, new_center):
     Atoms = []
     for i in range(0, len(molecule.Atoms), 1):
         atom = molecule.Atoms[i].Atom
-        X = molecule.Atoms[i].x + new_center.x
-        Y = molecule.Atoms[i].y + new_center.y
-        Z = molecule.Atoms[i].z + new_center.z
-        Atoms.append(structure.AtomCoordinates(atom, X, Y, Z))
+        atom.x = molecule.Atoms[i].x + new_center.x
+        atom.y = molecule.Atoms[i].y + new_center.y
+        atom.z = molecule.Atoms[i].z + new_center.z
+        Atoms.append(structure.Atom(atom))
     new_molecule = structure.Molecule(Atoms, Name=molecule.Name)
     return new_molecule
 
@@ -378,7 +386,10 @@ def rotate_molecule_axis(molecule, e1, e2, e3):
         M_rotation = get_change_of_cordinates_matrix(e1, e2, e3)
         old_coordinates = np.array([[molecule.Atoms[i].x], [molecule.Atoms[i].y], [molecule.Atoms[i].z], [1]])
         new_coordinates = np.dot(M_rotation, old_coordinates)
-        Atoms.append(structure.AtomCoordinates(atom, new_coordinates[0, 0], new_coordinates[1, 0], new_coordinates[2, 0]))
+        atom.x = new_coordinates[0, 0]
+        atom.y = new_coordinates[1, 0]
+        atom.z = new_coordinates[2, 0]
+        Atoms.append(structure.Atom(atom))
     new_molecule = structure.Molecule(Atoms, Name=molecule.Name)        
     return new_molecule
 
@@ -456,7 +467,10 @@ def rotate_molecule_angles(molecule, theta, phi, psi, AngleType='Radian'):
         atom = molecule.Atoms[i].Atom
         point = Point(molecule.Atoms[i].x, molecule.Atoms[i].y, molecule.Atoms[i].z)
         new_point = rotate_point_angles(theta, phi, psi, point, AngleType='Radian')
-        Atoms.append(structure.AtomCoordinates(atom, new_point.x, new_point.y, new_point.z))
+        atom.x = new_point.x
+        atom.y = new_point.y
+        atom.z = new_point.z
+        Atoms.append(structure.Atom(atom))
     new_molecule = structure.Molecule(Atoms, Name=molecule.Name)        
     return new_molecule
     
@@ -468,14 +482,14 @@ def get_inertia_tensor(molecule):
     Iyz = 0
     Ixz = 0
     for i in range(0, len(molecule.Atoms), 1):
-        Ixx += (molecule.Atoms[i].y**2 + molecule.Atoms[i].z**2) * molecule.Atoms[i].Atom.Mass
-        Iyy += (molecule.Atoms[i].x**2 + molecule.Atoms[i].z**2) * molecule.Atoms[i].Atom.Mass
-        Izz += (molecule.Atoms[i].x**2 + molecule.Atoms[i].y**2) * molecule.Atoms[i].Atom.Mass
-        Ixy += -(molecule.Atoms[i].x * molecule.Atoms[i].y * molecule.Atoms[i].Atom.Mass)
+        Ixx += (molecule.Atoms[i].y**2 + molecule.Atoms[i].z**2) * molecule.Atoms[i].Mass
+        Iyy += (molecule.Atoms[i].x**2 + molecule.Atoms[i].z**2) * molecule.Atoms[i].Mass
+        Izz += (molecule.Atoms[i].x**2 + molecule.Atoms[i].y**2) * molecule.Atoms[i].Mass
+        Ixy += -(molecule.Atoms[i].x * molecule.Atoms[i].y * molecule.Atoms[i].Mass)
         Iyx = Ixy
-        Iyz += -(molecule.Atoms[i].y * molecule.Atoms[i].z * molecule.Atoms[i].Atom.Mass)
+        Iyz += -(molecule.Atoms[i].y * molecule.Atoms[i].z * molecule.Atoms[i].Mass)
         Izy = Iyz
-        Ixz += -(molecule.Atoms[i].x * molecule.Atoms[i].z * molecule.Atoms[i].Atom.Mass)
+        Ixz += -(molecule.Atoms[i].x * molecule.Atoms[i].z * molecule.Atoms[i].Mass)
         Izx = Ixz
     I = np.zeros(shape=(3, 3), dtype=float)
     I[0, 0] = Ixx
@@ -497,7 +511,7 @@ def get_atom_coordinates(molecule):
         A[i, 0] = molecule.Atoms[i].x
         A[i, 1] = molecule.Atoms[i].y
         A[i, 2] = molecule.Atoms[i].z
-        R[i] = molecule.Atoms[i].Atom.Radius
+        R[i] = molecule.Atoms[i].Radius
     return A, R
 
 def align_molecule(molecule):
@@ -564,7 +578,7 @@ def check_overlap(molecule1, molecule2):
             v = vector_from_coordinates(molecule1.Atoms[i].x, molecule1.Atoms[i].y,\
                 molecule1.Atoms[i].z, molecule2.Atoms[j].x, molecule2.Atoms[j].y,\
                 molecule2.Atoms[j].z)
-            if v.length > (molecule1.Atoms[i].Atom.Radius + molecule2.Atoms[j].Atom.Radius):
+            if v.length > (molecule1.Atoms[i].Radius + molecule2.Atoms[j].Radius):
                 return True
     return False
     
@@ -631,8 +645,10 @@ def ReadMolecules(F='MoleculesDescriptor.'): # inactive
                     idx_list.append(k)
                     k += 1
                 idx = types_list.index(symbol)
-                atom = structure.Atom(symbol, j, idx_list[idx], nMolecule, Mass, Radius, Bonds)
-                Atoms.append(structure.AtomCoordinates(atom, X, Y, Z))
+                atom = structure.Atom(Symbol=symbol, Index=j, AtType=idx_list[idx],\
+                    MolecularIndex=nMolecule, AtTypeDigits=1, Mass=Mass,\
+                    Radius=Radius, Bonds=Bonds, x=X, y=Y, z=Z)
+                Atoms.append(structure.Atom(atom))
                 j += 1
                 i += 1
             nMolecule += 1
@@ -641,7 +657,7 @@ def ReadMolecules(F='MoleculesDescriptor.'): # inactive
     for i in range(0, nMolecule, 1):
         MoleculeAtoms = []
         for j in range(0, len(Atoms), 1):
-            if Atoms[j].Atom.MolecularIndex == i:
+            if Atoms[j].MolecularIndex == i:
                 MoleculeAtoms.append(Atoms[j])
         Molecules.append(structure.Molecule(MoleculeAtoms, Name=MoleculeNames[i]))
     return Molecules
@@ -699,7 +715,7 @@ def generate_random_molecule(prototype, SphereRadius=10, max_trials=100):
             x = abs(molecule.Atoms[i].x)
             y = abs(molecule.Atoms[i].y)
             z = abs(molecule.Atoms[i].z)
-            r = abs(molecule.Atoms[i].Atom.Radius)
+            r = abs(molecule.Atoms[i].Radius)
             distance_from_origin = np.sqrt(x**2 + y**2 + z**2) + r
             if (distance_from_origin > SphereRadius):
                 Good = False
@@ -743,12 +759,12 @@ def check_new_molecule2(molecules, molecule, additional_gap=0):
             x1 = k.x
             y1 = k.y
             z1 = k.z
-            r1 = k.Atom.Radius
+            r1 = k.Radius
             for l in molecule.Atoms:
                 x2 = l.x
                 y2 = l.y
                 z2 = l.z
-                r2 = l.Atom.Radius
+                r2 = l.Radius
                 critical_distance = r1 + r2 + additional_gap
                 distance = float(np.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2))
                 if (distance < critical_distance):
@@ -764,12 +780,12 @@ def check_new_molecule(molecules, molecule, additional_gap=0):
             x1 = k.x
             y1 = k.y
             z1 = k.z
-            r1 = k.Atom.Radius
+            r1 = k.Radius
             for l in molecule.Atoms:
                 x2 = l.x
                 y2 = l.y
                 z2 = l.z
-                r2 = l.Atom.Radius
+                r2 = l.Radius
                 critical_distance = r1 + r2 + additional_gap
                 distance = float(np.sqrt((x1 - x2)**2 + (y1 - y2)**2 + (z1 - z2)**2))
                 if (distance < critical_distance):
@@ -823,7 +839,7 @@ def generate_molecule_coordinates_list(prototype, nMolecules=2, nRecords=100,\
         record = []
         for j in molecules:
             for k in j.Atoms:
-                S = k.Atom.Symbol
+                S = k.Symbol
                 x = str(k.x)
                 y = str(k.y)
                 z = str(k.z)
@@ -902,8 +918,10 @@ def get_molecules_from_records(system, records, idx=None):
             MoleculeName = system.Molecules[j].Name
             for k in range(0, len(system.Molecules[j].Atoms), 1): # atom index in molecule
                 atom = system.Molecules[j].Atoms[k].Atom # type Atom
-                atom_c = structure.AtomCoordinates(atom, rec[i].atoms[l].x, rec[i].atoms[l].y, rec[i].atoms[l].z)
-                atoms.append(atom_c)
+                atom.x = rec[i].atoms[l].x
+                atom.y = rec[i].atoms[l].y
+                atom.z = rec[i].atoms[l].z
+                atoms.append(atom)
                 l += 1
             molecules.append(structure.Molecule(atoms, MoleculeName))
     return molecules

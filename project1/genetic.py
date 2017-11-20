@@ -1,39 +1,3 @@
-#def get_VIP_genes_list(idx_nonlin=None, idx_lin=None,\
-#        VIP_idx_nonlin=None, VIP_idx_lin=None):
-#def find_gene(Gene_list=None, idx_nonlin=None, idx_lin=None):
-#
-#class GA:
-#    def __init__(self, PopulationSize=100, ChromosomeSize=15,\
-#            MutationProbability=0.3, MutationInterval=[1,3], EliteFraction=0.3,\
-#            CrossoverFractionInterval=[0.6,0.4],\
-#            IterationPerRecord=1, StopTime=600, RandomSeed=None, verbose=True):
-#    def generate_new_chromosome(self):    
-#    def sort(self, order='Most important first')
-#    def get_best_chromosome(self):
-#    def crossover(self, chromosome1, chromosome2):
-#    def fit(self, x_nonlin=None, x_lin=None, y=None, idx_nonlin=None, idx_lin=None,\
-#            VIP_idx_nonlin=None, VIP_idx_lin=None, Method='Random', UseNonlinear=False,\
-#            LinearSolver = 'sklearn', NonlinearFunction = 'exp', Fine=False, C=None,\
-#            UseCorrelationMatrix=False, MinCorr=0.95, MaxLoops=1000, MaxBottom=100):     
-    
-#    class Gene:
-#        def __init__(self, gene, Type=None, p_Value=None, rank=None):
-#        def is_gene_exists(self, Gene_list): # returns true if gene exists in Gene_list
-#      
-#    class Chromosome:
-#        def __init__(self, genes):           
-#        def get_genes_list(self, Type=0):    
-#        def score(self, x_nonlin=None, x_lin=None, y=None, NonlinearFunction='exp',\
-#                  LinearSolver='sklearn') # calculate MSE and R2 for chromosome
-#        def rank_sort_pValue(self) # calculate and do everything for p_Value method       
-#        def mutate(self, idx_nonlin=None, idx_lin=None, VIP_idx_nonlin=None,\
-#                VIP_idx_lin=None)
-#        def mutate_many(self, nMutations, idx_nonlin=None, idx_lin=None,\
-#                VIP_idx_nonlin=None, VIP_idx_lin=None)
-#        def rank(self, x_nonlin=None, x_lin=None, y=None, NonlinearFunction='exp',\
-#                LinearSolver='sklearn') # rank genes in chromosome
-#        def sort(self, order='Most important first'): # sort genes in chromosome
-
 import sys
 import random
 import numpy as np
@@ -44,385 +8,286 @@ import copy
 import matplotlib.pyplot as plt
 import pandas as pd
 
-class GA:
-    VIP_Chromosome = None
-    Population = None 
-    BestChromosomes = []
-    DecreasingChromosomes = []
-    BestChromosome = None
-    idx_nonlin = None
-    idx_lin = None
-    VIP_idx_nonlin = None
-    VIP_idx_lin = None
-    ChromosomeSize = None
-    PopulationSize = None # Total population
-    MutationProbability = 0.3 # probability of mutation
-    MutationInterval = [1, 3] # integer, will be randomly chosen between min and max-1
-    EliteFraction = 0.3 # fracrion of good chromosomes that will be used for crossover
-    nGood = None # int(EliteFraction * PopulationSize)
-    nMutationCrossover = None # int(MutationCrossoverFraction * PopulationSize)
-    MutationCrossoverFraction = None
-    CrossoverFractionInterval = [0.7, 0.3] # fraction for first chromosome
-    IterationPerRecord = 1
-    StopTime = 600 # in seconds
-    RandomSeed = None
-    LinearSolver = 'sklearn' # 'sklearn', 'scipy', 'statsmodels'
-    cond = 1e-20
-    lapack_driver = 'gelsy'
-    NonlinearFunction = 'exp'
-    verbose = True    
-    UseNonlinear = False
-    CrossoverMethod = 'Random' # 'Random', 'Best'
-    MutationMethod = 'Random' # 'Random'. 'Correlated'
-    n_lin = None
-    n_nonlin = None
-    n_VIP_lin = None
-    n_VIP_nonlin = None
-    nIter = 1000
-    UseCorrelationMutation = True
-    MinCorrMutation = 0.9
-    UseCorrelationBestFit = False
-    MinCorrBestFit = 0.9
-    C=None
-    MSEall_train=None
-    MSEall_test=None
+class Gene:
     
-    class Gene:
-        Idx = None
-        Type = 0 # 0 - linear, 1 - exponential   
-        Coef1 = None
-        Coef2 = None
-        p_Value = None
-        Rank = None # highest - most important
+    def __init__(self, Idx, Type=0, p_Value=None, rank=None):
+        self.Idx = Idx # global index
+        self.Type = Type # 0 - linear, 1 - exponential  
+        self.p_Value = p_Value
+        self.Rank = rank # highest - most important
+        self.Coef1 = None # linear (gamma) coefficient or exponential coefficient in power of exp (alpha)
+        self.Coef2 = None # None or coefficiant in front of exponent (beta)
         
-        def __init__(self, Idx, Type=0, p_Value=None, rank=None):
-            self.Idx = Idx
-            self.Type = Type
-            self.p_Value = p_Value
-            self.Rank = rank
-            
-        def is_gene_exists(self, chromosome): # returns true if gene exists in Gene_list
-            if chromosome is None:
-                return False
-            if chromosome.Genes is None:
-                return False
-            for i in chromosome.Genes:
-                if (i.Idx == self.Idx) and (i.Type == self.Type):
-                    return True
+    def is_gene_exists(self, chromosome): # returns true if gene exists in Gene_list
+        if chromosome is None:
             return False
-        
-        def print_gene(self):
-            print('Index = ', self.Idx)
-            if self.Type == 0:
-                print('Type: Linear')
-            if self.Type == 1:
-                print('Type: Exponential')
-            print('p-Value = ', self.p_Value)
-            print('Rank = ', self.Rank)
-            return
-        
-    class Chromosome:
-        Genes = None # list of Genes
-        MSE_Train = None 
-        RMSE_Train = None
-        R2_Train = None
-        R2Adj_Train = None
-        Mallow_Train = None
-        MSE_Test = None 
-        RMSE_Test = None
-        R2_Test = None
-        R2Adj_Test = None
-        Mallow_Test = None
-        Rank = None
-        Size = None
-        Origin = None
-        time = None
-        
-        def __init__(self, genes):
-            self.Genes = genes
-            self.Size = len(self.Genes)
-            self.MSE_Train = None 
-            self.RMSE_Train = None
-            self.R2_Train = None
-            self.R2Adj_Train = None
-            self.Mallow_Train = None
-            self.MSE_Test = None 
-            self.RMSE_Test = None
-            self.R2_Test = None
-            self.R2Adj_Test = None
-            self.Mallow_Test = None
-            self.Rank = None
-            self.Origin = None
-            self.time = None            
-            return
+        if chromosome.Genes is None:
+            return False
+        for i in chromosome.Genes:
+            if (i.Idx == self.Idx) and (i.Type == self.Type):
+                return True
+        return False
+    
+    def print_gene(self):
+        print('Index = ', self.Idx)
+        if self.Type == 0:
+            print('Type: Linear')
+        if self.Type == 1:
+            print('Type: Exponential')
+        print('p-Value = ', self.p_Value)
+        print('Rank = ', self.Rank)
+        return
+
+############################################################# end of class Gene
+
+class Chromosome:
+    
+    def __init__(self, genes):
+        self.Genes = genes # list of Genes
+        self.Size = len(self.Genes)
+        self.MSE_Train = None 
+        self.RMSE_Train = None
+        self.R2_Train = None
+        self.R2Adj_Train = None
+        self.MSE_Test = None 
+        self.RMSE_Test = None
+        self.R2_Test = None
+        self.R2Adj_Test = None
+        self.Rank = None
+        self.Origin = None
+        self.time = None            
+        return
 
 # return list of indices of specified type            
-        def get_genes_list(self, Type=0):
-            idx = []
-            for i in range(0, self.Size, 1):
-                if self.Genes[i].Type == Type: 
-                    idx.append(self.Genes[i].Idx)
-            return idx
+    def get_genes_list(self, Type=0):
+        idx = []
+        for i in range(0, self.Size, 1):
+            if self.Genes[i].Type == Type: 
+                idx.append(self.Genes[i].Idx)
+        return idx
 
 # return list of indices of specified type            
-        def get_coeff_list(self, Type=0):
-            coef = []
-            for i in range(0, self.Size, 1):
-                if self.Genes[i].Type != Type:
-                    continue
-                coef.append(self.Genes[i].Coef1)
-                if self.Genes[i].Type == 1: # nonlinear
-                    coef.append(self.Genes[i].Coef2)
-            return coef
-        
-        def find_gene_idx(self, gene): # returns gene index in chromosome
-            if self.Genes is None:
-                return None
-            for i in range(0, self.Size, 1) :
-                if (self.Genes[i].Idx == gene.Idx) and (self.Genes[i].Type == gene.Type):
-                    return i
+    def get_coeff_list(self, Type=0):
+        coef = []
+        for i in range(0, self.Size, 1):
+            if self.Genes[i].Type != Type:
+                continue
+            coef.append(self.Genes[i].Coef1)
+            if self.Genes[i].Type == 1: # nonlinear
+                coef.append(self.Genes[i].Coef2)
+        return coef
+    
+    def find_gene_idx(self, gene): # returns gene index in chromosome
+        if self.Genes is None:
             return None
+        for i in range(0, self.Size, 1) :
+            if (self.Genes[i].Idx == gene.Idx) and (self.Genes[i].Type == gene.Type):
+                return i
+        return None
 
-        def erase_score(self):
-            self.MSE_Train = None 
-            self.RMSE_Train = None
-            self.R2_Train = None
-            self.R2Adj_Train = None
-            self.Mallow_Train = None
-            self.MSE_Test = None 
-            self.RMSE_Test = None
-            self.R2_Test = None
-            self.R2Adj_Test = None
-            self.Mallow_Test = None
-            self.Size = len(self.Genes)
-            self.Origin = None
-            self.time = None
-            return
-            
-        def is_exist(self, Chromosome_list):
-            if Chromosome_list is None:
-                return False
-            if type(Chromosome_list) is GA.Chromosome:
-                Chromosome_list = [Chromosome_list]
-            idx_lin0 = self.get_genes_list(Type=0)
-            idx_lin0.sort()
-            idx_nonlin0 = self.get_genes_list(Type=1)
-            idx_nonlin0.sort()
-            for i in Chromosome_list:
-                idx_lin1 = i.get_genes_list(Type=0)
-                idx_lin1.sort()
-                idx_nonlin1 = i.get_genes_list(Type=1)
-                idx_nonlin1.sort()
-                if (idx_lin0 == idx_lin1) and (idx_nonlin0 == idx_nonlin1):
-                    return True
-            return
-        def has_duplicates(self):
-            if self.Size == 0:
-                return False
-            idx_lin = self.get_genes_list(Type=0)
-            idx_nonlin = self.get_genes_list(Type=1)
-            dup_lin = [x for x in idx_lin if idx_lin.count(x) > 1]
-            dup_nonlin = [x for x in idx_nonlin if idx_nonlin.count(x) >= 2]
-            if len(dup_lin) == 0 and len(dup_nonlin) == 0:
-                return False
-            print('Chash: Found duplicates in chromosome')
-            return True
-            
+    def erase_score(self):
+        self.MSE_Train = None 
+        self.RMSE_Train = None
+        self.R2_Train = None
+        self.R2Adj_Train = None
+        self.MSE_Test = None 
+        self.RMSE_Test = None
+        self.R2_Test = None
+        self.R2Adj_Test = None
+        self.Size = len(self.Genes)
+        self.Origin = None
+        self.time = None
+        return
+        
+    def is_exist(self, Chromosome_list):
+        if Chromosome_list is None:
+            return False
+        if type(Chromosome_list) is Chromosome:
+            Chromosome_list = [Chromosome_list]
+        idx_lin0 = self.get_genes_list(Type=0)
+        idx_lin0.sort()
+        idx_nonlin0 = self.get_genes_list(Type=1)
+        idx_nonlin0.sort()
+        for i in Chromosome_list:
+            idx_lin1 = i.get_genes_list(Type=0)
+            idx_lin1.sort()
+            idx_nonlin1 = i.get_genes_list(Type=1)
+            idx_nonlin1.sort()
+            if (idx_lin0 == idx_lin1) and (idx_nonlin0 == idx_nonlin1):
+                return True
+        return
+    def has_duplicates(self):
+        if self.Size == 0:
+            return False
+        idx_lin = self.get_genes_list(Type=0)
+        idx_nonlin = self.get_genes_list(Type=1)
+        dup_lin = [x for x in idx_lin if idx_lin.count(x) > 1]
+        dup_nonlin = [x for x in idx_nonlin if idx_nonlin.count(x) >= 2]
+        if len(dup_lin) == 0 and len(dup_nonlin) == 0:
+            return False
+        print('Chash: Found duplicates in chromosome')
+        return True
+        
 # calculate Coefficients, MSE, R2, R2 adjusted
-        def score(self, x_nonlin_train=None, x_lin_train=None, y_train=None,\
-                x_nonlin_test=None, x_lin_test=None, y_test=None, MSEall_train=None, MSEall_test=None, NonlinearFunction='exp',\
-                LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'):
-            pvalues = None
-            idx_lin = self.get_genes_list(Type=0) # returns [] or list
-            idx_nonlin = self.get_genes_list(Type=1)
-            if (len(idx_nonlin) != 0) and (x_nonlin_train is not None): # there are nonlinear indices
-                results = regression.fit_nonlinear(idx_nonlin, idx_lin,\
-                    x_nonlin_train, x_lin_train, y_train, x_nonlin_test=x_nonlin_test,\
-                    x_lin_test=x_lin_test, y_test=y_test, NonlinearFunction=NonlinearFunction)
-                k = 0
-                for i in range(0, self.Size, 1):# nonlinear
-                    if self.Genes[i].Type == 1:
-                        self.Genes[i].Coef1 = results['Coefficients'][k]
-                        self.Genes[i].Coef2 = results['Coefficients'][k+1]
-                        k += 2
-                for i in range(0, self.Size, 1):# linear
-                    if self.Genes[i].Type == 0:
-                        self.Genes[i].Coef1 = results['Coefficients'][k]
-                        k += 1
-            else: # only linear indices
-                if (len(idx_lin) != 0) and (x_lin_train is not None): 
-                    results = regression.fit_linear(idx_lin, x_lin_train,\
-                        y_train, x_test=x_lin_test, y_test=y_test, MSEall_train=MSEall_train, MSEall_test=MSEall_test,\
-                        normalize=True, LinearSolver=LinearSolver,\
-                        cond=cond, lapack_driver=lapack_driver)
-                    pvalues = results['p-Values']           
-                if pvalues  is not None:
-                    for i in range(0, len(pvalues), 1):
-                        self.Genes[i].p_Value = pvalues[i]  
-                    self.rank_sort_pValue() 
+    def score(self, x_expD_train=None, x_expDn_train=None, x_lin_train=None,\
+            y_train=None, x_expD_test=None, x_expDn_test=None, x_lin_test=None,\
+            y_test=None, LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'):
+        idx_lin = self.get_genes_list(Type=0) # returns [] or list
+        idx_exp = self.get_genes_list(Type=1)
+        if (len(idx_exp) != 0) and (x_expD_train is not None) and (x_expDn_train is not None): # there are nonlinear indices
+            fit_results = regression.fit_exp(idx_exp, idx_lin,\
+                x_expD_train, x_expDn_train, x_lin_train, y_train,\
+                x_expD_test=x_expD_test, x_expDn_test=x_expDn_test,\
+                x_lin_test=x_lin_test, y_test=y_test)
+            if fit_results['Success']:
                 for i in range(0, self.Size, 1):
-                    self.Genes[i].Coef1 = results['Coefficients'][i]   
-            self.MSE_Train = results['MSE Train']
-            self.RMSE_Train = results['RMSE Train']
-            self.R2_Train = results['R2 Train']
-            self.R2Adj_Train = results['R2 Adjusted Train']
-            self.Mallow_Train = results['Mallow Train']
-            self.MSE_Test = results['MSE Test']
-            self.RMSE_Test = results['RMSE Test']
-            self.R2_Test = results['R2 Test']
-            self.R2Adj_Test = results['R2 Adjusted Test']
-            self.Mallow_Test = results['Mallow Test'] 
-            if self.MSE_Train is None:
-                self.MSE_Train = 1e100
-            if self.R2_Train is None:
-                self.R2_Train = 0
-            return 
+                    idx = self.Genes[i].Idx
+                    if self.Genes[i].Type == 1:# exp
+                        self.Genes[i].Coef1 = fit_results['Coefficients exponential'][idx]['Coefficient'][0]
+                        self.Genes[i].Coef2 = fit_results['Coefficients exponential'][idx]['Coefficient'][1]
+                    if self.Genes[i].Type == 0:# linear
+                        self.Genes[i].Coef1 = fit_results['Coefficients linear'][idx]['Coefficient']                        
+        else: # only linear indices
+            if (len(idx_lin) != 0) and (x_lin_train is not None): 
+                fit_results = regression.fit_linear(idx_lin, x_lin_train,\
+                    y_train, x_test=x_lin_test, y_test=y_test,\
+                    normalize=True, LinearSolver=LinearSolver,\
+                    cond=cond, lapack_driver=lapack_driver)
+                for i in range(0, self.Size, 1):
+                    idx = self.Genes[i].Idx
+                    if self.Genes[i].Type == 0:# linear
+                        self.Genes[i].Coef1 = fit_results['Coefficients'][idx]['Coefficient'] 
+                        if fit_results['Coefficients'].shape[0] == 2:
+                            self.Genes[i].p_Value = fit_results['Coefficients'][idx]['p-Value']
+        self.MSE_Train = fit_results['MSE Train']
+        self.RMSE_Train = fit_results['RMSE Train']
+        self.R2_Train = fit_results['R2 Train']
+        self.R2Adj_Train = fit_results['R2 Adjusted Train']
+        self.MSE_Test = fit_results['MSE Test']
+        self.RMSE_Test = fit_results['RMSE Test']
+        self.R2_Test = fit_results['R2 Test']
+        self.R2Adj_Test = fit_results['R2 Adjusted Test']
+        if self.MSE_Train is None:
+            self.MSE_Train = 1e100
+        if self.R2_Train is None:
+            self.R2_Train = 0
+        return 
 
 # assigne ranks and sort genes according to p-Values
-        def rank_sort_pValue(self):
-            swapped = True
-            n = self.Size
-            while swapped:
-                swapped = False
-                for i in range(1, n, 1): # most important first
-                    if self.Genes[i-1].p_Value > self.Genes[i].p_Value:
-                        swapped = True
-                        self.Genes.insert(i-1, self.Genes[i])
-                        del(self.Genes[i+1])
-                n -= 1
+    def rank_sort_pValue(self):
+        swapped = True
+        n = self.Size
+        while swapped:
+            swapped = False
+            for i in range(1, n, 1): # most important first
+                if self.Genes[i-1].p_Value > self.Genes[i].p_Value:
+                    swapped = True
+                    self.Genes.insert(i-1, self.Genes[i])
+                    del(self.Genes[i+1])
+            n -= 1
 # Assign ranks to chromosome. Highest number for most important
-            j = self.Size
-            for i in range(0, self.Size, 1):
-                self.Genes[i].Rank = j
-                j -= 1                
+        j = self.Size
+        for i in range(0, self.Size, 1):
+            self.Genes[i].Rank = j
+            j -= 1                
+        return
+
+    def rank_sort(self, x_expD=None, x_expDn=None, x_lin=None, y=None,\
+            LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'): # Highest Rank - most important
+        if LinearSolver == 'statsmodels': # sort according to p-Values  
+            self.rank_sort_pValue()
             return
-    
-# rank genes according to importants using MSE
-        def rank_sort(self, x_nonlin=None, x_lin=None, y=None, MSEall=None, NonlinearFunction='exp',\
-                LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'): # Highest Rank - most important
-            if LinearSolver == 'statsmodels': # sort according to p-Values  
-                self.rank_sort_pValue()
-                return
-# sort according to importance based on MSE             
-            idx_lin = []
-            idx_nonlin = []
-            for i in range(0, self.Size, 1):
-                if self.Genes[i].Type == 0: # linear gene
-                    idx_lin.append(self.Genes[i].Idx)
-                if self.Genes[i].Type == 1: # exponential gene
-                    idx_nonlin.append(self.Genes[i].Idx)
-            size_nonlin = len(idx_nonlin)
-            size_lin = len(idx_lin)
-            mse_nonlin_list = []   
-            mse_lin_list = []
-            if (size_nonlin != 0) and (x_nonlin is not None): # there are nonlinear indices
-                for i in range(0, size_nonlin, 1): # get fitness for nonlinear features
-                    tmp = idx_nonlin[i]
-                    del(idx_nonlin[i])
-                    results = regression.fit_nonlinear(idx_nonlin, idx_lin,\
-                        x_nonlin, x_lin, y, NonlinearFunction=NonlinearFunction)
-                    mse = results['MSE Train']
-                    idx_nonlin.insert(i, tmp)
-                    if mse is not None:
-                        mse_nonlin_list.append(mse)
-                    else:
-                        mse_nonlin_list.append(0)
-                if (size_lin != 0) and (x_lin is not None): # get fitness for linear features
-                    for i in range(0, size_lin, 1):
-                        tmp = idx_lin[i]
-                        del(idx_lin[i])
-                        results = regression.fit_nonlinear(idx_nonlin,\
-                            idx_lin, x_nonlin, x_lin, y, NonlinearFunction=NonlinearFunction)
-                        mse = results['MSE Train']
-                        idx_lin.insert(i, tmp)
-                        if mse is not None:
-                            mse_lin_list.append(mse)
-                        else:
-                            mse_nonlin_list.append(0)
-            else: # only linear indices
-                if (len(idx_lin) != 0) and (x_lin is not None): 
-                    for i in range(0, size_lin, 1):
-                        tmp = idx_lin[i]
-                        del(idx_lin[i])
-                        results = regression.fit_linear(idx_lin, x_lin, y, MSEall_train=MSEall,\
-                            normalize=True, LinearSolver=LinearSolver,\
-                            cond=cond, lapack_driver=lapack_driver)
-                        mse = results['MSE Train']
-                        idx_lin.insert(i, tmp)
-                        mse_lin_list.append(mse)
-                else: 
-                    sys.stdout.write(library.RED)
-                    print('Crash: rank_sort')
-                    sys.stdout.write(library.RESET)
-                    return
-            j = 0
-            k = 0
-            for i in range(0, self.Size, 1):
-                if (self.Genes[i].Type == 0) and (len(mse_lin_list) != 0): # linear gene
-                    self.Genes[i].Rank = mse_lin_list[j]
-                    j += 1
-                if (self.Genes[i].Type == 1) and (len(mse_nonlin_list) != 0): # exponential gene
-                    self.Genes[i].Rank = mse_nonlin_list[k]
-                    k += 1
-            self.sort(order='Most important first')
-            return
-  
+        Size = self.Size
+        mse = np.zeros(shape=(Size), dtype=float)
+        tmp_chromosome = copy.deepcopy(self)
+        for i in range(0, Size, 1):
+            tmp_gene = copy.deepcopy(tmp_chromosome.Genes[i])
+            del(tmp_chromosome.Genes[i])
+            tmp_chromosome.Size = len(tmp_chromosome.Genes)
+            tmp_chromosome.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin,\
+                y_train=y, x_expD_test=None, x_expDn_test=None, x_lin_test=None,\
+                y_test=None, LinearSolver=LinearSolver, cond=cond, lapack_driver=lapack_driver)
+            mse[i] = tmp_chromosome.MSE_Train
+            tmp_chromosome.Genes.insert(i, tmp_gene)
+            tmp_chromosome.Size = len(tmp_chromosome.Genes)
+        for i in range(0, Size, 1):
+            self.Genes[i].Rank = mse[i]
+        self.sort(order='Most important first')
+        return
+      
 # sort genes according to their ranks      
 # order='Least important first' or 'Most important first'
-        def sort(self, order='Most important first'): 
-            for i in range(0, self.Size, 1):
-                if self.Genes[i].Rank is None:
-                    return
-            swapped = True
-            if order == 'Least important first':
-                Direction = 1
-            else:
-                Direction = -1
-            n = self.Size
-            while swapped:
-                swapped = False
-                for i in range(1, n, 1):
-                    diff = Direction * (self.Genes[i-1].Rank - self.Genes[i].Rank)
-                    if diff > 0:
-                        swapped = True
-                        self.Genes.insert(i-1, self.Genes[i])
-                        del(self.Genes[i+1])
-                n -= 1
+    def sort(self, order='Most important first'): 
+        for i in range(0, self.Size, 1):
+            if self.Genes[i].Rank is None:
+                return
+        swapped = True
+        if order == 'Least important first':
+            Direction = 1
+        else:
+            Direction = -1 # most important first
+        n = self.Size
+        while swapped:
+            swapped = False
+            for i in range(1, n, 1):
+                diff = Direction * (self.Genes[i-1].Rank - self.Genes[i].Rank)
+                if diff > 0:
+                    swapped = True
+                    self.Genes.insert(i-1, self.Genes[i])
+                    del(self.Genes[i+1])
+            n -= 1
 # Assign ranks to chromosome. Highest number for most important
-            j = self.Size
-            for i in range(0, self.Size, 1):
-                self.Genes[i].Rank = j
-                j -= 1
-            return
-        
-        def print_score(self):
-            idx_lin = self.get_genes_list(Type=0)
-            print('Linear indices: ', idx_lin)
-            idx_exp = self.get_genes_list(Type=1)
-            print('Exponential indices: ', idx_exp)
-            print('Chromosome size = ', self.Size)
-            print('MSE Train = ', self.MSE_Train)
-            print('RMSE Train = ', self.RMSE_Train)
-            print('R2 Train = ',self.R2_Train)
-            print('R2 Adjusted Train = ', self.R2Adj_Train)   
-            print('Mallow Train = ',self.Mallow_Train)
-            if self.MSE_Test is not None:
-                print('MSE Test = ', self.MSE_Test)
-                print('RMSE Test = ', self.RMSE_Test)
-                print('R2 Test = ',self.R2_Test)
-                print('R2 Adjusted Test = ', self.R2Adj_Test)   
-                print('Mallow Test = ',self.Mallow_Test)
-            print('Rank = ', self.Rank)
-            print('Origin: ', self.Origin)
-            print('Created time: ', self.time)
-            return
+        j = self.Size
+        for i in range(0, self.Size, 1):
+            self.Genes[i].Rank = j
+            j -= 1
+        return
+    
+    def print_score(self):
+        idx_lin = self.get_genes_list(Type=0)
+        print('Linear indices: ', idx_lin)
+        idx_exp = self.get_genes_list(Type=1)
+        print('Exponential indices: ', idx_exp)
+        print('Chromosome size = ', self.Size)
+        print('MSE Train = ', self.MSE_Train)
+        print('RMSE Train = ', self.RMSE_Train)
+        print('R2 Train = ',self.R2_Train)
+        print('R2 Adjusted Train = ', self.R2Adj_Train)   
+        if self.MSE_Test is not None:
+            print('MSE Test = ', self.MSE_Test)
+            print('RMSE Test = ', self.RMSE_Test)
+            print('R2 Test = ',self.R2_Test)
+            print('R2 Adjusted Test = ', self.R2Adj_Test)   
+        print('Rank = ', self.Rank)
+        print('Origin: ', self.Origin)
+        print('Created time: ', self.time)
+        return
             
-######################################################### end class chromosome
+    def predict(self, x_expD=None, x_expDn=None, x_lin=None):
+        y_pred = None
+        if x_expD is not None and x_expDn is not None:
+            y_pred = np.zeros(shape=(x_expD.shape[0]), dtype=float)
+        elif x_lin is not None and y_pred is None:
+            y_pred = np.zeros(shape=(x_lin.shape[0]), dtype=float)
+        for i in range(0, self.Size, 1):
+            idx = self.Genes[i].Idx
+            if self.Genes[i].Type == 1: # exponential with 2 coefficients
+                y_pred[:] += self.Genes[i].Coef2 * x_expDn[:, idx] * np.exp(self.Genes[i].Coef1 * x_expD[:, idx])
+            #   E         += beta                * R**(-n)       * e**(   alpha               * R)  
+            elif self.Genes[i].Type == 0: # linear with 1 coefficient
+                y_pred[:] += self.Genes[i].Coef1 * x_lin[:, idx] 
+            #   E         += gamma               * R**(-m)    
+        return y_pred
 
-    def __init__(self, PopulationSize=100, ChromosomeSize=15, UseCorrelationMutation=True, MinCorrMutation=0.9,\
-            UseCorrelationBestFit=False, MinCorrBestFit=0.9, MutationProbability=0.3, MutationInterval=[1,3], EliteFraction=0.3,\
+####################################################### end of class Chromosome
+
+class GA:
+    
+    def __init__(self, PopulationSize=100, ChromosomeSize=15, UseCorrelationMutation=True,\
+            MinCorrMutation=0.9, UseCorrelationBestFit=False, MinCorrBestFit=0.9,\
+            MutationProbability=0.3, MutationInterval=[1,3], EliteFraction=0.3,\
             CrossoverFractionInterval=[0.6,0.4], MutationCrossoverFraction=0.5,\
-            IterationPerRecord=1, StopTime=600, RandomSeed=None, verbose=True):
+            PrintInterval=10, StopTime=600, RandomSeed=None, verbose=True):
         self.ChromosomeSize = ChromosomeSize
         self.PopulationSize = PopulationSize
         self.MutationProbability = MutationProbability
@@ -433,7 +298,7 @@ class GA:
             self.nGood = 2
         self.nMutationCrossover = int(MutationCrossoverFraction * PopulationSize)
         self.CrossoverFractionInterval = CrossoverFractionInterval
-        self.IterationPerRecord = IterationPerRecord
+        self.PrintInterval = PrintInterval
         self.StopTime = StopTime
         self.verbose = verbose
         self.RandomSeed = RandomSeed
@@ -441,29 +306,26 @@ class GA:
         self.MinCorrMutation = MinCorrMutation
         self.UseCorrelationBestFit = UseCorrelationBestFit
         self.MinCorrBestFit = MinCorrBestFit
-        self.DecreasingChromosomes = []
+        self.DecreasingChromosomes = [] # Best fit and RemoveWorth progress
         self.VIP_Chromosome = None
         self.Population = None 
-        self.BestChromosomes = []
+        self.BestChromosomes = [] # GA progress
         self.BestChromosome = None
-        self.idx_nonlin = None
+        self.idx_exp = None
         self.idx_lin = None
-        self.VIP_idx_nonlin = None
+        self.VIP_idx_exp = None
         self.VIP_idx_lin = None
         self.MutationCrossoverFraction = MutationCrossoverFraction
         self.LinearSolver = 'sklearn' # 'sklearn', 'scipy', 'statsmodels'
         self.cond = 1e-20
         self.lapack_driver = 'gelsy'
-        self.NonlinearFunction = 'exp'
-        self.UseNonlinear = False
         self.CrossoverMethod = 'Random' # 'Random', 'Best'
         self.MutationMethod = 'Random' # 'Random'. 'Correlated'
         self.n_lin = None
-        self.n_nonlin = None
+        self.n_exp = None
         self.n_VIP_lin = None
-        self.n_VIP_nonlin = None
+        self.n_VIP_exp = None
         self.nIter = 1000
-        return
 
 # create random gene from pool that does not belong to chromosome
     def create_random_gene(self, chromosome=None, pool_nonlin=None, pool_lin=None):
@@ -471,10 +333,10 @@ class GA:
             if (self.VIP_Chromosome is not None):
                 chromosome = self.VIP_Chromosome
             else:
-                chromosome = self.Chromosome([])
+                chromosome = Chromosome([])
         if (pool_nonlin is None):
-            if (self.idx_nonlin is not None):
-                pool_nonlin = self.idx_nonlin
+            if (self.idx_exp is not None):
+                pool_nonlin = self.idx_exp
             else:
                 pool_nonlin = []
         if (pool_lin is None):
@@ -505,28 +367,28 @@ class GA:
             return None
         rand = random.randrange(0, n_nonlin+n_lin, 1) # get random number of feature
         if rand < n_nonlin: # non-linear feature
-            new_gene = GA.Gene(pool_nonlin_free[rand], Type=1, p_Value=None, rank=None)
+            new_gene = Gene(pool_nonlin_free[rand], Type=1, p_Value=None, rank=None)
         elif n_lin > 0: # linear feature
             rand -= n_nonlin
-            new_gene = GA.Gene(pool_lin_free[rand], Type=0, p_Value=None, rank=None)
+            new_gene = Gene(pool_lin_free[rand], Type=0, p_Value=None, rank=None)
         return new_gene
 
     def set_VIP_Chromosome(self):          
         Gene_list = []
-        if self.VIP_idx_nonlin is None:
-            self.n_VIP_nonlin = 0
+        if self.VIP_idx_exp is None:
+            self.n_VIP_exp = 0
         else:
-            self.n_VIP_nonlin = len(self.VIP_idx_nonlin)
-        for i in range(0, self.n_VIP_nonlin, 1): # non-linear genes
-            Gene_list.append(GA.Gene(self.VIP_idx_nonlin[i], Type=1, p_Value=None, rank=None))
+            self.n_VIP_exp = len(self.VIP_idx_exp)
+        for i in range(0, self.n_VIP_exp, 1): # non-linear genes
+            Gene_list.append(Gene(self.VIP_idx_exp[i], Type=1, p_Value=None, rank=None))
         if self.VIP_idx_lin is None:
             self.n_VIP_lin = 0
         else:
             self.n_VIP_lin = len(self.VIP_idx_lin)            
         for i in range(0, self.n_VIP_lin, 1): # linear genes
-            Gene_list.append(GA.Gene(self.VIP_idx_lin[i], Type=0, p_Value=None, rank=None))
+            Gene_list.append(Gene(self.VIP_idx_lin[i], Type=0, p_Value=None, rank=None))
         if len(Gene_list) > 0:
-            self.VIP_Chromosome = self.Chromosome(Gene_list)
+            self.VIP_Chromosome = Chromosome(Gene_list)
         else:
             self.VIP_Chromosome = None
         return
@@ -536,7 +398,7 @@ class GA:
             Gene_list = copy.deepcopy(self.VIP_Chromosome.Genes)
         else:
             Gene_list = []
-        chromosome = self.Chromosome(Gene_list)
+        chromosome = Chromosome(Gene_list)
         start = len(Gene_list)
         for i in range(start, self.ChromosomeSize, 1):
             new_gene = self.create_random_gene(chromosome=chromosome)
@@ -573,7 +435,7 @@ class GA:
                 continue
             i_copy = copy.deepcopy(chromosome.Genes[i])
             Gene_list.append(i_copy) # copy VIP genes
-        chromosome = self.Chromosome(Gene_list)
+        chromosome = Chromosome(Gene_list)
         if (old_gene.Type == 0) and (MutationMethod == 'Correlated'):
             corr_idx = self.get_correlated_features_list(chromosome, Model=2,\
                 UseCorrelationMatrix = self.UseCorrelationMutation, MinCorr = self.MinCorrMutation)
@@ -660,7 +522,7 @@ class GA:
             Gene_list = []
         else:
             Gene_list = copy.deepcopy(self.VIP_Chromosome.Genes)
-        chromosome = self.Chromosome(Gene_list)
+        chromosome = Chromosome(Gene_list)
         size_VIP = len(Gene_list)
         size_left = self.ChromosomeSize - size_VIP
 # randon number in given range [min .. max]
@@ -751,37 +613,35 @@ class GA:
             sys.stdout.write(library.RESET)
         return 
     
-
-    
-    def fit(self, x_nonlin_train=None, x_lin_train=None, y_train=None, x_nonlin_test=None,\
-            x_lin_test=None, y_test=None, idx_nonlin=None, idx_lin=None,\
-            VIP_idx_nonlin=None, VIP_idx_lin=None, CrossoverMethod='Random',\
-            MutationMethod='Random', UseNonlinear=False,\
-            LinearSolver = 'sklearn', cond=1e-20, lapack_driver='gelsy',\
-            NonlinearFunction='exp', nIter=1000): 
+    def fit(self, x_expD_train=None, x_expDn_train=None, x_lin_train=None,\
+            y_train=None, x_expD_test=None, x_expDn_test=None,\
+            x_lin_test=None, y_test=None, idx_exp=None, idx_lin=None,\
+            VIP_idx_exp=None, VIP_idx_lin=None, CrossoverMethod='Random',\
+            MutationMethod='Random', LinearSolver = 'sklearn', cond=1e-20,\
+            lapack_driver='gelsy', nIter=1000): 
         self.CrossoverMethod = CrossoverMethod
         self.MutationMethod = MutationMethod
-        self.UseNonlinear = UseNonlinear
         self.LinearSolver = LinearSolver
         self.cond = cond
         self.lapack_driver = lapack_driver
-        self.NonlinearFunction = NonlinearFunction
         self.VIP_idx_lin = VIP_idx_lin
-        self.VIP_idx_nonlin = VIP_idx_nonlin
+        self.VIP_idx_exp = VIP_idx_exp
         self.set_VIP_Chromosome()
         self.nIter = nIter
-        self.C = np.cov(x_lin_train, rowvar=False, bias=True)
+        self.C = None 
         
-        if (x_nonlin_train is None) or (not self.UseNonlinear): # use only linear features
-            self.idx_nonlin = []
-            x_nonlin_train = None  
-            self.n_nonlin = 0
+        if (x_expD_train is None) or (x_expDn_train is None): # use only linear features
+            self.idx_exp = []
+            x_expD_train = None  
+            x_expDn_train = None
+            self.n_exp = 0
         else: # linear and non-linear features
-            if (idx_nonlin is None) and (x_nonlin_train is not None):
-                self.idx_nonlin = list(range(0, x_nonlin_train.shape[1], 1))
-                self.n_nonlin = len(self.idx_nonlin)
+            if (idx_exp is None) and (x_expD_train is not None) and (x_expDn_train is not None):
+                self.idx_exp = list(range(0, x_expD_train.shape[1], 1))
+                self.n_exp = len(self.idx_exp)
         if (idx_lin is None) and (x_lin_train is not None):
             if (x_lin_train is not None):
+                self.C = np.cov(x_lin_train, rowvar=False, bias=True)
                 self.idx_lin = list(range(0, x_lin_train.shape[1], 1))
                 self.n_lin = len(self.idx_lin)
             else:
@@ -807,25 +667,22 @@ class GA:
                 nIter += 1
                 # get fitness for population
                 for i in range(0, self.PopulationSize, 1): # calculate MSE and R2 for each chromosome
-                    self.Population[i].score(x_nonlin_train=x_nonlin_train,\
-                        x_lin_train=x_lin_train, y_train=y_train, x_nonlin_test=x_nonlin_test,\
-                        x_lin_test=x_lin_test, y_test=y_test, MSEall_train=self.MSEall_train, MSEall_test=self.MSEall_test,\
-                        NonlinearFunction=self.NonlinearFunction,\
-                        LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver) 
+                    self.Population[i].score(x_expD_train=x_expD_train, x_expDn_train=x_expDn_train,\
+                        x_lin_train=x_lin_train, y_train=y_train, x_expD_test=x_expD_test, x_expDn_test=x_expDn_test,\
+                        x_lin_test=x_lin_test, y_test=y_test, LinearSolver=self.LinearSolver,\
+                        cond=self.cond, lapack_driver=self.lapack_driver) 
                 self.sort(order='Most important first') # sort chromosomes in population based on just obtained score
-                if (CrossoverMethod == 'Best') and (not self.UseNonlinear):
+                if (CrossoverMethod == 'Best'):
                     for i in range(0, self.PopulationSize, 1):
-                        self.Population[i].rank_sort(x_nonlin=x_nonlin_train, x_lin=x_lin_train,\
-                            y=y_train, MSEall=self.MSEall_train, NonlinearFunction=self.NonlinearFunction,\
-                            LinearSolver=self.LinearSolver,\
+                        self.Population[i].rank_sort(x_expD=x_expD_train, x_expDn=x_expDn_train,\
+                            x_lin=x_lin_train, y=y_train, LinearSolver=self.LinearSolver,\
                             cond=self.cond, lapack_driver=self.lapack_driver) # rank genes using MSE
                 BetterChromosome = self.get_best_chromosome() # get best chromosome  
                 if BestChromosome is None:
                     BestChromosome = self.get_best_chromosome()
                 if BetterChromosome.MSE_Train < BestChromosome.MSE_Train:
-                    BestChromosome.rank_sort(x_nonlin=x_nonlin_train, x_lin=x_lin_train,\
-                        y=y_train, MSEall=self.MSEall_train, NonlinearFunction=self.NonlinearFunction,\
-                        LinearSolver=self.LinearSolver,\
+                    BestChromosome.rank_sort(x_expD=x_expD_train, x_expDn=x_expDn_train,\
+                        x_lin=x_lin_train, y=y_train, LinearSolver=self.LinearSolver,\
                         cond=self.cond, lapack_driver=self.lapack_driver)                    
                     BestChromosome = copy.copy(BetterChromosome)
                     BestChromosome.time = time() - StartTime  
@@ -834,7 +691,7 @@ class GA:
                     LastChangeTime = time()
                     print('Iteration = ', nIter)
                     BestChromosome.print_score()
-                if self.verbose and ((nIter % self.IterationPerRecord) == 0):  
+                if self.verbose and ((nIter % self.PrintInterval) == 0):  
                     print('Iteration = ', nIter, "\nTime since last improvement =",\
                         str(int((time() - LastChangeTime))), 'sec')
                 new_population = []
@@ -883,7 +740,7 @@ class GA:
             pass
         self.BestChromosome = BestChromosome
         return
-
+    
     def PlotChromosomes(self, Fig_Number, ChromosomesList, XAxis='#',\
                         YAxis='MSE Train', PlotType='Line', F=None):
         fig = plt.figure(Fig_Number, figsize=(19,10))
@@ -917,11 +774,7 @@ class GA:
             elif YAxis == 'R2 Adjusted Train':
                 YPlot.append(i.R2Adj_Train)                 
             elif YAxis == 'R2 Adjusted Test':
-                YPlot.append(i.R2Adj_Test)                 
-            elif YAxis == 'Mallow statistics Train':
-                YPlot.append(i.Mallow_Train)   
-            elif YAxis == 'Mallow statistics Test':
-                YPlot.append(i.Mallow_Test)  
+                YPlot.append(i.R2Adj_Test)                   
             else:
                 sys.stdout.write(library.RED)
                 print('Crash: PlotChromosomes')
@@ -945,7 +798,7 @@ class GA:
         plt.close(fig)
         return
     
-    def RemoveWorstGene(self, chromosome, x_nonlin=None, x_lin=None, y=None, verbose=True):
+    def RemoveWorstGene(self, chromosome, x_expD=None, x_expDn=None, x_lin=None, y=None, verbose=True):
         if self.VIP_Chromosome is None: 
             del(chromosome.Genes[-1])
             chromosome.Size -= 1
@@ -961,7 +814,7 @@ class GA:
                     chromosome.Size -= 1
                     chromosome.erase_score()
                     break
-        chromosome.score(x_nonlin_train=x_nonlin, x_lin_train=x_lin, y_train=y, MSEall_train=self.MSEall_train, NonlinearFunction=self.NonlinearFunction,\
+        chromosome.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
             LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
         return chromosome
     
@@ -985,8 +838,8 @@ class GA:
         if not UseCorrelationMatrix:
             return self.get_all_features_list(chromosome)
         idx_lin = chromosome.get_genes_list(Type=0)
-        if idx_lin is None:
-            return None        
+        if idx_lin is []:
+            return []        
         list1 = []
         list2 = []
         for i in range(0, len(idx_lin), 1):
@@ -1013,34 +866,40 @@ class GA:
     
     def get_all_features_list(self, chromosome):
         idx_lin = chromosome.get_genes_list(Type=0) # only linear features
+        if idx_lin == []:
+            return []
         idx_corr = []
         n = np.array(range(0, self.n_lin, 1), dtype=int)
         for i in range(0, len(idx_lin), 1):
             idx_corr.append(n)
         return idx_corr
     
-    def BestFit(self, chromosome, x_nonlin=None, x_lin=None, y=None, verbose=True):        
-        chromosome.score(x_nonlin_train=x_nonlin, x_lin_train=x_lin, y_train=y, MSEall_train=self.MSEall_train,\
-            NonlinearFunction=self.NonlinearFunction,\
+    def BestFit(self, chromosome, x_expD=None, x_expDn=None, x_lin=None, y=None, verbose=True):        
+        Best = copy.deepcopy(chromosome)        
+        Best.rank_sort(x_expD=x_expD, x_expDn=x_expDn, x_lin=x_lin, y=y,\
             LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
-        chromosome.rank_sort(x_nonlin=x_nonlin, x_lin=x_lin, y=y, MSEall=self.MSEall_train, NonlinearFunction=self.NonlinearFunction,\
-            LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
-        Best = copy.deepcopy(chromosome)
+        Best.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
+            LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)        
         Found = True
-        idx_corr = self.get_correlated_features_list(chromosome, Model=1,\
+        idx_corr = self.get_correlated_features_list(Best, Model=1,\
             UseCorrelationMatrix=self.UseCorrelationBestFit, MinCorr=self.MinCorrBestFit)
+        if idx_corr == []: # only for linear features
+            return Best
         while Found:
             Found = False
             for i in range(0, len(idx_corr), 1):
                 Chromosome_list = []    
+                idx_list = Best.get_genes_list(Type=0)
                 ch = copy.deepcopy(Best)
-                old_gene = ch.Genes[i]
+                old_gene = copy.deepcopy(ch.Genes[i])
                 if (not old_gene.is_gene_exists(self.VIP_Chromosome)) and (old_gene.Type == 0):
                     for j in range(0, len(idx_corr[i]), 1):
-                        new_gene = GA.Gene(idx_corr[i][j], Type=0)
-                        ch.Genes[i] = new_gene
+                        new_idx = idx_corr[i][j]
+                        if new_idx in idx_list:
+                            continue # check if new index exists in chromosome
+                        ch.Genes[i].Idx = idx_corr[i][j]
                         ch.erase_score()
-                        ch.score(x_nonlin_train=x_nonlin, x_lin_train=x_lin, y_train=y, MSEall_train=self.MSEall_train, NonlinearFunction=self.NonlinearFunction,\
+                        ch.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
                             LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
                         if not ch.is_exist(Chromosome_list):  
                             ch.Origin = 'Best Fit'
@@ -1056,8 +915,11 @@ class GA:
                                 sys.stdout.write(library.RESET)
                                 Best.print_score()
             if Found:                
-                Best.rank_sort(x_nonlin=x_nonlin, x_lin=x_lin, y=y, MSEall=self.MSEall_train, NonlinearFunction=self.NonlinearFunction,\
+                Best.rank_sort(x_expD=x_expD, x_expDn=x_expDn, x_lin=x_lin, y=y,\
                     LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
+                Best.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
+                    LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
+
         return Best
         
     # store in sheet of .xlsx file description of fit with real coefficients
@@ -1079,37 +941,37 @@ class GA:
             idx_nonlin = chromosome_list[k].get_genes_list(Type=1)
             idx_lin = chromosome_list[k].get_genes_list(Type=0)
             
-            Results = pd.DataFrame(np.empty(shape = (chromosome_list[k].Size, 24)).astype(str), \
+            Results = pd.DataFrame(np.empty(shape = (chromosome_list[k].Size, 22)).astype(str), \
                 columns=['Feature index','Feature type','Bond 1','Power 1','Intermolecular 1',\
                 'Distance 1 type','Bond 2','Power 2', 'Intermolecular 2','Distance 2 type',\
                 'Number of distances in feature', 'Number of constants', 'Coefficients',\
                 'Coefficients 2', 'MSE Train','RMSE Train', 'R2 Train', 'R2 Adjusted Train',\
-                'MSE Test','RMSE Test','R2 Test', 'R2 Adjusted Test', 'Mallow Train','Mallow Test'], dtype=str)
+                'MSE Test','RMSE Test','R2 Test', 'R2 Adjusted Test'], dtype=str)
             Results[:][:] = ''
             max_distances_in_feature = 1
             i = 0
             while i < len(idx_nonlin):
                 index = idx_nonlin[i]
-                gene = GA.Gene(index, Type=1)
+                gene = Gene(index, Type=1)
                 I = chromosome_list[k].find_gene_idx(gene)
                 Results.loc[i]['Feature index'] = index
                 Results.loc[i]['Feature type'] = FeaturesNonlinear[index].FeType
-                Results.loc[i]['Bond 1'] = FeaturesNonlinear[index].Distance.Atom1.Symbol + '-' + FeaturesNonlinear[index].Distance.Atom2.Symbol
-                Results.loc[i]['Power 1'] = ''
-                Results.loc[i]['Distance 1 type'] = str(FeaturesNonlinear[index].Distance.DiType)
-                if FeaturesNonlinear[index].Distance.isIntermolecular: # True = Intermolecular False = Intramolecular
+                Results.loc[i]['Bond 1'] = FeaturesNonlinear[index].DtP1.Distance.Atom1.Symbol + '-' + FeaturesNonlinear[index].DtP1.Distance.Atom2.Symbol
+                Results.loc[i]['Power 1'] = FeaturesNonlinear[index].DtP1.Power
+                Results.loc[i]['Distance 1 type'] = str(FeaturesNonlinear[index].DtP1.DtpType)
+                if FeaturesNonlinear[index].DtP1.Distance.isIntermolecular: # True = Intermolecular False = Intramolecular
                     Results.loc[i]['Intermolecular 1'] = 'Yes'
                 else:
                     Results.loc[i]['Intermolecular 1'] = 'No'           
-                Results.loc[i]['Number of distances in feature'] = 1
-                Results.loc[i]['Number of constants'] = 2
-                Results.loc[i]['Coefficients'] = chromosome_list[k].Genes[I].Coef1
-                Results.loc[i]['Coefficients 2'] = chromosome_list[k].Genes[I].Coef2  
+                Results.loc[i]['Number of distances in feature'] = FeaturesNonlinear[index].nDistances
+                Results.loc[i]['Number of constants'] = FeaturesNonlinear[index].nConstants
+                Results.loc[i]['Coefficients'] = chromosome_list[k].Genes[I].Coef1 # power of exponent
+                Results.loc[i]['Coefficients 2'] = chromosome_list[k].Genes[I].Coef2 # in front of exp
                 i += 1
             j = 0 # counts linear genes
             while (j < len(idx_lin)): # counts rows in excel sheet
                 index = idx_lin[j]
-                gene = GA.Gene(index, Type=0)
+                gene = Gene(index, Type=0)
                 I = chromosome_list[k].find_gene_idx(gene)
                 Results.loc[i]['Feature index'] = index
                 Results.loc[i]['Feature type'] = FeaturesReduced[index].FeType                
@@ -1159,8 +1021,6 @@ class GA:
             Results.loc[0]['RMSE Test'] = chromosome_list[k].RMSE_Test
             Results.loc[0]['R2 Test'] = chromosome_list[k].R2_Test
             Results.loc[0]['R2 Adjusted Test'] = chromosome_list[k].R2Adj_Test   
-            Results.loc[0]['Mallow Train'] = chromosome_list[k].Mallow_Train 
-            Results.loc[0]['Mallow Test'] = chromosome_list[k].Mallow_Test                              
             if max_distances_in_feature == 1:
                 del(Results['Bond 2'])
                 del(Results['Power 2'])
@@ -1188,8 +1048,8 @@ class GA:
         Genes_list = []
         for i in range(0, len(idx), 1):
             Idx = idx[i]
-            gene = self.Gene(Idx, Type=0, p_Value=None, rank=None)
+            gene = Gene(Idx, Type=0, p_Value=None, rank=None)
             Genes_list.append(gene)
-        chromosome = self.Chromosome(Genes_list)
+        chromosome = Chromosome(Genes_list)
         return chromosome
         
