@@ -8,6 +8,51 @@ import copy
 import matplotlib.pyplot as plt
 import pandas as pd
 
+class Node(dict):
+    """ Class Node"""
+    
+    def __init__(self, parent=None, state=None, level=None, path_cost=0, heuristic=0):
+        self.parent = parent
+        self.children = []
+        self.level = level
+        self.finished = False     
+        self.path_cost = path_cost
+        self.heuristic = heuristic
+        self.fitness = path_cost + heuristic
+        self.state = state # 1D numpy array that represents puzzles
+        
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+    
+    def Get_Path(self):
+        if self.represent is None:
+            return None
+        path = []
+        node = self
+        while node.parent is not None:
+            path.insert(0, node.represent)
+            node = node.parent
+        path.insert(0, node.represent)        
+        return path   
+# end of class Node
+
 class Gene:
     
     def __init__(self, Idx, Type=0, p_Value=None, rank=None):
@@ -116,6 +161,27 @@ class Chromosome:
             if (idx_lin0 == idx_lin1) and (idx_nonlin0 == idx_nonlin1):
                 return True
         return
+
+    def where_exist(self, Chromosome_list):
+        if Chromosome_list is None:
+            return False
+        if type(Chromosome_list) is Chromosome:
+            Chromosome_list = [Chromosome_list]
+        idx_lin0 = self.get_genes_list(Type=0)
+        idx_lin0.sort()
+        idx_nonlin0 = self.get_genes_list(Type=1)
+        idx_nonlin0.sort()
+        k = 0
+        for i in Chromosome_list:
+            idx_lin1 = i.get_genes_list(Type=0)
+            idx_lin1.sort()
+            idx_nonlin1 = i.get_genes_list(Type=1)
+            idx_nonlin1.sort()
+            if (idx_lin0 == idx_lin1) and (idx_nonlin0 == idx_nonlin1):
+                return k
+            k += 1
+        return -10
+    
     def has_duplicates(self):
         if self.Size == 0:
             return False
@@ -326,7 +392,8 @@ class GA:
         self.n_VIP_lin = None
         self.n_VIP_exp = None
         self.nIter = 1000
-
+        self.BestFitPath = []
+        
 # create random gene from pool that does not belong to chromosome
     def create_random_gene(self, chromosome=None, pool_nonlin=None, pool_lin=None):
         if (chromosome is None):
@@ -641,7 +708,8 @@ class GA:
                 self.n_exp = len(self.idx_exp)
         if (idx_lin is None) and (x_lin_train is not None):
             if (x_lin_train is not None):
-                self.C = np.cov(x_lin_train, rowvar=False, bias=True)
+                x, _ = regression.Standardize(x_lin_train)
+                self.C = np.cov(x, rowvar=False, bias=True)
                 self.idx_lin = list(range(0, x_lin_train.shape[1], 1))
                 self.n_lin = len(self.idx_lin)
             else:
@@ -680,8 +748,10 @@ class GA:
                 BetterChromosome = self.get_best_chromosome() # get best chromosome  
                 if BestChromosome is None:
                     BestChromosome = self.get_best_chromosome()
+                    library.Print('New Best chromosome:', library.RED)
+                    BestChromosome.print_score()
                 if BetterChromosome.MSE_Train < BestChromosome.MSE_Train:
-                    BestChromosome.rank_sort(x_expD=x_expD_train, x_expDn=x_expDn_train,\
+                    BetterChromosome.rank_sort(x_expD=x_expD_train, x_expDn=x_expDn_train,\
                         x_lin=x_lin_train, y=y_train, LinearSolver=self.LinearSolver,\
                         cond=self.cond, lapack_driver=self.lapack_driver)                    
                     BestChromosome = copy.copy(BetterChromosome)
@@ -690,10 +760,13 @@ class GA:
                     del(BetterChromosome)
                     LastChangeTime = time()
                     print('Iteration = ', nIter)
+                    library.Print('New Best chromosome:', library.RED)
                     BestChromosome.print_score()
                 if self.verbose and ((nIter % self.PrintInterval) == 0):  
                     print('Iteration = ', nIter, "\nTime since last improvement =",\
                         str(int((time() - LastChangeTime))), 'sec')
+                    library.Print('Best found chromosome:', library.BLUE)
+                    BestChromosome.print_score()
                 new_population = []
                 for j in range(0, self.nMutationCrossover, 1):
                     rand_MutationProbability = random.random()
@@ -784,7 +857,7 @@ class GA:
         if PlotType == 'Line':
             plt.plot(XPlot, YPlot)
         if PlotType == 'Scatter':
-            plt.scatter(XPlot, YPlot)
+            plt.scatter(XPlot, YPlot, s=1)
         plt.title('Progress of Genetic Algorithm')       
         plt.axis('tight')
         plt.show(fig)
@@ -794,7 +867,7 @@ class GA:
             F = YAxis
         else:
             F += ' ' + YAxis 
-        plt.savefig(F, bbox_inches='tight')
+        plt.savefig('{}{}'.format(F, '.eps'), bbox_inches='tight', format='eps', dpi=1000)
         plt.close(fig)
         return
     
@@ -875,7 +948,9 @@ class GA:
         return idx_corr
     
     def BestFit(self, chromosome, x_expD=None, x_expDn=None, x_lin=None, y=None, verbose=True):        
-        Best = copy.deepcopy(chromosome)        
+        StartTime = time()
+        Best = copy.deepcopy(chromosome)     
+        Best.time = StartTime
         Best.rank_sort(x_expD=x_expD, x_expDn=x_expDn, x_lin=x_lin, y=y,\
             LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
         Best.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
@@ -885,6 +960,7 @@ class GA:
             UseCorrelationMatrix=self.UseCorrelationBestFit, MinCorr=self.MinCorrBestFit)
         if idx_corr == []: # only for linear features
             return Best
+        level = 0
         while Found:
             Found = False
             for i in range(0, len(idx_corr), 1):
@@ -919,13 +995,18 @@ class GA:
                     LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
                 Best.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
                     LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
-
+            level += 1
+            print('Level= ', level)
         return Best
         
     # store in sheet of .xlsx file description of fit with real coefficients
-    def Results_to_xlsx(self, FileName, chromosome_list, FeaturesNonlinear=None,\
-            FeaturesAll=None, FeaturesReduced=None):
+    def Results_to_xlsx(self, FileName, FeaturesNonlinear=None,\
+            FeaturesAll=None, FeaturesReduced=None, X_Linear=None):
+        chromosome_list = copy.deepcopy(self.DecreasingChromosomes)
         writeResults = pd.ExcelWriter(FileName, engine='openpyxl')
+        if X_Linear is not None:
+            writeResultsC = pd.ExcelWriter('Cov ' + FileName, engine='openpyxl')
+            writeResultsP = pd.ExcelWriter('Path ' + FileName, engine='openpyxl')
         if type(chromosome_list) is list:
             nChromosomes = len(chromosome_list)
         else:
@@ -940,10 +1021,19 @@ class GA:
             SheetName = str(sheet_names[k]) #replace with number of genes later
             idx_nonlin = chromosome_list[k].get_genes_list(Type=1)
             idx_lin = chromosome_list[k].get_genes_list(Type=0)
-            
-            Results = pd.DataFrame(np.empty(shape = (chromosome_list[k].Size, 22)).astype(str), \
+# correlation coefficients for linear
+            if X_Linear is not None:
+                x = np.zeros(shape=(X_Linear.shape[0], len(idx_lin)), dtype=float)
+                for i in range(0, len(idx_lin), 1):
+                    x[:, i] = X_Linear[:, idx_lin[i]]
+                x_std, x_var = regression.Standardize(x)
+                C = np.cov(x_std, rowvar=False, bias=True)
+                c = pd.DataFrame(C, columns=idx_lin, index=idx_lin, dtype=float)
+                c.to_excel(writeResultsC, sheet_name=SheetName)  
+            Results = pd.DataFrame(np.empty(shape = (chromosome_list[k].Size, 26)).astype(str), \
                 columns=['Feature index','Feature type','Bond 1','Power 1','Intermolecular 1',\
                 'Distance 1 type','Bond 2','Power 2', 'Intermolecular 2','Distance 2 type',\
+                'Bond 3','Power 3', 'Intermolecular 3','Distance 3 type',\
                 'Number of distances in feature', 'Number of constants', 'Coefficients',\
                 'Coefficients 2', 'MSE Train','RMSE Train', 'R2 Train', 'R2 Adjusted Train',\
                 'MSE Test','RMSE Test','R2 Test', 'R2 Adjusted Test'], dtype=str)
@@ -1002,7 +1092,17 @@ class GA:
                     Results.loc[i]['Bond 2'] = ''
                     Results.loc[i]['Power 2'] = ''
                     Results.loc[i]['Intermolecular 2'] = ''
-                    Results.loc[i]['Distance 2 type'] = ''                    
+                    Results.loc[i]['Distance 2 type'] = ''  
+                if FeaturesReduced[index].nDistances >= 3:
+                    Results.loc[i]['Bond 3'] = FeaturesReduced[index].DtP3.Distance.Atom1.Symbol + '-' + FeaturesReduced[index].DtP3.Distance.Atom2.Symbol
+                    Results.loc[i]['Power 3'] = FeaturesReduced[index].DtP3.Power
+                    Results.loc[i]['Distance 3 type'] = FeaturesReduced[index].DtP3.DtpType
+                    if max_distances_in_feature < 3:
+                        max_distances_in_feature = 3
+                    if FeaturesReduced[index].DtP3.Distance.isIntermolecular: # 1 = Intermolecular 0 = Intramolecular
+                        Results.loc[i]['Intermolecular 3'] = 'Yes'
+                    else:
+                        Results.loc[i]['Intermolecular 3'] = 'No'                    
                 counter = 0
                 current_feature_type = FeaturesReduced[index].FeType
                 for m in range(0, len(FeaturesAll), 1):
@@ -1021,13 +1121,56 @@ class GA:
             Results.loc[0]['RMSE Test'] = chromosome_list[k].RMSE_Test
             Results.loc[0]['R2 Test'] = chromosome_list[k].R2_Test
             Results.loc[0]['R2 Adjusted Test'] = chromosome_list[k].R2Adj_Test   
-            if max_distances_in_feature == 1:
+            if max_distances_in_feature < 2:
                 del(Results['Bond 2'])
                 del(Results['Power 2'])
                 del(Results['Intermolecular 2'])
                 del(Results['Distance 2 type'])
-            Results.to_excel(writeResults, sheet_name=SheetName)            
+            if max_distances_in_feature < 3:
+                del(Results['Bond 3'])
+                del(Results['Power 3'])
+                del(Results['Intermolecular 3'])
+                del(Results['Distance 3 type'])
+            Results.to_excel(writeResults, sheet_name=SheetName)      
+        
+# linear only        
+        max_chromosome_length = self.BestFitPath[0].Size
+        col = list(range(0, max_chromosome_length, 1))
+        col.extend(['MSE Train','RMSE Train', 'R2 Train', 'R2 Adjusted Train',\
+                'MSE Test','RMSE Test','R2 Test', 'R2 Adjusted Test']) 
+        SheetName = 'Path'           
+
+        for k in range(0, len(self.BestFitPath), 1): # chromosomes 
+            Results_k = pd.DataFrame(np.empty(shape = (4, len(col))).astype(str), \
+                    columns=col, index=['Bond', 'Power', 'Coeff', 'Space'], dtype=str)
+            Results_k[:][:] = ''            
+            idx_nonlin = self.BestFitPath[k].get_genes_list(Type=1) # ignore them for now
+            idx_lin = self.BestFitPath[k].get_genes_list(Type=0)
+            for j in range(0, len(idx_lin), 1):
+                index = idx_lin[j]            
+                gene = Gene(index, Type=0)
+                I = self.BestFitPath[k].find_gene_idx(gene)
+                Results_k[j]['Bond'] = FeaturesReduced[index].DtP1.Distance.Atom1.Symbol \
+                    + '-' + FeaturesReduced[index].DtP1.Distance.Atom2.Symbol
+                Results_k[j]['Power'] = FeaturesReduced[index].DtP1.Power
+                Results_k[j]['Coeff'] = self.BestFitPath[k].Genes[I].Coef1 
+            Results_k['MSE Train']['Bond'] = self.BestFitPath[k].MSE_Train
+            Results_k['RMSE Train']['Bond'] = self.BestFitPath[k].RMSE_Train
+            Results_k['R2 Train']['Bond'] = self.BestFitPath[k].R2_Train
+            Results_k['R2 Adjusted Train']['Bond'] = self.BestFitPath[k].R2Adj_Train
+            Results_k['MSE Test']['Bond'] = self.BestFitPath[k].MSE_Test
+            Results_k['RMSE Test']['Bond'] = self.BestFitPath[k].RMSE_Test
+            Results_k['R2 Test']['Bond'] = self.BestFitPath[k].R2_Test
+            Results_k['R2 Adjusted Test']['Bond'] = self.BestFitPath[k].R2Adj_Test                                     
+            if k == 0:
+                ResultsP = copy.deepcopy(Results_k)
+            else:
+                frames = [ResultsP, Results_k]
+                ResultsP = pd.concat(frames)                             
+        ResultsP.to_excel(writeResultsP, sheet_name=SheetName)                 
         writeResults.save()
+        writeResultsC.save()
+        writeResultsP.save()
         return
 
 # only for linear now
@@ -1053,3 +1196,321 @@ class GA:
         chromosome = Chromosome(Genes_list)
         return chromosome
         
+    def BestFit2(self, chromosome, x_expD=None, x_expDn=None, x_lin=None, y=None,\
+                 epoch = 100, q_max=0, BestFitPathLen=0, start_time=0, verbose=True):   
+        
+        def is_exist_in_nodes(chromosome, nodes_list):
+            if nodes_list is None:
+                return False
+            if len(nodes_list) == 0:
+                return False
+            idx_lin0 = chromosome.get_genes_list(Type=0)
+            idx_lin0.sort()
+            idx_nonlin0 = chromosome.get_genes_list(Type=1)
+            idx_nonlin0.sort()
+            for i in nodes_list:
+                idx_lin1 = i.state.get_genes_list(Type=0)
+                idx_lin1.sort()
+                idx_nonlin1 = i.state.get_genes_list(Type=1)
+                idx_nonlin1.sort()
+                if (idx_lin0 == idx_lin1) and (idx_nonlin0 == idx_nonlin1):
+                    return True
+            return False
+    
+        def Actions(node, explored, best_node_on_level):
+            mse = node.state.MSE_Train
+            Chromosome_list = []  
+            for i in range(0, len(idx_corr), 1):  
+                idx_list = node.state.get_genes_list(Type=0)
+                ch = copy.deepcopy(node.state)
+                old_gene = copy.deepcopy(ch.Genes[i])
+                if (not old_gene.is_gene_exists(self.VIP_Chromosome)) and (old_gene.Type == 0):
+                    for j in range(0, len(idx_corr[i]), 1):
+                        new_idx = idx_corr[i][j]
+                        if new_idx in idx_list:
+                            continue # check if new index exists in chromosome
+                        ch.Genes[i].Idx = new_idx
+                        if ch.is_exist(Chromosome_list) or is_exist_in_nodes(ch, explored):
+                            continue # already have this 
+                        ch.erase_score()
+                        ch.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
+                            LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
+### put if later this removes bed children
+                        if (ch.MSE_Train < mse) and (ch.MSE_Train < best_node_on_level.fitness): # child is better than parent  
+#                        if (ch.MSE_Train < mse): # child is better than parent  
+                            ch.Origin = 'Best Fit'
+                            chromosome_copy = copy.deepcopy(ch)                    
+                            Chromosome_list.append(chromosome_copy)
+            return Chromosome_list       
+
+        def Heuristic(state):
+            return 0
+    
+        def Path_cost(state):
+            return state.MSE_Train
+        
+        idx_corr = self.get_correlated_features_list(chromosome, Model=1,\
+            UseCorrelationMatrix=self.UseCorrelationBestFit, MinCorr=self.MinCorrBestFit)
+        if idx_corr == []: # only for linear features
+            return chromosome
+        problem = Problem(initial_state=chromosome, final_state=None, actions=Actions,\
+                 transitions=Path_cost, heuristic=Heuristic, goal=0, epoch=epoch)    
+                    
+        result, Best, count, path = A_star(problem, use_heuristic=False, q_max=q_max, start_time=start_time)
+        if BestFitPathLen != 0:
+            k = BestFitPathLen
+            while len(path) > 0 and k > 0:
+                best_chromosome = copy.deepcopy(path[0].state)
+                idx = 0
+                for i in range(1, len(path), 1):
+                    if path[i].state.MSE_Train < best_chromosome.MSE_Train:
+                        best_chromosome = copy.deepcopy(path[i].state)
+                        idx = i
+                self.BestFitPath.append(best_chromosome)
+                k -= 1
+                del(path[idx])                   
+                
+#        result, Best, count = BFS(problem)
+#        result, Best, count = DLS(problem, 10)
+
+        return Best
+
+def are_equal(chromosome1, chromosome2):
+    idx_lin1 = chromosome1.get_genes_list(Type=0)
+    idx_lin1.sort()
+    idx_nonlin1 = chromosome1.get_genes_list(Type=1)
+    idx_nonlin1.sort()
+    idx_lin2 = chromosome2.get_genes_list(Type=0)
+    idx_lin2.sort()
+    idx_nonlin2 = chromosome2.get_genes_list(Type=1)
+    idx_nonlin2.sort()  
+    if (idx_lin1 == idx_lin2) and (idx_nonlin1 == idx_nonlin2):
+        return True
+    return False
+
+def in_queue(node, queue):
+    if queue is None:
+        return -10
+    if queue == []:
+        return -10
+    for i in range(0, len(queue), 1):
+        if are_equal(node.state, queue[i].state):
+            return i # index in queue
+    return -10 
+
+        
+# A* with heuristic, Uniform cost search if use_heuristic=False
+# transition_cost: 'Unit', 'Number', Different
+def A_star(problem, use_heuristic=False, q_max=0, start_time=0):
+    
+    def Find_place_in_queue(queue, node):
+    # almost binary search      
+        if queue == []:
+            return 0
+        if node.fitness <= queue[0].fitness:
+            return 0
+        Left = 0
+        Right = len(queue)-1
+        Found = False	
+        Diff = Right - Left
+        while not Found and (Diff > 1):
+            Midpoint = int((Left + Right) / 2)
+            if queue[Midpoint].fitness == node.fitness:
+                return Midpoint
+            else:
+                if node.fitness < queue[Midpoint].fitness:
+                    Right = Midpoint
+                else:
+                    Left = Midpoint
+            Diff = Right - Left
+        return Right
+
+    if q_max == 0:
+        q_max = 1e+100
+    h = 0
+    if use_heuristic:
+        h = problem.heuristic(problem.initial_state) # heuristic      
+    node = Node(parent=None, state=problem.initial_state, level=0,\
+        path_cost=problem.initial_state.MSE_Train, heuristic=h)
+    node.state.time = time() - start_time
+    queue = [node]
+    problem.best_per_level.append(copy.deepcopy(node))
+    explored = []
+    count = 0
+    while len(queue) != 0:
+        node = queue.pop(0) 
+        node.state.time = time() - start_time
+        count += 1
+        if problem.Goal_Test(node): # is it the goal?      
+            library.Print('{}{}'.format('Number of Best Fit improvements', len(problem.best_states)), library.GREEN)
+            return 'Solution', problem.best_state, count, explored
+        explored.append(node) # add to explored
+        print('Explored=', len(explored), 'Size=', node.state.Size)
+        children_states = problem.actions(node, explored, problem.best_per_level[node.level])
+        k = 0
+        if node.parent is not None:
+            print('Parent MSE=', node.parent.state.MSE_Train)
+        print('Level=', node.level, 'MSE=', node.state.MSE_Train)
+        print('Best MSE=', problem.best_state.MSE_Train, 'Queue=', len(queue))
+        if node.level != 0:
+            print('Best MSE for parent level=', problem.best_per_level[node.parent.level].fitness)
+        for child_state in children_states: # create children (chromosome)
+            if use_heuristic:
+                h = problem.heuristic(child_state) # heuristic                      
+            g = child_state.MSE_Train # path cost
+            child = Node(parent=node, state=child_state, level=node.level+1,\
+                path_cost=g, heuristic=h) # node
+            node.children.append(child) # link to parent   
+            if (in_queue(child, explored) == -10): # if not explored
+                idx = in_queue(child, queue)
+                if idx != -10: # is in queue?
+                    if queue[idx].fitness > child.fitness: # new MSE smaller
+                        del(queue[idx])# replace with less expensive node
+                    else:
+                        continue # old child is better
+                idx = Find_place_in_queue(queue, child) # where to place new node                               
+                queue.insert(idx, child) # put on appropriate place into sorted queue
+                if (len(queue) > q_max):
+                    del(queue[len(queue)-1])
+            k += 1    
+    library.Print('{}{}'.format('Number of Best Fit improvements', len(problem.best_states)), library.GREEN)
+    return 'Solution', problem.best_state, count, explored
+            
+# return: Status, Solution node, Number of goal tests
+# Status: 'Solution', 'Cutoff', 'Failure'
+        
+  
+# Breadth first search
+def BFS(problem):
+    node = Node(parent=None, state=problem.initial_state, level=0,\
+        path_cost=0, heuristic=0)
+    if problem.Goal_Test(node):
+        return 'Solution', problem.best_state, 1
+    queue = [node]
+    explored = []
+    count = 0
+    while len(queue) != 0:
+        node = queue.pop(0)
+        print('Level=', node.level, 'MSE=', node.state.MSE_Train, 'Best MSE=', problem.best_state.MSE_Train)
+        count += 1
+        if problem.Goal_Test(node): # is it the goal?       
+            return 'Solution', problem.best_state, count 
+        explored.append(node)
+        children_states = problem.actions(node, explored)
+        for child_state in children_states: # create children
+            g = node.path_cost + 1
+            child = Node(parent=node, state=child_state, level=node.level+1,\
+                path_cost=g, heuristic=0)
+            node.children.append(child) # link to parent
+            if (in_queue(child, explored) == -10): #      
+                queue.append(child) # append to the end of queue
+    return 'Solution', problem.best_state, count
+
+    
+# Depth-limited search
+def DLS(problem, limit):
+    
+    def recursive_DLS(node, limit, counter): # crap
+    # result: 'Solution', 'Cutoff', 'Failure'   
+        counter += 1
+        print('Level=', node.level, 'MSE=', node.state.MSE_Train, 'Best MSE=', problem.best_state.MSE_Train)
+        if problem.Goal_Test(node): # is it the goal?       
+            return 'Solution', node, counter # return solution
+        elif limit == 0:
+            return 'Cutoff', None, counter
+        else:
+            cutoff_occured = False
+            children_states = problem.actions(node, [])
+            for child_state in children_states: # create children
+                child = Node(parent=node, state=child_state, level=node.level+1,\
+                    path_cost=child_state.MSE_Train, heuristic=0)
+                node.children.append(child) # link to parent            
+                result, solution, counter = recursive_DLS(child, limit-1, counter)
+                if result == 'Cutoff':
+                    cutoff_occured = True
+                elif result != 'Failure':
+                    return result, solution, counter
+            if cutoff_occured:
+                return 'Cutoff', None, counter
+            else:
+                return 'Failure', None, counter
+    
+    return recursive_DLS(Node(parent=None, state=problem.initial_state, level=0,\
+        path_cost=problem.initial_state.MSE_Train, heuristic=0), limit, 0)
+
+        
+# Iterative deepening depth-first search        
+def IDS(problem, max_depth):
+    Counter = 0
+    for depth in range(0, max_depth, 1):
+        result, solution, counter = DLS(problem, depth)
+        Counter += counter
+        if result != 'Cutoff':        
+            return result, solution, Counter  
+
+
+    
+class Problem(dict):
+    
+#    initial_state = None
+#    final_state = None
+# epoch - time in sec for algorithm
+# goal - desired MSE for fit
+    
+    def __init__(self, initial_state=None, final_state=None, actions=None,\
+                 transitions=None, heuristic=None, goal=None, epoch=100):
+   
+        self.initial_state = initial_state
+        self.final_state = final_state
+        self.best_state = initial_state
+        self.heuristic = heuristic
+        self.actions = actions
+        self.transitions = transitions
+        self.goal = goal
+        self.start_time = int(time())
+        self.last_improvement_time = self.start_time
+        self.epoch = epoch
+        self.best_states = []
+        self.best_per_level = []
+        
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+
+# check if goal is reached    
+    def Goal_Test(self, node): 
+        if len(self.best_per_level) == node.level:            
+            self.best_per_level.append(node)            
+        elif node.fitness < self.best_per_level[node.level].fitness:
+            self.best_per_level[node.level] = node
+            library.Print('Level fitness updated', library.GREEN)
+        if node.fitness < self.best_state.MSE_Train:
+            self.last_improvement_time = int(time())
+            self.best_state = node.state
+            self.best_states.append(self.best_state)
+            library.Print('Found Better fit A*', library.RED)    
+        if (self.goal - node.fitness) > 0 or \
+            abs(time() - self.last_improvement_time) > self.epoch: 
+            return True  
+        library.Print('{} {}'.format('Remaining time:', self.epoch - time() + self.last_improvement_time), library.BLUE)    
+        return False
+
+
+
+    

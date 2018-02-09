@@ -4,7 +4,7 @@ import sklearn.metrics as skm
 import os
 import copy
 import sys
-import time
+from time import time
 import shutil
 from sklearn.linear_model import LinearRegression
 import statsmodels.regression.linear_model as sm
@@ -29,6 +29,7 @@ GREEN = "\033[0;32m"
 RESET = "\033[0;0m"
 BOLD    = "\033[;1m"
 REVERSE = "\033[;7m"
+HARTREE_TO_KJMOL = 2625.49963865
 
 def Print(arg, color):
     sys.stdout.write(color)
@@ -360,7 +361,7 @@ def BackwardElimination(X_train, Y_train, X_test, Y_test, FeaturesAll, \
         plt.ylabel('Root of mean square error')
         plt.title('Backward elimination. Root of mean square error vs Active coefficiants')
         plt.axis('tight')
-        plt.savefig(FileName + '_RMSE', bbox_inches='tight')
+        plt.savefig('{}{}'.format(FileName, '_RMSE.eps'), bbox_inches='tight', format='eps', dpi=1000)
         # Plot R2 vs. active coefficiens number
         plt.figure(101, figsize = (19, 10))
         plt.plot(nonzero_count_list, rsquared_list, ':')
@@ -368,7 +369,7 @@ def BackwardElimination(X_train, Y_train, X_test, Y_test, FeaturesAll, \
         plt.ylabel('R2')
         plt.title('Backward elimination. R2 vs Active coefficiants')
         plt.axis('tight')
-        plt.savefig(FileName + '_R2', bbox_inches='tight')
+        plt.savefig('{}{}'.format(FileName, '_R2.eps'), bbox_inches='tight', format='eps', dpi=1000)
     # end of plot
     Results = pd.DataFrame(np.zeros(shape = (len(nonzero_count_list), 1)).astype(float),\
         columns=['Empty'], dtype=float)
@@ -904,7 +905,7 @@ def plot_rmse(FileName, nonzero_count_list, rmse_list, r2_list):
     plt.title('Root of mean square error vs Active coefficiants')
     plt.axis('tight')
     plt.show()
-    plt.savefig(FileName + '_RMSE', bbox_inches='tight')
+    plt.savefig('{}{}'.format(FileName, '_RMSE.eps'), bbox_inches='tight', format='eps', dpi=1000)
     plt.close(fig)
     # Plot R2 vs. active coefficiens number
     fig = plt.figure(101, figsize = (19, 10))
@@ -914,7 +915,7 @@ def plot_rmse(FileName, nonzero_count_list, rmse_list, r2_list):
     plt.title('R2 vs Active coefficiants')
     plt.axis('tight')
     plt.show()
-    plt.savefig(FileName + '_R2', bbox_inches='tight')
+    plt.savefig('{}{}'.format(FileName, '_R2.eps'), bbox_inches='tight', format='eps', dpi=1000)
     plt.close(fig)
     return
 
@@ -1950,6 +1951,28 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
                     DtP1=DtP_Double_list[i], DtP2=DtP_Double_list[j],\
                     nDistances=2, nConstants=nConstants))
         return FeaturesAll
+
+    def CreateTripleFeaturesAll(DtP_Triple_list, FeType='Linear',\
+            nConstants=1, IncludeOnlySamePower=False, IncludeSameType=True):    
+        FeaturesAll = [] # double linear features list
+        for i in range(0, len(DtP_Triple_list), 1):
+            for j in range(i+1, len(DtP_Triple_list), 1):
+                for k in range(j+1, len(DtP_Triple_list), 1):
+                    if (DtP_Triple_list[i].Power > DtP_Triple_list[j].Power) or\
+                        DtP_Triple_list[j].Power > DtP_Triple_list[k].Power:
+                        continue # skip duplicates
+                    if IncludeOnlySamePower: # pairs with same power will only be added               
+                        if not ((DtP_Triple_list[i].Power == DtP_Triple_list[j].Power) and\
+                            (DtP_Triple_list[j].Power == DtP_Triple_list[k].Power)):
+                            continue # include only products with same powers                 
+                    if not IncludeSameType: # if this parameter is false
+                        if (DtP_Triple_list[i].Distance.DiType == DtP_Triple_list[j].Distance.DiType) and\
+                            (DtP_Triple_list[j].Distance.DiType == DtP_Triple_list[k].Distance.DiType): 
+                            continue # skip if distances of the same type
+                    FeaturesAll.append(structure.Feature(FeType=FeType,\
+                        DtP1=DtP_Triple_list[i], DtP2=DtP_Triple_list[j], DtP3=DtP_Triple_list[k],\
+                        nDistances=3, nConstants=nConstants))
+        return FeaturesAll
     
     def CreateFeaturesReduced(FeaturesAll):
     # Make list of reduced features
@@ -1967,6 +1990,13 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
                     if j not in FeaturesReduced[i].idx:
                         FeaturesReduced[i].idx.append(j)
         return FeaturesReduced
+
+    def CreateFeaturesReducedMimic(FeaturesAll):
+    # Make list of reduced features
+        FeaturesReduced = copy.deepcopy(FeaturesAll)
+        for i in range(0, len(FeaturesReduced), 1):
+            FeaturesReduced[i].idx.append(i)
+        return FeaturesReduced
     
     for i in Files.values():
         EraseFile(i)
@@ -1975,6 +2005,7 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
     Atoms, Molecules = IOfunctions.ReadSystemDescription(F_SystemDescriptor, 'SYSTEM')        
     LinearSingle = IOfunctions.ReadFeatureDescription(F_SystemDescriptor, keyword='LinearSingle')
     LinearDouble = IOfunctions.ReadFeatureDescription(F_SystemDescriptor, keyword='LinearDouble')
+    LinearTriple = IOfunctions.ReadFeatureDescription(F_SystemDescriptor, keyword='LinearTriple')
     ExpSingle = IOfunctions.ReadFeatureDescription(F_SystemDescriptor, keyword='ExpSingle')
     ExpDouble = IOfunctions.ReadFeatureDescription(F_SystemDescriptor, keyword='ExpDouble')
     GaussianSingle = IOfunctions.ReadFeatureDescription(F_SystemDescriptor, keyword='GaussianSingle')
@@ -2046,6 +2077,20 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
     else:
         FeaturesLinearDoubleAll = None
         FeaturesLinearDoubleReduced = None
+
+    if LinearTriple['Include']:
+        DtP_LinearTriple_list = CreateDtPList(Distances, LinearTriple['Description'])
+        FeaturesLinearTripleAll = CreateTripleFeaturesAll(DtP_LinearTriple_list,\
+            FeType='Linear', IncludeOnlySamePower=LinearTriple['IncludeOnlySamePower'],\
+            IncludeSameType=LinearTriple['IncludeSameType'], nConstants=1)
+        FeaturesLinearTripleReduced = CreateFeaturesReduced(FeaturesLinearTripleAll)
+        IOfunctions.StoreLinearFeatures(Files['Linear Triple Train'], FeaturesLinearTripleAll,\
+            FeaturesLinearTripleReduced, records_train_list, Atoms)
+        IOfunctions.StoreLinearFeatures(Files['Linear Triple Test'], FeaturesLinearTripleAll,\
+            FeaturesLinearTripleReduced, records_test_list, Atoms)        
+    else:
+        FeaturesLinearTripleAll = None
+        FeaturesLinearTripleReduced = None
                 
     if ExpSingle['Include']:
         DtP_ExpSingle_list = CreateDtPList(Distances, ExpSingle['Description'])
@@ -2090,6 +2135,8 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
         'FeaturesLinearSingleReduced': FeaturesLinearSingleReduced,\
         'FeaturesLinearDoubleAll': FeaturesLinearDoubleAll,\
         'FeaturesLinearDoubleReduced': FeaturesLinearDoubleReduced,\
+        'FeaturesLinearTripleAll': FeaturesLinearTripleAll,\
+        'FeaturesLinearTripleReduced': FeaturesLinearTripleReduced,\
         'FeaturesExpSingleAll': FeaturesExpSingleAll,\
         'FeaturesExpDoubleAll': FeaturesExpDoubleAll,\
         'FeaturesGaussianSingleAll': FeaturesGaussianSingleAll,\
@@ -2099,17 +2146,17 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
     
     return Structure  
             
-def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_ENet='ENet path',\
+def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_ENet='ENet path',\
         F_GA='GA path', UseVIP=False, nVIP=None, FirstAlgorithm='GA',\
         L1_Single=0.7, eps_single=1e-3, n_alphas_single=100, L1=0.7, eps=1e-3,\
-        n_alphas=100, alpha_grid_start=-7, alpha_grid_end=-3, cv=30, MinChromosomeSize=5, ChromosomeSize=15, StopTime=600,\
+        n_alphas=100, alpha_grid_start=-7, alpha_grid_end=-3, cv=30, MinChromosomeSize=5,\
+        ChromosomeSize=15, StopTime=600, BestFitStopTime=100, BestFitMaxQueue=0,\
         nIter=500, PopulationSize=100, MutationProbability=0.3, MutationInterval=[1, 3],\
         EliteFraction=0.4, MutationCrossoverFraction=0.3, CrossoverFractionInterval=[0.6, 0.4],\
         UseCorrelationMutation=True, MinCorrMutation=0.8, CrossoverMethod='Random',\
         MutationMethod='Correlated', LinearSolver='sklearn', cond=1e-03,\
         lapack_driver='gelsy', UseCorrelationBestFit=False, MinCorrBestFit=0.8,\
-        GaussianPrecision=10, GaussianStart=0.01, GaussianEnd=20, GaussianLen=5,\
-        PrintInterval=50, RandomSeed=None, verbose=True):
+        PrintInterval=50, RandomSeed=None, BestFitPathLen=0, verbose=True):
 
 # 'sklearn', 'scipy', 'statsmodels'
 # 'gelsd', 'gelsy', 'gelss', for scipy solver
@@ -2122,16 +2169,22 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
     X_LinearSingle_test = IOfunctions.ReadCSV(Files['Linear Single Test'])
     X_LinearDouble_train = IOfunctions.ReadCSV(Files['Linear Double Train'])
     X_LinearDouble_test = IOfunctions.ReadCSV(Files['Linear Double Test'])
+    X_LinearTriple_train = IOfunctions.ReadCSV(Files['Linear Triple Train'])
+    X_LinearTriple_test = IOfunctions.ReadCSV(Files['Linear Triple Test'])
     X_ExpSingleD_train = IOfunctions.ReadCSV(Files['Exp Single Train D'])
     X_ExpSingleDn_train = IOfunctions.ReadCSV(Files['Exp Single Train D^n'])
     X_ExpSingleD_test = IOfunctions.ReadCSV(Files['Exp Single Test D'])
-    X_ExpSingleDn_test = IOfunctions.ReadCSV(Files['Exp Single Test D^n'])
-#    X_ExpDouble_train = IOfunctions.ReadCSV(Files['Exp Double Train'])
-#    X_ExpDouble_test = IOfunctions.ReadCSV(Files['Exp Double Test'])    
-    X_Gaussian_train = IOfunctions.ReadCSV(Files['Gaussian Single Train'])
-    X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Single Test'])
-    
-    if X_LinearSingle_train is not None and X_LinearDouble_train is not None: # both exist
+    X_ExpSingleDn_test = IOfunctions.ReadCSV(Files['Exp Single Test D^n'])   
+
+    if (X_LinearSingle_train is not None) and (X_LinearDouble_train is not None) and (X_LinearTriple_train is not None): # all three exist
+        X_Linear_train = np.concatenate((X_LinearSingle_train, X_LinearDouble_train, X_LinearTriple_train),axis=1)
+        FeaturesLinearAll = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleAll'])
+        FeaturesLinearAll.extend(GenerateFeaturesResults['FeaturesLinearDoubleAll'])
+        FeaturesLinearAll.extend(GenerateFeaturesResults['FeaturesLinearTripleAll'])
+        FeaturesLinearReduced = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleReduced'])
+        FeaturesLinearReduced.extend(GenerateFeaturesResults['FeaturesLinearDoubleReduced'])
+        FeaturesLinearReduced.extend(GenerateFeaturesResults['FeaturesLinearTripleReduced'])
+    elif X_LinearSingle_train is not None and X_LinearDouble_train is not None: # single + double exist
         X_Linear_train = np.concatenate((X_LinearSingle_train,X_LinearDouble_train),axis=1)
         FeaturesLinearAll = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleAll'])
         FeaturesLinearAll.extend(GenerateFeaturesResults['FeaturesLinearDoubleAll'])
@@ -2149,7 +2202,9 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
         X_Linear_train = None
         FeaturesLinearAll = None
         FeaturesLinearReduced = None
-    if X_LinearSingle_test is not None and X_LinearDouble_test is not None: # both exist
+    if (X_LinearSingle_test is not None) and (X_LinearDouble_test is not None) and (X_LinearTriple_test is not None): # all exist
+        X_Linear_test = np.concatenate((X_LinearSingle_test,X_LinearDouble_test,X_LinearTriple_test),axis=1)
+    elif X_LinearSingle_test is not None and X_LinearDouble_test is not None: # single + double exist
         X_Linear_test = np.concatenate((X_LinearSingle_test,X_LinearDouble_test),axis=1)
     elif X_LinearSingle_test is not None and X_LinearDouble_test is None: # only single
         X_Linear_test = X_LinearSingle_test
@@ -2165,7 +2220,7 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
             if GenerateFeaturesResults.System.nAtoms == 9: # three water molecules system
                 nVIP = 3
 
-        t = time.time()       
+        t = time()       
         ga = genetic.GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
             MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
             EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
@@ -2202,7 +2257,7 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
                     LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)
                 chromosome.sort(order='Most important first')  
                 ga.n_lin = X_LinearSingle_train.shape[1]
-            t_sec = time.time() - t
+            t_sec = time() - t
             print("\n", 'Elastic Net worked ', t_sec, 'sec')  
             print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
         if FirstAlgorithm == 'GA':
@@ -2212,7 +2267,7 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
                 y_test=Y_test, idx_exp=None, idx_lin=None, VIP_idx_exp=None,\
                 VIP_idx_lin=None, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
                 LinearSolver=LinearSolver, cond=cond, lapack_driver=lapack_driver, nIter=nIter)
-            t_sec = time.time() - t
+            t_sec = time() - t
             print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
             chromosome = ga.BestChromosome        
             print("\n", 'Features left for Backward Elimination and Search Alternative = ',\
@@ -2232,7 +2287,7 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
                 ga.DecreasingChromosomes.append(chromosome_copy)
             chromosome = ga.RemoveWorstGene(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train,\
                 x_lin=X_LinearSingle_train, y=Y_train, verbose=True)
-        t_sec = time.time() - t
+        t_sec = time() - t
         ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Train',\
             PlotType='Line', F='Single')
         ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Train',\
@@ -2251,7 +2306,7 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
         VIP_idx_exp = []
         VIP_idx_lin = []      
 # proceed all features 
-    t = time.time()           
+    t = time()           
     ga = genetic.GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
         MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
         EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
@@ -2283,7 +2338,7 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
             lapack_driver=ga.lapack_driver)        
         chromosome.rank_sort(x_expD=None, x_expDn=None, x_lin=X_Linear_train, y=Y_train,\
             LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)        
-        t_sec = time.time() - t
+        t_sec = time() - t
         print("\n", 'Elastic Net worked ', t_sec, 'sec')  
         print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
     if FirstAlgorithm == 'GA':
@@ -2293,7 +2348,7 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
             idx_exp=None, idx_lin=None, VIP_idx_exp=VIP_idx_exp,\
             VIP_idx_lin=VIP_idx_lin, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
             LinearSolver=LinearSolver, cond=cond, lapack_driver=lapack_driver, nIter = nIter)
-        t_sec = time.time() - t
+        t_sec = time() - t
         print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
         chromosome = copy.deepcopy(ga.BestChromosome)
         print("\n", 'Features left for Backward Elimination and Search Alternative = ',\
@@ -2302,8 +2357,10 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
             PlotType='Scatter', F=F_GA)
     while chromosome.Size >= MinChromosomeSize:
         if chromosome.Size <= ga.ChromosomeSize:
-            chromosome = ga.BestFit(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train, x_lin=X_Linear_train,\
-                y=Y_train, verbose=True)
+#            chromosome = ga.BestFit(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train, x_lin=X_Linear_train,\
+#                y=Y_train, verbose=True)
+            chromosome = ga.BestFit2(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train, x_lin=X_Linear_train,\
+                y=Y_train, epoch=BestFitStopTime, q_max=BestFitMaxQueue, BestFitPathLen=BestFitPathLen, start_time=time(), verbose=True)
             chromosome.score(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_Linear_train,\
                 y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_Linear_test,\
                 y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond,\
@@ -2317,16 +2374,41 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
             x_lin=X_Linear_train, y=Y_train, verbose=True)
         if chromosome is None:
             break # number of genes in chromosome = number of VIP genes
-    t_sec = time.time() - t
+    t_sec = time() - t
     ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Train',\
         PlotType='Line', F='Default')
     ga.PlotChromosomes(5, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Train',\
         PlotType='Line', F='Default')
+    ga.PlotChromosomes(6, ga.BestFitPath, XAxis='time', YAxis='RMSE Train',\
+        PlotType='Scatter', F='Best Fit Path')
     print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
-    ga.Results_to_xlsx('{} {}'.format(F_xlsx, '.xlsx'), ga.DecreasingChromosomes,\
+    
+    gene0 = genetic.Gene(0, Type=0, p_Value=None, rank=None)
+    gene1 = genetic.Gene(15, Type=0, p_Value=None, rank=None)
+    gene2 = genetic.Gene(30, Type=0, p_Value=None, rank=None)
+    gene3 = genetic.Gene(5, Type=0, p_Value=None, rank=None)
+    gene4 = genetic.Gene(11, Type=0, p_Value=None, rank=None)
+    etalon = genetic.Chromosome([gene0, gene1, gene2, gene3, gene4])
+    etalon.score(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_Linear_train,\
+        y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_Linear_test,\
+        y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond,\
+        lapack_driver=ga.lapack_driver)
+    if etalon is not None:
+        ga.BestFitPath.append(etalon)  
+        ga.DecreasingChromosomes.append(etalon)
+    ga.Results_to_xlsx('{} {}'.format(F_xlsx, '.xlsx'), \
         FeaturesNonlinear=GenerateFeaturesResults['FeaturesExpSingleAll'],\
-        FeaturesAll=FeaturesLinearAll, FeaturesReduced=FeaturesLinearReduced)
-# Gaussian fit    
+        FeaturesAll=FeaturesLinearAll, FeaturesReduced=FeaturesLinearReduced,\
+        X_Linear=X_Linear_train)
+    return ga
+
+# linear search
+def GetFitGP(Files, GaussianPrecision=10, GaussianStart=0.01, GaussianEnd=20, GaussianLen=5):
+    X_Gaussian_train = IOfunctions.ReadCSV(Files['Gaussian Single Train'])
+    X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Single Test'])
+    Y_train = IOfunctions.ReadCSV(Files['Response Train'])
+    Y_test = IOfunctions.ReadCSV(Files['Response Test'])  
+    # Gaussian fit    
     print('Gaussian started')      
     k = 0 # estimate best gaussian
     gpR2_array = np.zeros(shape=(GaussianLen), dtype=float)
@@ -2376,8 +2458,230 @@ def GetFit(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_EN
         n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
     gp.fit(X_Gaussian_train, Y_train) # set from distances
     gpR2 = gp.score(X_Gaussian_test, Y_test)
-    print(gpR2)
-    return {'GA Object': ga, 'GP Object': gp}
+    Print(gpR2, RED)
+    return gp
+    
+# basinhopping optimizer
+def GetFitGP2(Files):
+    
+    def fun(x):
+        kernel = RBF(length_scale=x[0], length_scale_bounds=(1e-3, 1e+2)) +\
+            WhiteKernel(noise_level=x[1], noise_level_bounds=(1e-10, 1e+1))
+        gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+            n_restarts_optimizer=0, normalize_y=True, copy_X_train=True, random_state=None)
+        gp.fit(X_Gaussian_train, Y_train) # set from distances
+        gpR2 = gp.score(X_Gaussian_test, Y_test)
+        print('R2 = ', gpR2, 'scale = ', x[0], 'noise = ', x[1])
+        return -gpR2
+
+    X_Gaussian_train = IOfunctions.ReadCSV(Files['Gaussian Single Train'])
+    X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Single Test'])
+    Y_train = IOfunctions.ReadCSV(Files['Response Train'])
+    Y_test = IOfunctions.ReadCSV(Files['Response Test'])  
+    # Gaussian fit 
+    
+    from scipy.optimize import basinhopping
+    x0 = np.array([1, 1e-4])
+    res = basinhopping(fun, x0, niter=100, T=1.0, stepsize=0.5, minimizer_kwargs=None,\
+        take_step=None, accept_test=None, callback=None, interval=50,\
+        disp=True, niter_success=2, seed=None)
+    
+    return res
+    
+# build in optimizer
+def GetFitGP3(Files):
+    print('Gaussian started') 
+    X_Gaussian_train = IOfunctions.ReadCSV(Files['Gaussian Single Train'])
+    X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Single Test'])
+    Y_train = IOfunctions.ReadCSV(Files['Response Train'])
+    Y_test = IOfunctions.ReadCSV(Files['Response Test'])  
+    
+    kernel = RBF(length_scale=1, length_scale_bounds=(1e-1, 1e+2)) +\
+        WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-20, 1e+1))
+    gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer='fmin_l_bfgs_b',\
+        n_restarts_optimizer=2, normalize_y=True, copy_X_train=True, random_state=101)
+    gp.fit(X_Gaussian_train, Y_train) # set from distances
+    gpR2 = gp.score(X_Gaussian_test, Y_test)
+    print('R2 = ', gpR2)    
+    return gp
+
+# user defined kernel
+def GetFitGP4(Files):
+    print('Gaussian started') 
+    X_Gaussian_train = IOfunctions.ReadCSV(Files['Gaussian Single Train'])
+    X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Single Test'])
+    Y_train = IOfunctions.ReadCSV(Files['Response Train'])
+    Y_test = IOfunctions.ReadCSV(Files['Response Test'])  
+    
+    kernel = RBF(length_scale=1, length_scale_bounds=(1e-1, 1e+2)) +\
+        WhiteKernel(noise_level=5e-4, noise_level_bounds=(1e-20, 1e+1))
+    gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer='fmin_l_bfgs_b',\
+        n_restarts_optimizer=2, normalize_y=True, copy_X_train=True, random_state=101)
+    gp.fit(X_Gaussian_train, Y_train) # set from distances
+    gpR2 = gp.score(X_Gaussian_test, Y_test)
+    print('R2 = ', gpR2)    
+    return gp
+
+# hill climbing for Gaussian Process
+    
+class NodeHill(dict):
+    
+    def __init__(self, parent=None, length_scale=None, noise_level=None,\
+        length_scale_inc=None, noise_level_inc=None, length_scale_bounds=None,\
+        noise_level_bounds=None, function=None):
+        
+        self.parent = parent
+        self.children = []
+        self.length_scale = length_scale
+        self.noise_level = noise_level # y
+        self.length_scale_inc = length_scale_inc
+        self.noise_level_inc = noise_level_inc
+        self.length_scale_bounds = length_scale_bounds
+        self.noise_level_bounds = noise_level_bounds
+        self.function=function
+        self.fitness = self.get_fitness() 
+        
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+        
+    def get_fitness(self):
+        return self.function(self.length_scale, self.noise_level)
+
+    def create_children(self):    
+        if self.children != []:
+            return
+        length_scale_new = self.length_scale - self.length_scale_inc
+        if length_scale_new > self.length_scale_bounds[0]: # greater than left bound
+            child = NodeHill(parent=self, length_scale=length_scale_new,\
+                noise_level=self.noise_level, length_scale_inc=self.length_scale_inc,\
+                noise_level_inc=self.noise_level_inc, length_scale_bounds=self.length_scale_bounds,\
+                noise_level_bounds=self.noise_level_bounds, function=self.function)
+            self.children.append(child)
+        length_scale_new = self.length_scale + self.length_scale_inc
+        if length_scale_new < self.length_scale_bounds[1]: # smaller than right bound
+            child = NodeHill(parent=self, length_scale=length_scale_new,\
+                noise_level=self.noise_level, length_scale_inc=self.length_scale_inc,\
+                noise_level_inc=self.noise_level_inc, length_scale_bounds=self.length_scale_bounds,\
+                noise_level_bounds=self.noise_level_bounds, function=self.function)            
+            self.children.append(child)
+        noise_level_new = self.noise_level - self.noise_level_inc
+        if noise_level_new > self.noise_level_bounds[0]: # greater than left bound
+            child = NodeHill(parent=self, length_scale=self.length_scale,\
+                noise_level=noise_level_new, length_scale_inc=self.length_scale_inc,\
+                noise_level_inc=self.noise_level_inc, length_scale_bounds=self.length_scale_bounds,\
+                noise_level_bounds=self.noise_level_bounds, function=self.function)
+            self.children.append(child)
+        noise_level_new = self.noise_level + self.noise_level_inc
+        if noise_level_new < self.noise_level_bounds[0]: # smaller than right bound
+            child = NodeHill(parent=self, length_scale=self.length_scale,\
+                noise_level=noise_level_new, length_scale_inc=self.length_scale_inc,\
+                noise_level_inc=self.noise_level_inc, length_scale_bounds=self.length_scale_bounds,\
+                noise_level_bounds=self.noise_level_bounds, function=self.function)
+            self.children.append(child)            
+        return
+    
+    def get_highest_valued_child(self):
+        if self.children == []:
+            return None
+        best = self.children[0]
+        for i in range(1, len(self.children), 1):
+            if best.fitness < self.children[i].fitness:
+                best = self.children[i]
+        return best
+
+def GetFitGP5(Files, length_scale_start, noise_level_start, length_scale_bounds,\
+    noise_level_bounds, length_scale_inc=0.1, noise_level_inc=0.1,\
+    length_scale_inc_min=0.01, noise_level_inc_min=0.01, simulation=None, random_state=None):
+    
+    def f(x, y):
+        kernel = RBF(length_scale=x, length_scale_bounds=None) +\
+            WhiteKernel(noise_level=y, noise_level_bounds=None)
+        gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+            n_restarts_optimizer=0, normalize_y=True, copy_X_train=True,\
+            random_state=random_state)
+        gp.fit(X_Gaussian_train, Y_train) # set from distances
+        gpR2 = gp.score(X_Gaussian_test, Y_test)
+        return gpR2
+
+    def hill(length_scale_start, noise_level_start):
+        Length_scale_inc = length_scale_inc * (length_scale_bounds[0] + length_scale_bounds[1]) / 2
+        Length_scale_inc_min = length_scale_inc_min * (length_scale_bounds[0] + length_scale_bounds[1]) / 2
+        Noise_level_inc = noise_level_inc * (noise_level_bounds[0] + noise_level_bounds[1]) / 2
+        Noise_level_inc_min = noise_level_inc_min * (noise_level_bounds[0] + noise_level_bounds[1]) / 2        
+        current = NodeHill(parent=None, length_scale=length_scale_start,\
+            noise_level=noise_level_start, length_scale_inc=Length_scale_inc,\
+            noise_level_inc=Noise_level_inc, length_scale_bounds=length_scale_bounds,\
+            noise_level_bounds=noise_level_bounds, function=f)
+        count = 0 
+        while True:
+            count += 1
+            print('R2=', current.fitness, 'length_scale=', current.length_scale,\
+                 'noise_level=', current.noise_level, 'length_scale_inc=',\
+                 current.length_scale_inc, 'noise_level_inc=', current.noise_level_inc)
+            current.create_children()
+            successor = current.get_highest_valued_child()            
+            if successor.fitness <= current.fitness: # looking for max
+                Finish = True
+                current.children = [] # erase old children
+                Length_scale_inc = Length_scale_inc / 2
+                Noise_level_inc = Noise_level_inc / 2
+                if Length_scale_inc > Length_scale_inc_min:
+                    current.length_scale_inc = Length_scale_inc
+                    Finish = False
+                if Noise_level_inc > Noise_level_inc_min:
+                    current.noise_level_inc = Noise_level_inc
+                    Finish = False
+                if Finish:
+                    return current, count
+                else:
+                    continue # with old node but smaller intervals
+            else:
+                current = successor
+    
+    print('Gaussian started') 
+    X_Gaussian_train = IOfunctions.ReadCSV(Files['Gaussian Single Train'])
+    X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Single Test'])
+    Y_train = IOfunctions.ReadCSV(Files['Response Train'])
+    Y_test = IOfunctions.ReadCSV(Files['Response Test']) 
+    nodes = []
+    node, count = hill(length_scale_start, noise_level_start)
+    nodes.append(node)
+    if simulation is not None:
+        for i in range(0, 10, 1):
+            length_scale_start = random.random() * (length_scale_bounds[1] - length_scale_bounds[0]) + length_scale_bounds[0]
+            noise_level_start = random.random() * (noise_level_bounds[1] - noise_level_bounds[0]) + noise_level_bounds[0]    
+            node, count = hill(length_scale_start, noise_level_start)
+            nodes.append(node)
+    best_node = nodes.pop(0)
+    while len(nodes) > 0:
+        node = nodes.pop(0)
+        if node.fitness > best_node.fitness:
+            best_node = node                 
+    kernel = RBF(length_scale=best_node.length_scale, length_scale_bounds=length_scale_bounds) +\
+        WhiteKernel(noise_level=best_node.noise_level, noise_level_bounds=noise_level_bounds)
+    gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
+        n_restarts_optimizer=0, normalize_y=True, copy_X_train=True,\
+        random_state=random_state)
+    gp.fit(X_Gaussian_train, Y_train) # set from distances    
+    
+    return gp
 
 def EraseFile(F):
     try:        
