@@ -500,7 +500,27 @@ def StoreLinearFeatures(F, FeaturesAll, FeaturesReduced, records_list, Atoms):
                         (records_list[j].atoms[atom21_index].z - records_list[j].atoms[atom22_index].z)**2)            
                     r2 = d2**FeaturesAll[idx].DtP2.Power # distance to correcponding power
                     r = r1 * r2       
-                
+                elif (nDistances == 3):
+# linear features with two distances
+                    atom11_index = FeaturesAll[idx].DtP1.Distance.Atom1.Index
+                    atom12_index = FeaturesAll[idx].DtP1.Distance.Atom2.Index
+                    atom21_index = FeaturesAll[idx].DtP2.Distance.Atom1.Index
+                    atom22_index = FeaturesAll[idx].DtP2.Distance.Atom2.Index
+                    atom31_index = FeaturesAll[idx].DtP3.Distance.Atom1.Index
+                    atom32_index = FeaturesAll[idx].DtP3.Distance.Atom2.Index                    
+                    d1 = np.sqrt((records_list[j].atoms[atom11_index].x - records_list[j].atoms[atom12_index].x)**2 +\
+                        (records_list[j].atoms[atom11_index].y - records_list[j].atoms[atom12_index].y)**2 +\
+                        (records_list[j].atoms[atom11_index].z - records_list[j].atoms[atom12_index].z)**2)            
+                    r1 = d1**FeaturesAll[idx].DtP1.Power # distance to correcponding power
+                    d2 = np.sqrt((records_list[j].atoms[atom21_index].x - records_list[j].atoms[atom22_index].x)**2 +\
+                        (records_list[j].atoms[atom21_index].y - records_list[j].atoms[atom22_index].y)**2 +\
+                        (records_list[j].atoms[atom21_index].z - records_list[j].atoms[atom22_index].z)**2)            
+                    r2 = d2**FeaturesAll[idx].DtP2.Power # distance to correcponding power
+                    d3 = np.sqrt((records_list[j].atoms[atom31_index].x - records_list[j].atoms[atom32_index].x)**2 +\
+                        (records_list[j].atoms[atom31_index].y - records_list[j].atoms[atom32_index].y)**2 +\
+                        (records_list[j].atoms[atom31_index].z - records_list[j].atoms[atom32_index].z)**2)            
+                    r3 = d3**FeaturesAll[idx].DtP3.Power # distance to correcponding power                    
+                    r = r1 * r2 * r3           
                 features_reduced_array[j, i] += r # add to same feature type
 # save reduced features into file
     Table = pd.DataFrame(features_reduced_array, dtype=float)
@@ -684,6 +704,71 @@ def StoreFeatures(writer, sheet_name, Features, Reduced=False):
         worksheet.set_column('M:M', 16, format_red)    
         worksheet.set_column('U:U', 16, format_red)
         worksheet.set_column('Y:Y', 16, format_red)
+    elif Features[0].nDistances == 3:           
+        Features_table = pd.DataFrame(np.zeros(shape = (len(Features), 42)).astype(int),\
+            columns=['FeType','Category Molecular','Category Atomic','Power1','DtpType1','IsIntermolecular1',\
+            'DiType1','Atom11 Symbol','Atom11 Index','Atom11 AtType','Atom11 Molecular Index',\
+            'Atom12 Symbol','Atom12 Index','Atom12 AtType','Atom12 Molecular Index',\
+            'Power2','DtpType2','IsIntermolecular2','DiType2','Atom21 Symbol','Atom21 Index',\
+            'Atom21 AtType','Atom21 Molecular Index','Atom22 Symbol','Atom22 Index',\
+            'Atom22 AtType','Atom22 Molecular Index','Power3','DtpType3','IsIntermolecular3','DiType3','Atom31 Symbol','Atom31 Index',\
+            'Atom31 AtType','Atom31 Molecular Index','Atom32 Symbol','Atom32 Index',\
+            'Atom32 AtType','Atom32 Molecular Index','nDistances','nConstants','Idx'], dtype=str)
+        for i in range(0, len(Features), 1):
+            Features_table.loc[i]['FeType'] = Features[i].FeType
+            Features_table.loc[i]['Category Molecular'] = int(Features[i].FeType[-2])
+            Features_table.loc[i]['Category Atomic'] = int(Features[i].FeType[-1])
+            Features_table.loc[i]['Power1'] = Features[i].DtP1.Power
+            Features_table.loc[i]['DtpType1'] = int(Features[i].DtP1.DtpType)
+            Features_table.loc[i]['IsIntermolecular1'] = Features[i].DtP1.Distance.isIntermolecular
+            Features_table.loc[i]['DiType1'] = Features[i].DtP1.Distance.DiType
+            Features_table.loc[i]['Atom11 Symbol'] = Features[i].DtP1.Distance.Atom1.Symbol
+            Features_table.loc[i]['Atom11 Index'] = Features[i].DtP1.Distance.Atom1.Index
+            Features_table.loc[i]['Atom11 AtType'] = Features[i].DtP1.Distance.Atom1.AtType
+            Features_table.loc[i]['Atom11 Molecular Index'] = Features[i].DtP1.Distance.Atom1.MolecularIndex
+            Features_table.loc[i]['Atom12 Symbol'] = Features[i].DtP1.Distance.Atom2.Symbol
+            Features_table.loc[i]['Atom12 Index'] = Features[i].DtP1.Distance.Atom2.Index
+            Features_table.loc[i]['Atom12 AtType'] = Features[i].DtP1.Distance.Atom2.AtType
+            Features_table.loc[i]['Atom12 Molecular Index'] = Features[i].DtP1.Distance.Atom2.MolecularIndex
+            Features_table.loc[i]['Power2'] = Features[i].DtP2.Power
+            Features_table.loc[i]['DtpType2'] = int(Features[i].DtP2.DtpType)
+            Features_table.loc[i]['IsIntermolecular2'] = Features[i].DtP2.Distance.isIntermolecular
+            Features_table.loc[i]['DiType2'] = Features[i].DtP2.Distance.DiType
+            Features_table.loc[i]['Atom21 Symbol'] = Features[i].DtP2.Distance.Atom1.Symbol
+            Features_table.loc[i]['Atom21 Index'] = Features[i].DtP2.Distance.Atom1.Index
+            Features_table.loc[i]['Atom21 AtType'] = Features[i].DtP2.Distance.Atom1.AtType
+            Features_table.loc[i]['Atom21 Molecular Index'] = Features[i].DtP2.Distance.Atom1.MolecularIndex
+            Features_table.loc[i]['Atom22 Symbol'] = Features[i].DtP2.Distance.Atom2.Symbol
+            Features_table.loc[i]['Atom22 Index'] = Features[i].DtP2.Distance.Atom2.Index
+            Features_table.loc[i]['Atom22 AtType'] = Features[i].DtP2.Distance.Atom2.AtType
+            Features_table.loc[i]['Atom22 Molecular Index'] = Features[i].DtP2.Distance.Atom2.MolecularIndex
+            Features_table.loc[i]['Power3'] = Features[i].DtP3.Power
+            Features_table.loc[i]['DtpType3'] = int(Features[i].DtP3.DtpType)
+            Features_table.loc[i]['IsIntermolecular3'] = Features[i].DtP3.Distance.isIntermolecular
+            Features_table.loc[i]['DiType3'] = Features[i].DtP3.Distance.DiType
+            Features_table.loc[i]['Atom31 Symbol'] = Features[i].DtP3.Distance.Atom1.Symbol
+            Features_table.loc[i]['Atom31 Index'] = Features[i].DtP3.Distance.Atom1.Index
+            Features_table.loc[i]['Atom31 AtType'] = Features[i].DtP3.Distance.Atom1.AtType
+            Features_table.loc[i]['Atom31 Molecular Index'] = Features[i].DtP3.Distance.Atom1.MolecularIndex
+            Features_table.loc[i]['Atom32 Symbol'] = Features[i].DtP3.Distance.Atom2.Symbol
+            Features_table.loc[i]['Atom32 Index'] = Features[i].DtP3.Distance.Atom2.Index
+            Features_table.loc[i]['Atom32 AtType'] = Features[i].DtP3.Distance.Atom2.AtType
+            Features_table.loc[i]['Atom32 Molecular Index'] = Features[i].DtP3.Distance.Atom2.MolecularIndex
+            Features_table.loc[i]['nDistances'] = Features[i].nDistances
+            Features_table.loc[i]['nConstants'] = Features[i].nConstants            
+            if Reduced:
+                Features_table.loc[i]['Idx'] = Features[i].idx
+        if not Reduced:
+            del(Features_table['Idx'])
+        Features_table.to_excel(writer, sheet_name=sheet_name)
+        worksheet = writer.sheets[sheet_name]
+        worksheet.set_column('A:AQ', 16, format_normal)
+        worksheet.set_column('I:I', 16, format_red)
+        worksheet.set_column('M:M', 16, format_red)    
+        worksheet.set_column('U:U', 16, format_red)
+        worksheet.set_column('Y:Y', 16, format_red)
+        worksheet.set_column('AG:AG', 16, format_red)
+        worksheet.set_column('AK:AK', 16, format_red)        
     return
     
 def StoreStructure(F_xls, Structure):
@@ -728,6 +813,8 @@ def StoreStructure(F_xls, Structure):
     StoreFeatures(writer, 'LinearSingleReduced', Structure['FeaturesLinearSingleReduced'], Reduced=True)
     StoreFeatures(writer, 'LinearDoubleAll', Structure['FeaturesLinearDoubleAll'], Reduced=False)
     StoreFeatures(writer, 'LinearDoubleReduced', Structure['FeaturesLinearDoubleReduced'], Reduced=True)
+    StoreFeatures(writer, 'LinearTripleAll', Structure['FeaturesLinearTripleAll'], Reduced=False)
+    StoreFeatures(writer, 'LinearTripleReduced', Structure['FeaturesLinearTripleReduced'], Reduced=True)
     StoreFeatures(writer, 'ExpSingle', Structure['FeaturesExpSingleAll'], Reduced=False)
     StoreFeatures(writer, 'ExpDouble', Structure['FeaturesExpDoubleAll'], Reduced=False)
     StoreFeatures(writer, 'Gaussian', Structure['FeaturesGaussianSingleAll'], Reduced=False)

@@ -273,23 +273,65 @@ class Distance_to_Power(dict):
     def __dir__(self):
         return list(self.keys()) 
                 
-def GenFeType(DtP1, DtP2=None):
+def GenFeType(DtP1, DtP2=None, DtP3=None):
     
-    def count_unique(d1, d2):
+    def count_unique(d1, d2, d3=None):
         l = []
         l.append(d1[0])
         l.append(d1[1])
         l.append(d2[0])
         l.append(d2[1])
+        if d3 is not None:
+            l.append(d3[0])
+            l.append(d3[1])            
         l = list(set(l))
         return len(l)        
         
-    def count_bonds(d1, d2):
+    def count_intra(d1, d2):
         if (d1[0] != d1[1]) and (d2[0] != d2[1]):
             return 0
         if (d1[0] == d1[1]) and (d2[0] == d2[1]):
             return 2
         return 1                
+
+    def count_intra3(d1, d2, d3):
+        r = 0
+        l1 = list(set(d1)) 
+        c1 = len(l1) # 1 or 2
+        if c1 == 1:
+            r += 1
+        l2 = list(set(d2))
+        c2 = len(l2)
+        if c2 == 1:
+            r += 1
+        l3 = list(set(d3))
+        c3 = len(l3)
+        if c3 == 1:
+            r += 1
+        return r
+
+    def Swap(a, b):
+        tmp = a
+        a = b
+        b = tmp
+        return a, b
+
+    def count_v_nodes(d1, d2, d3):
+        D1 = (min(d1[0], d1[1]), max(d1[0], d1[1]))
+        D2 = (min(d2[0], d2[1]), max(d2[0], d2[1]))
+        D3 = (min(d3[0], d3[1]), max(d3[0], d3[1]))
+        if D3[0] < D2[0]:
+            Swap(D3, D2)
+        if D2[0] < D1[0]:
+            Swap(D2, D1)
+        if D3[0] < D2[0]:
+            Swap(D3, D2)
+        k = 0
+        if D1[1] == D2[0]:
+            k += 1
+        if D2[1] == D3[0]:
+            k += 1    
+        return k
                 
     if (DtP1 is not None) and (DtP2 is None): # one distance in feature
         # get category based on molecular index
@@ -309,6 +351,48 @@ def GenFeType(DtP1, DtP2=None):
         c1 = str(CategoryMolecular)
         c2 = str(CategoryAtomic)
         FeType = p1 + t1 + t2 + c1 + c2
+        return FeType
+    
+    if (DtP1 is not None) and (DtP2 is not None) and (DtP3 is not None): # three distances in feature
+        m = count_unique((DtP1.Distance.Atom1.MolecularIndex, DtP1.Distance.Atom2.MolecularIndex), \
+            (DtP2.Distance.Atom1.MolecularIndex, DtP2.Distance.Atom2.MolecularIndex),\
+            (DtP3.Distance.Atom1.MolecularIndex, DtP3.Distance.Atom2.MolecularIndex))
+        n = count_intra((DtP1.Distance.Atom1.MolecularIndex, DtP1.Distance.Atom2.MolecularIndex), \
+            (DtP2.Distance.Atom1.MolecularIndex, DtP2.Distance.Atom2.MolecularIndex),\
+            (DtP3.Distance.Atom1.MolecularIndex, DtP3.Distance.Atom2.MolecularIndex))
+        o = count_v_nodes((DtP1.Distance.Atom1.MolecularIndex, DtP1.Distance.Atom2.MolecularIndex), \
+            (DtP2.Distance.Atom1.MolecularIndex, DtP2.Distance.Atom2.MolecularIndex),\
+            (DtP3.Distance.Atom1.MolecularIndex, DtP3.Distance.Atom2.MolecularIndex))
+        CategoryMolecular = '{}{}{}'.format(m, n, o)
+        m = count_unique((DtP1.Distance.Atom1.Index, DtP1.Distance.Atom2.Index), \
+            (DtP2.Distance.Atom1.Index, DtP2.Distance.Atom2.Index),\
+            (DtP3.Distance.Atom1.Index, DtP3.Distance.Atom2.Index))
+        n = count_intra((DtP1.Distance.Atom1.Index, DtP1.Distance.Atom2.Index), \
+                    (DtP2.Distance.Atom1.Index, DtP2.Distance.Atom2.Index),\
+                    (DtP3.Distance.Atom1.Index, DtP3.Distance.Atom2.Index))
+        o = count_v_nodes((DtP1.Distance.Atom1.Index, DtP1.Distance.Atom2.Index), \
+                    (DtP2.Distance.Atom1.Index, DtP2.Distance.Atom2.Index),\
+                    (DtP3.Distance.Atom1.Index, DtP3.Distance.Atom2.Index))   
+        CategoryAtomic = '{}{}{}'.format(m, n, o)
+        p1 = str(abs(DtP1.Power))
+        p1 = p1.zfill(DtP1.PowerDigits)
+        p2 = str(abs(DtP2.Power))
+        p2 = p2.zfill(DtP2.PowerDigits)
+        p3 = str(abs(DtP3.Power))
+        p3 = p3.zfill(DtP3.PowerDigits)
+        t11 = str(DtP1.Distance.Atom1.AtType)
+        t11 = t11.zfill(DtP1.Distance.Atom1.AtTypeDigits)
+        t12 = str(DtP1.Distance.Atom2.AtType)
+        t12 = t12.zfill(DtP1.Distance.Atom2.AtTypeDigits)
+        t21 = str(DtP2.Distance.Atom1.AtType)
+        t21 = t21.zfill(DtP2.Distance.Atom1.AtTypeDigits)
+        t22 = str(DtP2.Distance.Atom2.AtType)
+        t22 = t22.zfill(DtP2.Distance.Atom2.AtTypeDigits)
+        t31 = str(DtP3.Distance.Atom1.AtType)
+        t31 = t31.zfill(DtP3.Distance.Atom1.AtTypeDigits)
+        t32 = str(DtP3.Distance.Atom2.AtType)
+        t32 = t32.zfill(DtP3.Distance.Atom2.AtTypeDigits)
+        FeType = p1 + p2 + p3 + t11 + t12 + t21 + t22 + t31 + t32 + CategoryMolecular + CategoryAtomic
         return FeType
     
     if (DtP1 is not None) and (DtP2 is not None): # two distances in feature
@@ -353,7 +437,7 @@ def GenFeType(DtP1, DtP2=None):
             if m == 4:
                 CategoryMolecular = 7
             else:
-                n = count_bonds((DtP1.Distance.Atom1.MolecularIndex, DtP1.Distance.Atom2.MolecularIndex), \
+                n = count_intra((DtP1.Distance.Atom1.MolecularIndex, DtP1.Distance.Atom2.MolecularIndex), \
                     (DtP2.Distance.Atom1.MolecularIndex, DtP2.Distance.Atom2.MolecularIndex))
                 if (m == 2) and (n == 1):
                     CategoryMolecular = 3
@@ -374,7 +458,7 @@ def GenFeType(DtP1, DtP2=None):
             if m == 4:
                 CategoryAtomic = 7
             else:
-                n = count_bonds((DtP1.Distance.Atom1.Index, DtP1.Distance.Atom2.Index), \
+                n = count_intra((DtP1.Distance.Atom1.Index, DtP1.Distance.Atom2.Index), \
                     (DtP2.Distance.Atom1.Index, DtP2.Distance.Atom2.Index))
                 if m == 2 and n == 1:
                     CategoryAtomic = 3
@@ -405,7 +489,7 @@ def GenFeType(DtP1, DtP2=None):
                 
 class Feature(dict):
     
-    def __init__(self, FeType='Linear', DtP1=None, DtP2=None, nDistances=1, nConstants=1):
+    def __init__(self, FeType='Linear', DtP1=None, DtP2=None, DtP3=None, nDistances=1, nConstants=1):
 # FeType = Linear, Exp
 # a0*DtP1 - Linear single
 # a0*DtP1*DtP2 - Linear Double
@@ -414,6 +498,7 @@ class Feature(dict):
 # a0*exp(a1*r1+a2*r1) (r1**n * r2**m) = nDistances=2, nConstants=3
         self.DtP1=DtP1
         self.DtP2=DtP2
+        self.DtP3=DtP3
         self.nDistances=nDistances
         self.nConstants=nConstants
         self.idx = []

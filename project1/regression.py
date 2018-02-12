@@ -425,15 +425,15 @@ class expRegression(dict):
             size_lin = x_lin_train.shape[1]            
         if (size_exp + size_lin) == 0:
             return
-        if c0 is None: # start from -1
-            c0 = np.ones(shape=(2*size_exp + size_lin))
-            c0[:] = -1 * c0[:]
+        if c0 is None: # start from 0
+            c0 = np.zeros(shape=(2*size_exp + size_lin))
         results = least_squares(residual, c0, jac=jac, method='trf',\
             ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,\
             diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None,\
             max_nfev=None, verbose=self.verbose, args=(x_expD_train, x_expDn_train, x_lin_train, y_train))
-        if not results.success: # try zeros
-            c0 = np.zeros(shape=(2*size_exp + size_lin))
+        if not results.success: # try -1
+            c0 = np.ones(shape=(2*size_exp + size_lin))
+            c0[:] = -1 * c0[:]
             results = least_squares(residual, c0, jac=jac, method='trf',\
                 ftol=1e-08, xtol=1e-08, gtol=1e-08, x_scale=1.0, loss='linear', f_scale=1.0,\
                 diff_step=None, tr_solver=None, tr_options={}, jac_sparsity=None,\

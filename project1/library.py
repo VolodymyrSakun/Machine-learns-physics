@@ -1679,7 +1679,7 @@ def replace_numbers(l1, l2, source_data):
 def CreateGrid(GridStart, GridEnd, GridSpacing):
     Grid = [] 
     i = GridStart
-    while i < (GridEnd-GridSpacing):
+    while round(i, 2) <= round((GridEnd-GridSpacing),2):
         Grid.append((round(i, 2), round(i+GridSpacing, 2)))
         i += GridSpacing
     return Grid
@@ -2147,16 +2147,16 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
     return Structure  
             
 def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_ENet='ENet path',\
-        F_GA='GA path', UseVIP=False, nVIP=None, FirstAlgorithm='GA',\
+        F_GA='GA path', UseVIP=False, nVIP=None, FirstAlgorithm='GA', goal=0,\
         L1_Single=0.7, eps_single=1e-3, n_alphas_single=100, L1=0.7, eps=1e-3,\
         n_alphas=100, alpha_grid_start=-7, alpha_grid_end=-3, cv=30, MinChromosomeSize=5,\
-        ChromosomeSize=15, StopTime=600, BestFitStopTime=100, BestFitMaxQueue=0,\
+        ChromosomeSize=15, StopTime=600, BestFitStopTime=100, BestFitMaxQueue=None, model='Fast',\
         nIter=500, PopulationSize=100, MutationProbability=0.3, MutationInterval=[1, 3],\
         EliteFraction=0.4, MutationCrossoverFraction=0.3, CrossoverFractionInterval=[0.6, 0.4],\
         UseCorrelationMutation=True, MinCorrMutation=0.8, CrossoverMethod='Random',\
         MutationMethod='Correlated', LinearSolver='sklearn', cond=1e-03,\
         lapack_driver='gelsy', UseCorrelationBestFit=False, MinCorrBestFit=0.8,\
-        PrintInterval=50, RandomSeed=None, BestFitPathLen=0, verbose=True):
+        PrintInterval=50, RandomSeed=None, verbose=True):
 
 # 'sklearn', 'scipy', 'statsmodels'
 # 'gelsd', 'gelsy', 'gelss', for scipy solver
@@ -2232,9 +2232,9 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
         if (FirstAlgorithm == 'ENet'):
             print('Only linear features will be considered')
             Alphas = np.logspace(alpha_grid_start, alpha_grid_end, num=n_alphas_single,\
-                                 endpoint=True, base=10.0, dtype=float)
+                endpoint=True, base=10.0, dtype=float)
             enet = regression.ENet(L1=L1_Single, eps=eps_single, nAlphas=None,\
-                                   alphas=Alphas, random_state=None)
+                alphas=Alphas, random_state=None)
             print('Number of features go to elastic net regularisation = ', X_LinearSingle_train.shape[1])
             enet.fit(X_LinearSingle_train, Y_train, VIP_idx=None, Criterion='Mallow', normalize=True,\
                 max_iter=1000, tol=0.0001, cv=cv, n_jobs=1, selection='random', verbose=verbose)
@@ -2276,8 +2276,9 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
                 PlotType='Scatter', F=F_GA)
         while chromosome.Size > 1:
             if chromosome.Size <= ga.ChromosomeSize:
-                chromosome = ga.BestFit(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train,\
-                    x_lin=X_LinearSingle_train, y=Y_train, verbose=True) # returns ranked and sorted chromosome              
+                chromosome = ga.BestFit2(chromosome, x_expD=X_ExpSingleD_train,\
+                    x_expDn=X_ExpSingleDn_train, x_lin=X_Linear_train, y=Y_train,\
+                    goal=goal, epoch=BestFitStopTime, q_max=BestFitMaxQueue, model=model, verbose=True)            
                 chromosome.score(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_LinearSingle_train,\
                     y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_LinearSingle_test,\
                     y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver) 
@@ -2292,12 +2293,22 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
             PlotType='Line', F='Single')
         ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Train',\
             PlotType='Line', F='Single')
+        
+        for i in range(0, len(ga.BestFitPath), 1): # get fitness from test set
+            ga.BestFitPath[i].score(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_LinearSingle_train,\
+                    y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_LinearSingle_test,\
+                    y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)        
+        ga.PlotChromosomes2('GA PATH Single', 3, ga.DecreasingChromosomes, XAxis='Nonzero',\
+            PlotType='Line', figsize=(4, 3), marker_size=1, line_width=0.5)
+        ga.PlotChromosomes2('BF PATH Single', 4, ga.BestFitPath, XAxis='Time',\
+            PlotType='Scatter', figsize=(4, 3), marker_size=1, line_width=0.5)
+    
         print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
-        F_single_xlsx = '{} {}'.format(F_xlsx, 'Single.xlsx')
-        ga.Results_to_xlsx(F_single_xlsx, ga.DecreasingChromosomes,\
+        ga.Results_to_xlsx('{} {}'.format(F_xlsx, 'Single.xlsx'), \
             FeaturesNonlinear=GenerateFeaturesResults['FeaturesExpSingleAll'],\
             FeaturesAll=GenerateFeaturesResults['FeaturesLinearSingleAll'],\
-            FeaturesReduced=GenerateFeaturesResults['FeaturesLinearSingleReduced'])        
+            FeaturesReduced=GenerateFeaturesResults['FeaturesLinearSingleReduced'],\
+            X_Linear=X_Linear_train)                              
         for i in ga.DecreasingChromosomes:
             if i.Size == nVIP:
                 VIP_idx_exp = i.get_genes_list(Type=1)
@@ -2306,6 +2317,7 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
         VIP_idx_exp = []
         VIP_idx_lin = []      
 # proceed all features 
+    Print('{} {} {} {}'.format('VIP linear:', VIP_idx_lin, 'VIP exponential:', VIP_idx_exp), RED)
     t = time()           
     ga = genetic.GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
         MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
@@ -2341,7 +2353,7 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
         t_sec = time() - t
         print("\n", 'Elastic Net worked ', t_sec, 'sec')  
         print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
-    if FirstAlgorithm == 'GA':
+    if FirstAlgorithm == 'GA':        
         print('Genetic Algorithm for all features')
         ga.fit(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_Linear_train, y_train=Y_train,\
             x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_Linear_test, y_test=Y_test,\
@@ -2354,13 +2366,12 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
         print("\n", 'Features left for Backward Elimination and Search Alternative = ',\
               chromosome.Size)
         ga.PlotChromosomes(3, ga.BestChromosomes, XAxis='time', YAxis='R2 Train',\
-            PlotType='Scatter', F=F_GA)
+            PlotType='Scatter', F=F_GA)          
+    ga.start_time = time()
     while chromosome.Size >= MinChromosomeSize:
         if chromosome.Size <= ga.ChromosomeSize:
-#            chromosome = ga.BestFit(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train, x_lin=X_Linear_train,\
-#                y=Y_train, verbose=True)
             chromosome = ga.BestFit2(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train, x_lin=X_Linear_train,\
-                y=Y_train, epoch=BestFitStopTime, q_max=BestFitMaxQueue, BestFitPathLen=BestFitPathLen, start_time=time(), verbose=True)
+                y=Y_train, goal=goal, epoch=BestFitStopTime, q_max=BestFitMaxQueue, model=model, verbose=True)
             chromosome.score(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_Linear_train,\
                 y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_Linear_test,\
                 y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond,\
@@ -2375,14 +2386,18 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
         if chromosome is None:
             break # number of genes in chromosome = number of VIP genes
     t_sec = time() - t
-    ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Train',\
-        PlotType='Line', F='Default')
-    ga.PlotChromosomes(5, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Train',\
-        PlotType='Line', F='Default')
-    ga.PlotChromosomes(6, ga.BestFitPath, XAxis='time', YAxis='RMSE Train',\
-        PlotType='Scatter', F='Best Fit Path')
+    for i in range(0, len(ga.BestFitPath), 1): # get fitness from test set
+        ga.BestFitPath[i].score(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_Linear_train,\
+            y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_Linear_test,\
+            y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond,\
+            lapack_driver=ga.lapack_driver)        
+    ga.PlotChromosomes2('GA PATH', 5, ga.DecreasingChromosomes, XAxis='Nonzero',\
+        PlotType='Line', figsize=(4, 3), marker_size=1, line_width=0.5)
+    ga.PlotChromosomes2('BF PATH', 6, ga.BestFitPath, XAxis='Time',\
+        PlotType='Scatter', figsize=(4, 3), marker_size=1, line_width=0.5)
     print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
-    
+
+            
     gene0 = genetic.Gene(0, Type=0, p_Value=None, rank=None)
     gene1 = genetic.Gene(15, Type=0, p_Value=None, rank=None)
     gene2 = genetic.Gene(30, Type=0, p_Value=None, rank=None)

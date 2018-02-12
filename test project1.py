@@ -5,6 +5,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 import pandas as pd
+    
+# return YMin, YMax for boundaries. *argv - lists of y values
+def get_bounds(*argv, adj=0.02):
+    max_list = []
+    min_list = []
+    for arg in argv:
+        if arg is not None:
+            max_list.append(np.max(arg))
+            min_list.append(np.min(arg))       
+    YMax = max(max_list)
+    YMin = min(min_list)
+    YMinAdj = YMin - (YMax-YMin) * adj
+    YMaxAdj = YMax + (YMax-YMin) * adj        
+    return YMinAdj, YMaxAdj
+
+
 
 def PlotHistogram(FileName=None, y_true=None, y_pred=None, FigNumber=1,\
         FigSize=(4,3), Bins='auto', xLabel=None, yLabel='Frequency'):
@@ -25,233 +41,43 @@ def PlotHistogram(FileName=None, y_true=None, y_pred=None, FigNumber=1,\
         plt.close(fig)         
     return 
 
-# general form
-def Plot(CoM=None, E_True=None, nFunctions=None, nPredictors=None, E_Predicted=None,\
-         Legend=None, Grid=None, GridTrained=None, TrainedIntervals=None, NontrainedIntervals=None):
-    if nFunctions > 3:
-        return # now only for 3 functions. if necessary add colors
-    marker_energy = '.'
- # point, pixel, circle, star, thin diamond, hexagon, square    
-    marker_fun = ['.', ',', 'o', '*', 'd', 'h', 's']
-    color_train_energy = 'red'
-    color_nontrain_enegry = 'blue'
-    color_train_fun = ['magenta', 'violet', 'yellow']
-    color_nontrain_fun = ['green', 'black', 'brown']
-    if CoM is None:
-        return    
-    if len(nPredictors) != nFunctions:
-        print('Incorrect input, len(nPredictors) != nFunctions')
-        return
-    if Legend is not None and nPredictors is not None:
-        for i in range(0, nFunctions, 1):
-            Legend[i+1] = '{}{}{}'.format(Legend[i+1],'. Number of predictors=', nPredictors[i])
-    if Legend is None:
-        Legend = []
-        Legend.append('True Enegry')
-        for i in range(0, nFunctions, 1):
-            Legend.append('{} {}'.format('Function', i+1))
-    if nFunctions == 0:
-        E_Predicted = None
-    E_Predicted = np.asarray(E_Predicted)
-    Size = CoM.size # number of observations
-    RMax = max(CoM)
-    RMin = min(CoM)
-    if Grid is None:
-        nIntervals = 30
-        Grid = library.CreateGrid(round(RMin, 2), round(RMax, 2), round((round(RMax, 2) - round(RMin, 2)) / nIntervals, 2))
-    else:
-        nIntervals = len(Grid)
-    if GridTrained is None:
-        GridTrained = []
-    n = np.zeros(shape=(nIntervals), dtype=float) # n[i] = number of observations in interval    
-    X = np.zeros(shape=(nIntervals), dtype=float) # X on plot
-    E_True_bin = np.zeros(shape=(nIntervals), dtype=float) 
-    Trained = np.empty(shape=(nIntervals), dtype=bool) # True if bin in trained region    
-    for i in range(0, Size, 1):# count number of observations in each bin
-        j = library.InInterval(CoM[i], Grid)
-        if j != -10: # not in any of intervals
-            E_True_bin[j] += E_True[i] # cumulative true energy per bin
-            n[j] += 1 # number of observations in each bin
-            X[j] += CoM[i]
-    E_True_bin = np.divide(E_True_bin, n) # average value
-    X = np.divide(X, n) # average value
-    Error_bin = np.zeros(shape=(nFunctions, nIntervals), dtype=float) # Y axis for error plot
-    E_Predicted_bin = np.zeros(shape=(nFunctions, nIntervals), dtype=float) # Y axis for energy plot
-    for k in range(0, nFunctions, 1): # for each function
-        error = np.zeros(shape=(Size), dtype=float)
-        for i in range(0, Size, 1):
-            error[i] = abs(E_True[i] - E_Predicted[k, i])
-        error_bin = np.zeros(shape=(nIntervals), dtype=float)
-        e_Predicted_bin = np.zeros(shape=(nIntervals), dtype=float)  
-        for i in range(0, Size, 1):
-            j = library.InInterval(CoM[i], Grid)
-            if j != -10: # not in any of intervals
-                error_bin[j] += error[i] # cumulative error per bin for each function
-                e_Predicted_bin[j] += E_Predicted[k, i] # cumulative energy per bin for each functione
-        error_bin = np.divide(error_bin, n) # average error per bin
-        e_Predicted_bin = np.divide(e_Predicted_bin, n) # averare predicted energy per bin
-        Error_bin[k, :] = error_bin[:]
-        E_Predicted_bin[k, :] = e_Predicted_bin[:]        
-    for i in range(0, nIntervals, 1): # separate trained region from non-trained
-        if library.InInterval(X[i], GridTrained) != -10:
-            Trained[i] = True
-        else:
-            Trained[i] = False
-    nTrained_bins = np.count_nonzero(Trained) # cannot be 0
-    nNontrained_bins = nIntervals - nTrained_bins # can be 0
-#    print('nTrained_bins=', nTrained_bins)
-#    print('nNontrained_bins=', nNontrained_bins)
-    X_Trained = np.zeros(shape=(nTrained_bins), dtype=float)
-    X_Nontrained = np.zeros(shape=(nNontrained_bins), dtype=float)
-    E_True_bin_trained = np.zeros(shape=(nTrained_bins), dtype=float)
-    E_True_bin_nontrained = np.zeros(shape=(nNontrained_bins), dtype=float)
-    Error_bin_trained = np.zeros(shape=(nFunctions, nTrained_bins), dtype=float)
-    Error_bin_nontrained = np.zeros(shape=(nFunctions, nNontrained_bins), dtype=float)
-    E_Predicted_bin_trained = np.zeros(shape=(nFunctions, nTrained_bins), dtype=float)
-    E_Predicted_bin_nontrained = np.zeros(shape=(nFunctions, nNontrained_bins), dtype=float)
-    j = 0 # trained index
-    k = 0 # nontrained index
-# separate trained and nontrained points    
-    for i in range(0, nIntervals, 1):
-        if Trained[i]:
-            X_Trained[j] = X[i]
-            E_True_bin_trained[j] = E_True_bin[i]
-            for l in range(0, nFunctions, 1):
-                Error_bin_trained[l, j] = Error_bin[l, i]
-                E_Predicted_bin_trained[l, j] = E_Predicted_bin[l, i]
-            j += 1
-        else:
-            X_Nontrained[k] = X[i]
-            E_True_bin_nontrained[k] = E_True_bin[i]
-            for l in range(0, nFunctions, 1):
-                Error_bin_nontrained[l, k] = Error_bin[l, i]
-                E_Predicted_bin_nontrained[l, k] = E_Predicted_bin[l, i]
-            k += 1    
-     
-    x_trained = []
-    e_True_bin_trained = []
-    for i in range(0, len(TrainedIntervals), 1):
-        x_trained.append([])
-        e_True_bin_trained.append([])
-    if nNontrained_bins != 0:
-        x_nontrained = []
-        e_True_bin_nontrained = []
-        for i in range(0, len(NontrainedIntervals), 1):
-            x_nontrained.append([])
-            e_True_bin_nontrained.append([])
-    for i in range(0, nTrained_bins, 1):
-        j = library.InInterval(X_Trained[i], TrainedIntervals)
-        if j != -10:
-            x_trained[j].append(X_Trained[i])
-            e_True_bin_trained[j].append(E_True_bin_trained[i])
-    if nNontrained_bins != 0:
-        for i in range(0, nNontrained_bins, 1):
-            j = library.InInterval(X_Nontrained[i], NontrainedIntervals)
-            if j != -10:
-                x_nontrained[j].append(X_Nontrained[i])
-                e_True_bin_nontrained[j].append(E_True_bin_nontrained[i])
-        
-    XMin = RMin - (RMax-RMin) * 0.02
-    XMax = RMax + (RMax-RMin) * 0.02  
-    if nNontrained_bins != 0:
-        YMax = max(np.max(Error_bin_trained), np.max(Error_bin_nontrained))
-        YMin = min(np.min(Error_bin_trained), np.min(Error_bin_nontrained))
-    else:        
-        YMax = np.max(Error_bin_trained)
-        YMin = np.min(Error_bin_trained)
-    YMinAdj = YMin - (YMax-YMin) * 0.02
-    YMaxAdj = YMax + (YMax-YMin) * 0.02
-# plot RMSE
-    fig_error = plt.figure(1, figsize=(4,3))
-    plt.xlim((XMin, XMax))
-    plt.ylim((YMinAdj, YMaxAdj))
-    for i in range(0, nFunctions, 1):
-        label_trained = '{} {}'.format(Legend[i+1], 'Trained region')
-        plt.scatter(X_Trained, Error_bin_trained[i], s=1, c=color_train_fun[i], marker=marker_fun[i], label=label_trained)
-        if nNontrained_bins != 0:
-            label_nontrained = '{} {}'.format(Legend[i+1], 'non-Trained region')
-            plt.scatter(X_Nontrained, Error_bin_nontrained[i], s=1, c=color_nontrain_fun[i], marker=marker_fun[i], label=label_nontrained)
-    plt.legend()
-    plt.xlabel('Average distance between centers of masses of molecules')
-    plt.ylabel('Average bin error')
-    Title = 'Average bin error vs. average distance'
-    if nPredictors is not None:
-        Title = '{}{}{}'.format(Title,'. Number of predictors=', nPredictors)
-    F = '{}{}'.format(Title, '.eps')    
-    plt.title(Title)
-    plt.show(fig_error)
-    plt.savefig(F, bbox_inches='tight', format='eps', dpi=1000)
-    plt.close(fig_error)
-# plot energy
-    if nNontrained_bins == 0:
-        YMax = max(np.max(E_True_bin_trained), np.max(E_Predicted_bin_trained))
-        YMin = min(np.min(E_True_bin_trained), np.min(E_Predicted_bin_trained))
-    else:
-        YMax = max(np.max(E_True_bin_trained), np.max(E_True_bin_nontrained), np.max(E_Predicted_bin_trained), np.max(E_Predicted_bin_nontrained))
-        YMin = min(np.min(E_True_bin_trained), np.min(E_True_bin_nontrained), np.min(E_Predicted_bin_trained), np.min(E_Predicted_bin_nontrained))       
-    YMinAdj = YMin - (YMax-YMin) * 0.02
-    YMaxAdj = YMax + (YMax-YMin) * 0.02
-    fig_energy = plt.figure(2, figsize=(4,3))
-    plt.xlim((XMin, XMax))
-    plt.ylim((YMinAdj, YMaxAdj))
-    label_trained = '{} {}'.format(Legend[0], 'Trained region')
-    for i in range(0, len(TrainedIntervals), 1):
-        plt.plot(x_trained[i], e_True_bin_trained[i], c=color_train_energy, ms=1, marker=marker_energy, label=label_trained)
-    if nNontrained_bins != 0:
-        label_nontrained = '{} {}'.format(Legend[0], 'non-Trained region')
-        for i in range(0, len(NontrainedIntervals), 1):
-            plt.plot(x_nontrained[i], e_True_bin_nontrained[i], c=color_nontrain_enegry, marker=marker_energy, label=label_nontrained)
-    for i in range(0, nFunctions, 1):
-        label_trained = '{} {}'.format(Legend[i+1], 'Trained region')
-        plt.scatter(X_Trained, E_Predicted_bin_trained[i], s=1, c=color_train_fun[i], marker=marker_fun[i], label=label_trained)
-        if nNontrained_bins != 0:
-            label_nontrained = '{} {}'.format(Legend[i+1], 'non-Trained region')
-            plt.scatter(X_Nontrained, E_Predicted_bin_nontrained[i], s=1, c=color_nontrain_fun[i], marker=marker_fun[i], label=label_nontrained)
-    plt.legend()
-    plt.xlabel('Average distance between centers of masses of molecules')
-    plt.ylabel('Average energy per bin')
-    Title = 'Average enegry per bin vs. average distance'
-    if nPredictors is not None:
-        Title = '{}{}{}'.format(Title,'. Number of predictors=', nPredictors)
-    F = '{}{}'.format(Title, '.eps')
-    plt.title(Title)
-    plt.show(fig_energy)
-    plt.savefig(F, bbox_inches='tight', format='eps', dpi=1000)
-    plt.close(fig_energy)
-    return
+###############################################################################
+    
+def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, CoM (Å)', \
+        yEnergyLabel='Average Energy (kJ/mol)', yErrorLabel='Average bin error (kJ/mol)',\
+        Legend=None, Grid=None, GridTrained=None, TrainedIntervals=None,\
+        NontrainedIntervals=None, F_Error='Error', F_Energy='Energy', figsize=(4, 3),\
+        fig_format='eps', marker_size=1, line_width = 0.3, bounds=None):
 
-# general form
-def Plot2(CoM=None, E_True=None, nFunctions=None, nPredictors=None, E_Predicted=None,\
-         Legend=None, Grid=None, GridTrained=None, TrainedIntervals=None, NontrainedIntervals=None):
-    if nFunctions > 3:
-        return # now only for 3 functions. if necessary add colors
+    """
+    first description in Legend is true energy function
+    """
+    if bounds is not None:
+        i = 0
+        while len(Grid) > i:
+            if bounds[0] > Grid[i][0]:
+                del(Grid[i])
+                continue
+            if bounds[1] < Grid[i][1]:
+                del(Grid[i])
+                continue            
+            i += 1
+            
     marker_energy = '.'
- # point, pixel, circle, star, thin diamond, hexagon, square    
-    marker_fun = ['.', ',', 'o', '*', 'd', 'h', 's']
+# circle, square, star, thin diamond, hexagon,  point, pixel   
+    marker_fun = ['o', 's', '*', 'd', 'h', '.', ',']
     color_train_energy = 'red'
     color_nontrain_enegry = 'blue'
-    color_train_fun = ['magenta', 'violet', 'yellow']
-    color_nontrain_fun = ['green', 'black', 'brown']
-    if CoM is None:
-        return    
-    if len(nPredictors) != nFunctions:
-        print('Incorrect input, len(nPredictors) != nFunctions')
-        return
-    if Legend is not None and nPredictors is not None:
-        for i in range(0, nFunctions, 1):
-            Legend[i+1] = '{}{}{}'.format(Legend[i+1],'. Number of predictors=', nPredictors[i])
-    if Legend is None:
-        Legend = []
-        Legend.append('True Enegry')
-        for i in range(0, nFunctions, 1):
-            Legend.append('{} {}'.format('Function', i+1))
+    color_nontrain_fun = ['magenta', 'orange', 'violet', ]
+    color_train_fun = ['green', 'black', 'brown']  
     if nFunctions == 0:
         E_Predicted = None
     E_Predicted = np.asarray(E_Predicted)
-    Size = CoM.size # number of observations
-    RMax = max(CoM)
-    RMin = min(CoM)
+    Size = CoM.size # number of observations    
+    F_Error = '{}{}{}'.format(F_Error, '.', fig_format)
+    F_Energy = '{}{}{}'.format(F_Energy, '.', fig_format)       
     if Grid is None:
+        RMin, RMax = get_bounds(CoM, adj=0)
         nIntervals = 30
         Grid = library.CreateGrid(round(RMin, 2), round(RMax, 2), round((round(RMax, 2) - round(RMin, 2)) / nIntervals, 2))
     else:
@@ -294,16 +120,18 @@ def Plot2(CoM=None, E_True=None, nFunctions=None, nPredictors=None, E_Predicted=
             Trained[i] = False
     nTrained_bins = np.count_nonzero(Trained) # cannot be 0
     nNontrained_bins = nIntervals - nTrained_bins # can be 0
-#    print('nTrained_bins=', nTrained_bins)
-#    print('nNontrained_bins=', nNontrained_bins)
     X_Trained = np.zeros(shape=(nTrained_bins), dtype=float)
-    X_Nontrained = np.zeros(shape=(nNontrained_bins), dtype=float)
     E_True_bin_trained = np.zeros(shape=(nTrained_bins), dtype=float)
-    E_True_bin_nontrained = np.zeros(shape=(nNontrained_bins), dtype=float)
-    Error_bin_trained = np.zeros(shape=(nFunctions, nTrained_bins), dtype=float)
-    Error_bin_nontrained = np.zeros(shape=(nFunctions, nNontrained_bins), dtype=float)
-    E_Predicted_bin_trained = np.zeros(shape=(nFunctions, nTrained_bins), dtype=float)
-    E_Predicted_bin_nontrained = np.zeros(shape=(nFunctions, nNontrained_bins), dtype=float)
+    Error_bin_trained = np.zeros(shape=(nFunctions, nTrained_bins), dtype=float)    
+    E_Predicted_bin_trained = np.zeros(shape=(nFunctions, nTrained_bins), dtype=float)    
+    if nNontrained_bins != 0:
+        X_Nontrained = np.zeros(shape=(nNontrained_bins), dtype=float)
+        E_True_bin_nontrained = np.zeros(shape=(nNontrained_bins), dtype=float)
+        Error_bin_nontrained = np.zeros(shape=(nFunctions, nNontrained_bins), dtype=float)
+        E_Predicted_bin_nontrained = np.zeros(shape=(nFunctions, nNontrained_bins), dtype=float)
+    else:
+        X_Nontrained, E_True_bin_nontrained, Error_bin_nontrained,\
+            E_Predicted_bin_nontrained = None, None, None, None
     j = 0 # trained index
     k = 0 # nontrained index
 # separate trained and nontrained points    
@@ -322,7 +150,6 @@ def Plot2(CoM=None, E_True=None, nFunctions=None, nPredictors=None, E_Predicted=
                 Error_bin_nontrained[l, k] = Error_bin[l, i]
                 E_Predicted_bin_nontrained[l, k] = E_Predicted_bin[l, i]
             k += 1    
-     
     x_trained = []
     e_True_bin_trained = []
     for i in range(0, len(TrainedIntervals), 1):
@@ -346,72 +173,58 @@ def Plot2(CoM=None, E_True=None, nFunctions=None, nPredictors=None, E_Predicted=
                 x_nontrained[j].append(X_Nontrained[i])
                 e_True_bin_nontrained[j].append(E_True_bin_nontrained[i])
         
-    XMin = RMin - (RMax-RMin) * 0.02
-    XMax = RMax + (RMax-RMin) * 0.02  
-    if nNontrained_bins != 0:
-        YMax = max(np.max(Error_bin_trained), np.max(Error_bin_nontrained))
-        YMin = min(np.min(Error_bin_trained), np.min(Error_bin_nontrained))
-    else:        
-        YMax = np.max(Error_bin_trained)
-        YMin = np.min(Error_bin_trained)
-    YMinAdj = YMin - (YMax-YMin) * 0.02
-    YMaxAdj = YMax + (YMax-YMin) * 0.02
-# plot RMSE
-    fig_error = plt.figure(1, figsize=(4,3))
-    plt.xlim((XMin, XMax))
-    plt.ylim((YMinAdj, YMaxAdj))
+
+# plot Error
+    fig_error = plt.figure(1, figsize=figsize)
+    xMin, xMax = get_bounds(Grid, adj=0.02)
+    yMin, yMax = get_bounds(Error_bin_trained, Error_bin_nontrained, adj=0.02)    
+    plt.xlim((xMin, xMax))
+    plt.ylim((yMin, yMax))
+    if Legend is None: # assigne some text for empty Legend list
+        Legend = []
+        Legend.append('{}'.format('Reference energy'))
+        for i in range(0, nFunctions, 1):
+            Legend.append('{} {}'.format('Function', i+1))
     for i in range(0, nFunctions, 1):
-        label_trained = '{} {}'.format(Legend[i+1], 'Trained region')
-        plt.scatter(X_Trained, Error_bin_trained[i], s=1, c=color_train_fun[i], marker=marker_fun[i], label=label_trained)
+        plt.scatter(X_Trained, Error_bin_trained[i], s=marker_size,\
+            c=color_train_fun[i], marker=marker_fun[i], label=Legend[i+1])
         if nNontrained_bins != 0:
-            label_nontrained = '{} {}'.format(Legend[i+1], 'non-Trained region')
-            plt.scatter(X_Nontrained, Error_bin_nontrained[i], s=1, c=color_nontrain_fun[i], marker=marker_fun[i], label=label_nontrained)
+            plt.scatter(X_Nontrained, Error_bin_nontrained[i], s=marker_size,\
+                c=color_nontrain_fun[i], marker=marker_fun[i], label=None)
     plt.legend()
-    plt.xlabel('Average distance between centers of masses of molecules')
-    plt.ylabel('Average bin error')
-    Title = 'Average bin error vs. average distance'
-    if nPredictors is not None:
-        Title = '{}{}{}'.format(Title,'. Number of predictors=', nPredictors)
-    F = '{}{}'.format(Title, '.eps')    
-    plt.title(Title)
+    plt.xlabel(xLabel)
+    plt.ylabel(yErrorLabel)
     plt.show(fig_error)
-    plt.savefig(F, bbox_inches='tight', format='eps', dpi=1000)
+    plt.savefig(F_Error, bbox_inches='tight', format=fig_format, dpi=1000)
     plt.close(fig_error)
-# plot energy
-    if nNontrained_bins == 0:
-        YMax = max(np.max(E_True_bin_trained), np.max(E_Predicted_bin_trained))
-        YMin = min(np.min(E_True_bin_trained), np.min(E_Predicted_bin_trained))
-    else:
-        YMax = max(np.max(E_True_bin_trained), np.max(E_True_bin_nontrained), np.max(E_Predicted_bin_trained), np.max(E_Predicted_bin_nontrained))
-        YMin = min(np.min(E_True_bin_trained), np.min(E_True_bin_nontrained), np.min(E_Predicted_bin_trained), np.min(E_Predicted_bin_nontrained))       
-    YMinAdj = YMin - (YMax-YMin) * 0.02
-    YMaxAdj = YMax + (YMax-YMin) * 0.02
-    fig_energy = plt.figure(2, figsize=(4,3))
-    plt.xlim((XMin, XMax))
-    plt.ylim((YMinAdj, YMaxAdj))
-    label_trained = '{} {}'.format(Legend[0], 'Trained region')
-    for i in range(0, len(TrainedIntervals), 1):
-        plt.plot(x_trained[i], e_True_bin_trained[i], c=color_train_energy, ms=1, marker=marker_energy, label=label_trained)
-    if nNontrained_bins != 0:
-        label_nontrained = '{} {}'.format(Legend[0], 'non-Trained region')
+# plot Energy. x bounds are the same as prev. plot
+    fig_energy = plt.figure(2, figsize=figsize)
+    yMin, yMax = get_bounds(E_True_bin_trained, E_True_bin_nontrained,\
+        E_Predicted_bin_trained, E_Predicted_bin_nontrained, adj=0.02)
+    plt.xlim((xMin, xMax))
+    plt.ylim((yMin, yMax))
+    for i in range(0, len(TrainedIntervals), 1): # plot true energy on trained region
+        if i == 0: # plot legend only once
+            legend = Legend[0]
+        else:
+            legend = None
+        plt.plot(x_trained[i], e_True_bin_trained[i], c=color_train_energy,\
+            ms=marker_size, marker=marker_energy, label=legend, lw=line_width)
+    if nNontrained_bins != 0: # plot true energy on non-trained region without legend
         for i in range(0, len(NontrainedIntervals), 1):
-            plt.plot(x_nontrained[i], e_True_bin_nontrained[i], c=color_nontrain_enegry, marker=marker_energy, label=label_nontrained)
-    for i in range(0, nFunctions, 1):
-        label_trained = '{} {}'.format(Legend[i+1], 'Trained region')
-        plt.scatter(X_Trained, E_Predicted_bin_trained[i], s=1, c=color_train_fun[i], marker=marker_fun[i], label=label_trained)
-        if nNontrained_bins != 0:
-            label_nontrained = '{} {}'.format(Legend[i+1], 'non-Trained region')
-            plt.scatter(X_Nontrained, E_Predicted_bin_nontrained[i], s=1, c=color_nontrain_fun[i], marker=marker_fun[i], label=label_nontrained)
+            plt.plot(x_nontrained[i], e_True_bin_nontrained[i], ms=marker_size,\
+                c=color_nontrain_enegry, marker=marker_energy, label=None)
+    for i in range(0, nFunctions, 1): # plot functions on trained region
+        plt.scatter(X_Trained, E_Predicted_bin_trained[i], s=marker_size,\
+            c=color_train_fun[i], marker=marker_fun[i], label=Legend[i+1])
+        if nNontrained_bins != 0: # plot functions on non-trained region
+            plt.scatter(X_Nontrained, E_Predicted_bin_nontrained[i], s=marker_size,\
+                c=color_nontrain_fun[i], marker=marker_fun[i], label=None)
     plt.legend()
-    plt.xlabel('Average distance between centers of masses of molecules')
-    plt.ylabel('Average energy per bin')
-    Title = 'Average enegry per bin vs. average distance'
-    if nPredictors is not None:
-        Title = '{}{}{}'.format(Title,'. Number of predictors=', nPredictors)
-    F = '{}{}'.format(Title, '.eps')
-    plt.title(Title)
+    plt.xlabel(xLabel)
+    plt.ylabel(yEnergyLabel)
     plt.show(fig_energy)
-    plt.savefig(F, bbox_inches='tight', format='eps', dpi=1000)
+    plt.savefig(F_Energy, bbox_inches='tight', format=fig_format, dpi=1000)
     plt.close(fig_energy)
     return
 
@@ -433,51 +246,50 @@ Files = {'Response Train': 'ResponseTrain.csv', 'Response Test': 'ResponseTest.c
 
 random_seed = 10
 
-#FilterDataResults = library.FilterData(F_Records='SET 6.x', F_MoleculesDescriptor = 'MoleculesDescriptor.',\
-#    TrainIntervals=[(0, 20)], F_Train = 'Training Set.x', F_Test = 'Test Set.x',\
-#    D_Train = 'D Train.csv', D_Test = 'D Test.csv',\
-#    GridStart = 0, GridEnd = 20, GridSpacing=0.2, ConfidenceInterval=0.95,\
-#    TestFraction=0.2, TrainFraction=1, RandomSeed=random_seed)
-#
-#f, f_old = library.RedirectPrintToFile('FilterDataResults.txt')
-#for i, j in FilterDataResults.items():
-#    print(i, ':', j)   
-#library.RedirectPrintToConsole(f, f_old)
-#
-#GenerateFeaturesResults = library.GenerateFeatures(FilterDataResults, Files, F_SystemDescriptor='SystemDescriptor.')
-#
-#IOfunctions.SaveObject('FilterDataResults.dat', FilterDataResults)
-#IOfunctions.SaveObject('GenerateFeaturesResults.dat', GenerateFeaturesResults)
+FilterDataResults = library.FilterData(F_Records='SET 6.x', F_MoleculesDescriptor = 'MoleculesDescriptor.',\
+    TrainIntervals=[(2.8, 5.6)], F_Train = 'Training Set.x', F_Test = 'Test Set.x',\
+    D_Train = 'D Train.csv', D_Test = 'D Test.csv',\
+    GridStart = 2.8, GridEnd = 5.6, GridSpacing=0.2, ConfidenceInterval=0.95,\
+    TestFraction=0.2, TrainFraction=1, RandomSeed=random_seed)
+
+f, f_old = library.RedirectPrintToFile('FilterDataResults.txt')
+for i, j in FilterDataResults.items():
+    print(i, ':', j)   
+library.RedirectPrintToConsole(f, f_old)
+
+GenerateFeaturesResults = library.GenerateFeatures(FilterDataResults, Files, F_SystemDescriptor='SystemDescriptor.')
+
+IOfunctions.SaveObject('FilterDataResults.dat', FilterDataResults)
+IOfunctions.SaveObject('GenerateFeaturesResults.dat', GenerateFeaturesResults)
 
 FilterDataResults = IOfunctions.LoadObject('FilterDataResults.dat')        
 GenerateFeaturesResults = IOfunctions.LoadObject('GenerateFeaturesResults.dat') 
 
-#ga = library.GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_ENet='ENet path',\
-#        F_GA='GA path', UseVIP=False, nVIP=None, FirstAlgorithm='GA',\
-#        L1_Single=0.7, eps_single=1e-3, n_alphas_single=100, L1=0.7, eps=1e-3,\
-#        n_alphas=100, alpha_grid_start=-7, alpha_grid_end=-3, cv=30, MinChromosomeSize=2,\
-#        ChromosomeSize=15, StopTime=600, BestFitStopTime=30, nIter=20, PopulationSize=100,\
-#        MutationProbability=0.3, MutationInterval=[1, 4], BestFitMaxQueue=100,\
-#        EliteFraction=0.5, MutationCrossoverFraction=0.5, CrossoverFractionInterval=[0.6, 0.4],\
-#        UseCorrelationMutation=False, MinCorrMutation=0.8, CrossoverMethod='Random',\
-#        MutationMethod='Correlated', LinearSolver='sklearn', cond=1e-03,\
-#        lapack_driver='gelsy', UseCorrelationBestFit=False, MinCorrBestFit=0.99,\
-#        PrintInterval=10, RandomSeed=random_seed, BestFitPathLen=100, verbose=True)
-
+ga = library.GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_ENet='ENet path',\
+        F_GA='GA path', UseVIP=True, nVIP=5, FirstAlgorithm='GA', goal=1e-18,\
+        L1_Single=0.7, eps_single=1e-3, n_alphas_single=100, L1=0.7, eps=1e-3,\
+        n_alphas=100, alpha_grid_start=-7, alpha_grid_end=-3, cv=30, MinChromosomeSize=2,\
+        ChromosomeSize=15, StopTime=600, BestFitStopTime=200, nIter=200, PopulationSize=100,\
+        MutationProbability=0.3, MutationInterval=[1, 4], BestFitMaxQueue=1000,\
+        EliteFraction=0.5, MutationCrossoverFraction=0.5, CrossoverFractionInterval=[0.6, 0.4],\
+        UseCorrelationMutation=False, MinCorrMutation=0.8, CrossoverMethod='Random',\
+        MutationMethod='Random', LinearSolver='sklearn', cond=1e-03,\
+        lapack_driver='gelsy', UseCorrelationBestFit=False, MinCorrBestFit=0.9,\
+        PrintInterval=10, RandomSeed=random_seed, model='Level', verbose=True)
 
 #gp = library.GetFitGP(Files, GaussianPrecision=5, GaussianStart=0.01, GaussianEnd=20, GaussianLen=5)
 # set 6 R2= 0.640574623205 length_scale= 1.5367666815875023 noise_level= 0.0314196466815393
 # set 6 R2= 0.642671463024 length_scale= 2.39927628617527 noise_level= 0.01194493099928471
 
-#gp = library.GetFitGP5(Files, length_scale_start=2.399, noise_level_start=0.01194,\
-#    length_scale_bounds=(1e-3, 20), noise_level_bounds=(1e-20, 1),\
-#    length_scale_inc=0.1, noise_level_inc=0.1, length_scale_inc_min=0.02,\
-#    noise_level_inc_min=0.02, simulation=None, random_state=random_seed)
+gp = library.GetFitGP5(Files, length_scale_start=2.399, noise_level_start=0.01194,\
+    length_scale_bounds=(1e-3, 20), noise_level_bounds=(1e-20, 1),\
+    length_scale_inc=0.1, noise_level_inc=0.1, length_scale_inc_min=0.02,\
+    noise_level_inc_min=0.02, simulation=None, random_state=random_seed)
     
 #gp = library.GetFitGP2(Files)
 
-#IOfunctions.SaveObject('ga.dat', ga) 
-#IOfunctions.SaveObject('gp.dat', gp)   
+IOfunctions.SaveObject('ga.dat', ga) 
+IOfunctions.SaveObject('gp.dat', gp)   
 
 ga = IOfunctions.LoadObject('ga.dat') 
 gp = IOfunctions.LoadObject('gp.dat')   
@@ -541,25 +353,33 @@ y_pred_gp = gp.predict(X_Gaussian_test)
 y_test_kj = library.HARTREE_TO_KJMOL * Y_test
 y_pred_gp_kj = library.HARTREE_TO_KJMOL * y_pred_gp
 
-PlotHistogram(FileName='{} {} {}'.format('Gaussian process energy prediction error histogram.',\
+PlotHistogram(FileName='{} {} {}'.format('GP energy error histogram.',\
     X_Gaussian_test.shape[1], 'predictors'), y_true=y_test_kj, y_pred=y_pred_gp_kj,\
     FigNumber=1, FigSize=(4,3), Bins='auto',\
-    xLabel='Gaussian process energy prediction error, kJ/mol', yLabel='Frequency')
+    xLabel='GP energy error, kJ/mol', yLabel='Frequency')
         
 k = 0
 for chromosome in ga.DecreasingChromosomes:
-    if k == 1:
-        break
+#    if k == 1:
+#        break
     y_pred_ga = chromosome.predict(x_expD=X_ExpSingleD_test,\
         x_expDn=X_ExpSingleDn_test, x_lin=X_Linear_test)
     y_pred_ga_kj = library.HARTREE_TO_KJMOL * y_pred_ga    
-    PlotHistogram(FileName='{} {} {}'.format('Linear regression energy prediction error histogram.',\
+    PlotHistogram(FileName='{} {} {}'.format('GA energy error histogram.',\
         chromosome.Size, 'predictors'), y_true=y_test_kj, y_pred=y_pred_ga_kj,\
-        FigNumber=1, FigSize=(4,3), Bins='auto',\
-        xLabel='Linear regression energy prediction error, kJ/mol', yLabel='Frequency')
-    Plot2(CoM=COM_test, E_True=y_test_kj, nFunctions=2, nPredictors=[chromosome.Size, X_Gaussian_test.shape[1]],\
-         E_Predicted=[y_pred_ga, y_pred_gp], Legend=None,\
-         Grid=FilterDataResults['Test Grid'], GridTrained=FilterDataResults['Train Grid'],\
-         TrainedIntervals=FilterDataResults['Train Intervals'], NontrainedIntervals=FilterDataResults['Test Intervals'])
+        FigNumber=1, FigSize=(4, 3), Bins='auto',\
+        xLabel='GA energy error, kJ/mol', yLabel='Frequency')
+    Plot(CoM=COM_test, E_True=y_test_kj, nFunctions=2, xLabel='R, CoM (Å)', \
+        yErrorLabel='Average Energy (kJ/mol)', E_Predicted=[y_pred_ga_kj, y_pred_gp_kj],\
+        Legend=['Reference', 'GA', 'GP'], Grid=FilterDataResults['Test Grid'],\
+        GridTrained=FilterDataResults['Train Grid'],\
+        TrainedIntervals=FilterDataResults['Train Intervals'],\
+        NontrainedIntervals=FilterDataResults['Test Intervals'],\
+        F_Error='{} {} {}'.format('Error.',chromosome.Size, 'predictors'),\
+        F_Energy='{} {} {}'.format('Energy.',chromosome.Size, 'predictors'),\
+        figsize=(4, 3), fig_format='eps', marker_size=1,\
+        line_width = 0.3, bounds=(0 ,20))
     k += 1
 
+
+        

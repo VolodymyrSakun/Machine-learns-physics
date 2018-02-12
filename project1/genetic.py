@@ -8,51 +8,6 @@ import copy
 import matplotlib.pyplot as plt
 import pandas as pd
 
-class Node(dict):
-    """ Class Node"""
-    
-    def __init__(self, parent=None, state=None, level=None, path_cost=0, heuristic=0):
-        self.parent = parent
-        self.children = []
-        self.level = level
-        self.finished = False     
-        self.path_cost = path_cost
-        self.heuristic = heuristic
-        self.fitness = path_cost + heuristic
-        self.state = state # 1D numpy array that represents puzzles
-        
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError:
-            raise AttributeError(name)
-
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-    def __repr__(self):
-        if self.keys():
-            m = max(map(len, list(self.keys()))) + 1
-            return ''.join([k.rjust(m) + ': ' + repr(v)
-                              for k, v in self.items()])
-        else:
-            return self.__class__.__name__ + "()"
-
-    def __dir__(self):
-        return list(self.keys())
-    
-    def Get_Path(self):
-        if self.represent is None:
-            return None
-        path = []
-        node = self
-        while node.parent is not None:
-            path.insert(0, node.represent)
-            node = node.parent
-        path.insert(0, node.represent)        
-        return path   
-# end of class Node
-
 class Gene:
     
     def __init__(self, Idx, Type=0, p_Value=None, rank=None):
@@ -104,7 +59,7 @@ class Chromosome:
         return
 
 # return list of indices of specified type            
-    def get_genes_list(self, Type=0):
+    def get_genes_list(self, Type=0): 
         idx = []
         for i in range(0, self.Size, 1):
             if self.Genes[i].Type == Type: 
@@ -393,6 +348,7 @@ class GA:
         self.n_VIP_exp = None
         self.nIter = 1000
         self.BestFitPath = []
+        self.start_time = time()
         
 # create random gene from pool that does not belong to chromosome
     def create_random_gene(self, chromosome=None, pool_nonlin=None, pool_lin=None):
@@ -815,7 +771,8 @@ class GA:
         return
     
     def PlotChromosomes(self, Fig_Number, ChromosomesList, XAxis='#',\
-                        YAxis='MSE Train', PlotType='Line', F=None):
+        YAxis='RMSE Train', PlotType='Line', F=None):
+        
         fig = plt.figure(Fig_Number, figsize=(19,10))
         if XAxis == '#':
             XPlot = list(range(0, len(ChromosomesList), 1))
@@ -871,6 +828,43 @@ class GA:
         plt.close(fig)
         return
     
+    def PlotChromosomes2(self, FileName, Fig_Number, ChromosomesList, XAxis='Nonzero',\
+            PlotType='Line', figsize=(4, 3), marker_size=1, line_width=0.5):
+        
+        Legend = ['Training set', 'Test set']
+        marker_fun = ['o', 's', '*', 'd', 'h', '.', ',']
+        fig = plt.figure(Fig_Number, figsize=figsize)
+        if XAxis == 'Time':
+            XPlot = []
+            for i in ChromosomesList:
+                XPlot.append(i.time)
+            plt.xlabel('Time, sec')
+        elif XAxis == 'Nonzero':
+            XPlot = []
+            for i in ChromosomesList:
+                XPlot.append(i.Size)
+            plt.xlabel('Nonzero coefficiens')
+        YPlot1 = []       
+        YPlot2 = [] 
+        for i in ChromosomesList:
+            YPlot1.append(i.RMSE_Train * library.HARTREE_TO_KJMOL)
+            YPlot2.append(i.RMSE_Test * library.HARTREE_TO_KJMOL)
+        plt.ylabel('Energy, kJ/mol')
+        if PlotType == 'Line':           
+            plt.plot(XPlot, YPlot1, ms=marker_size, label=Legend[0], lw=line_width)
+            plt.plot(XPlot, YPlot2, ms=marker_size, label=Legend[1], lw=line_width)               
+        if PlotType == 'Scatter':
+            plt.scatter(XPlot, YPlot1, s=marker_size, label=Legend[0], marker=marker_fun[0])
+            plt.scatter(XPlot, YPlot2, s=marker_size, label=Legend[1], marker=marker_fun[1])
+        plt.title('Progress of GA')       
+        plt.axis('tight')
+        plt.legend()
+        plt.show(fig)
+        plt.savefig('{}{}'.format(FileName, '.eps'), bbox_inches='tight', format='eps', dpi=1000)
+        plt.close(fig)
+        return
+    
+
     def RemoveWorstGene(self, chromosome, x_expD=None, x_expDn=None, x_lin=None, y=None, verbose=True):
         if self.VIP_Chromosome is None: 
             del(chromosome.Genes[-1])
@@ -1014,9 +1008,10 @@ class GA:
             chromosome_list = [chromosome_list] # make a list with 1 record
         sheet_names = []
         for i in chromosome_list:
-            sheet_names.append(i.Size)
-        if len(sheet_names) != len(set(sheet_names)): # have duplicates
-            sheet_names = list(range(0, len(chromosome_list), 1))
+            if i.Size not in sheet_names:
+                sheet_names.append(i.Size)
+            else:
+                sheet_names.append('{} {}'.format(i.Size, 'ethalon'))
         for k in range(0, nChromosomes, 1): # for each excel sheet
             SheetName = str(sheet_names[k]) #replace with number of genes later
             idx_nonlin = chromosome_list[k].get_genes_list(Type=1)
@@ -1133,7 +1128,7 @@ class GA:
                 del(Results['Distance 3 type'])
             Results.to_excel(writeResults, sheet_name=SheetName)      
         
-# linear only        
+# store A* path to excel. linear only        
         max_chromosome_length = self.BestFitPath[0].Size
         col = list(range(0, max_chromosome_length, 1))
         col.extend(['MSE Train','RMSE Train', 'R2 Train', 'R2 Adjusted Train',\
@@ -1150,9 +1145,16 @@ class GA:
                 index = idx_lin[j]            
                 gene = Gene(index, Type=0)
                 I = self.BestFitPath[k].find_gene_idx(gene)
-                Results_k[j]['Bond'] = FeaturesReduced[index].DtP1.Distance.Atom1.Symbol \
-                    + '-' + FeaturesReduced[index].DtP1.Distance.Atom2.Symbol
-                Results_k[j]['Power'] = FeaturesReduced[index].DtP1.Power
+                if FeaturesReduced[index].nDistances == 1: # one distance
+                    Results_k[j]['Bond'] = FeaturesReduced[index].DtP1.Distance.Atom1.Symbol \
+                        + '-' + FeaturesReduced[index].DtP1.Distance.Atom2.Symbol
+                    Results_k[j]['Power'] = FeaturesReduced[index].DtP1.Power
+                else: # 2 distances
+                    Results_k[j]['Bond'] = '{}{}{} {}{}{}'.format(FeaturesReduced[index].DtP1.Distance.Atom1.Symbol,\
+                        '-', FeaturesReduced[index].DtP1.Distance.Atom2.Symbol,\
+                        FeaturesReduced[index].DtP2.Distance.Atom1.Symbol,\
+                        '-', FeaturesReduced[index].DtP2.Distance.Atom2.Symbol)
+                    Results_k[j]['Power'] = '{:3d} {:3d}'.format(FeaturesReduced[index].DtP1.Power, FeaturesReduced[index].DtP2.Power)            
                 Results_k[j]['Coeff'] = self.BestFitPath[k].Genes[I].Coef1 
             Results_k['MSE Train']['Bond'] = self.BestFitPath[k].MSE_Train
             Results_k['RMSE Train']['Bond'] = self.BestFitPath[k].RMSE_Train
@@ -1197,7 +1199,7 @@ class GA:
         return chromosome
         
     def BestFit2(self, chromosome, x_expD=None, x_expDn=None, x_lin=None, y=None,\
-                 epoch = 100, q_max=0, BestFitPathLen=0, start_time=0, verbose=True):   
+                 goal=0, epoch = 100, q_max=None, model='Fast', verbose=True):   
         
         def is_exist_in_nodes(chromosome, nodes_list):
             if nodes_list is None:
@@ -1217,63 +1219,58 @@ class GA:
                     return True
             return False
     
-        def Actions(node, explored, best_node_on_level):
-            mse = node.state.MSE_Train
+        def Actions(node, problem):
+            parent_fitness = (problem.heuristic(node.state) + problem.transition(node.state)) # node's fitness
             Chromosome_list = []  
             for i in range(0, len(idx_corr), 1):  
                 idx_list = node.state.get_genes_list(Type=0)
-                ch = copy.deepcopy(node.state)
-                old_gene = copy.deepcopy(ch.Genes[i])
+                child = copy.deepcopy(node.state)
+                old_gene = copy.deepcopy(child.Genes[i])
                 if (not old_gene.is_gene_exists(self.VIP_Chromosome)) and (old_gene.Type == 0):
                     for j in range(0, len(idx_corr[i]), 1):
                         new_idx = idx_corr[i][j]
                         if new_idx in idx_list:
                             continue # check if new index exists in chromosome
-                        ch.Genes[i].Idx = new_idx
-                        if ch.is_exist(Chromosome_list) or is_exist_in_nodes(ch, explored):
+                        child.Genes[i].Idx = new_idx
+                        if child.is_exist(Chromosome_list) or is_exist_in_nodes(child, problem.explored):
                             continue # already have this 
-                        ch.erase_score()
-                        ch.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
+                        child.erase_score()
+                        child.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
                             LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
-### put if later this removes bed children
-                        if (ch.MSE_Train < mse) and (ch.MSE_Train < best_node_on_level.fitness): # child is better than parent  
-#                        if (ch.MSE_Train < mse): # child is better than parent  
-                            ch.Origin = 'Best Fit'
-                            chromosome_copy = copy.deepcopy(ch)                    
-                            Chromosome_list.append(chromosome_copy)
+                        child_fitness = (problem.heuristic(child) + problem.transition(child)) # node's fitness
+                        if problem.Check_Child(child_fitness, parent_fitness, node.level): # selection based on model defined in problem
+                            child.Origin = 'Best Fit'
+                            chromosome_copy = copy.deepcopy(child)                    
+                            Chromosome_list.append(chromosome_copy)                                                                
             return Chromosome_list       
 
-        def Heuristic(state):
+        def Heuristic(state): # user defined
             return 0
     
-        def Path_cost(state):
+        def Path_cost(state): # user defined
             return state.MSE_Train
         
         idx_corr = self.get_correlated_features_list(chromosome, Model=1,\
             UseCorrelationMatrix=self.UseCorrelationBestFit, MinCorr=self.MinCorrBestFit)
         if idx_corr == []: # only for linear features
             return chromosome
-        problem = Problem(initial_state=chromosome, final_state=None, actions=Actions,\
-                 transitions=Path_cost, heuristic=Heuristic, goal=0, epoch=epoch)    
-                    
-        result, Best, count, path = A_star(problem, use_heuristic=False, q_max=q_max, start_time=start_time)
-        if BestFitPathLen != 0:
-            k = BestFitPathLen
-            while len(path) > 0 and k > 0:
-                best_chromosome = copy.deepcopy(path[0].state)
-                idx = 0
-                for i in range(1, len(path), 1):
-                    if path[i].state.MSE_Train < best_chromosome.MSE_Train:
-                        best_chromosome = copy.deepcopy(path[i].state)
-                        idx = i
-                self.BestFitPath.append(best_chromosome)
-                k -= 1
-                del(path[idx])                   
-                
-#        result, Best, count = BFS(problem)
-#        result, Best, count = DLS(problem, 10)
-
-        return Best
+        zero_node = Node(parent=None, state=chromosome, level=0,\
+            path_cost=chromosome.MSE_Train, heuristic=0)
+        problem = Problem(initial_node=zero_node, actions=Actions,\
+            transition=Path_cost, heuristic=Heuristic, goal=goal, epoch=epoch, model=model)                        
+        result, p, count  = A_star(problem, q_max=q_max, start_time=self.start_time)   
+# copy sorted chromosomes list from path into ga.BestFitPath     
+        while len(p.explored) > 0:
+            best_chromosome = copy.deepcopy(p.explored[0].state)
+            idx = 0
+            for i in range(1, len(p.explored), 1):
+                fitness = problem.heuristic(best_chromosome) + problem.transition(best_chromosome)
+                if p.explored[i].fitness < fitness:
+                    best_chromosome = copy.deepcopy(p.explored[i].state)
+                    idx = i
+            self.BestFitPath.append(best_chromosome)
+            del(p.explored[idx])  
+        return p.best_node.state
 
 def are_equal(chromosome1, chromosome2):
     idx_lin1 = chromosome1.get_genes_list(Type=0)
@@ -1301,7 +1298,7 @@ def in_queue(node, queue):
         
 # A* with heuristic, Uniform cost search if use_heuristic=False
 # transition_cost: 'Unit', 'Number', Different
-def A_star(problem, use_heuristic=False, q_max=0, start_time=0):
+def A_star(problem, q_max=None, start_time=None):
     
     def Find_place_in_queue(queue, node):
     # almost binary search      
@@ -1325,43 +1322,58 @@ def A_star(problem, use_heuristic=False, q_max=0, start_time=0):
             Diff = Right - Left
         return Right
 
+    if start_time is None:
+        start_time = time()
+    if q_max is None:
+        q_max = 1e+100
     if q_max == 0:
         q_max = 1e+100
-    h = 0
-    if use_heuristic:
-        h = problem.heuristic(problem.initial_state) # heuristic      
-    node = Node(parent=None, state=problem.initial_state, level=0,\
-        path_cost=problem.initial_state.MSE_Train, heuristic=h)
-    node.state.time = time() - start_time
+    h = problem.heuristic(problem.initial_node.state) # heuristic for initial state                   
+    g = problem.transition(problem.initial_node.state) # path cost for initial state
+    node = Node(parent=None, state=problem.initial_node.state, level=0,\
+        path_cost=g, heuristic=h)
+    node.time = time() - start_time
     queue = [node]
     problem.best_per_level.append(copy.deepcopy(node))
-    explored = []
     count = 0
     while len(queue) != 0:
         node = queue.pop(0) 
-        node.state.time = time() - start_time
+        node.time = time() - start_time
+        node.state.time = node.time
         count += 1
         if problem.Goal_Test(node): # is it the goal?      
-            library.Print('{}{}'.format('Number of Best Fit improvements', len(problem.best_states)), library.GREEN)
-            return 'Solution', problem.best_state, count, explored
-        explored.append(node) # add to explored
-        print('Explored=', len(explored), 'Size=', node.state.Size)
-        children_states = problem.actions(node, explored, problem.best_per_level[node.level])
-        k = 0
+            problem.explored.append(node) # add to explored
+            library.Print('{}{}'.format('Number of Best Fit improvements', len(problem.best_nodes)), library.GREEN)
+            return 'Solution', problem, count
+        problem.explored.append(node) # add to explored
+# tech              
+        s = '{:15} {:08.6E} {:6} {:3} {} {}'.format('Best:', problem.best_node.fitness, 'Level:', problem.best_node.level, 'IDX:', problem.best_node.state.get_genes_list(Type=0))
+        print(s)   
+        best_per_level_node = problem.best_per_level[node.level]
+        best_level_fitness = (problem.heuristic(best_per_level_node.state) + problem.transition(best_per_level_node.state))        
+        s = '{:15} {:08.6E} {:6} {:3} {} {}'.format('Best in level:', best_level_fitness, 'Level:', best_per_level_node.level, 'IDX:', best_per_level_node.state.get_genes_list(Type=0))
+        print(s)         
         if node.parent is not None:
-            print('Parent MSE=', node.parent.state.MSE_Train)
-        print('Level=', node.level, 'MSE=', node.state.MSE_Train)
-        print('Best MSE=', problem.best_state.MSE_Train, 'Queue=', len(queue))
-        if node.level != 0:
-            print('Best MSE for parent level=', problem.best_per_level[node.parent.level].fitness)
+            s = '{:15} {:08.6E} {:6} {:3} {} {}'.format('Parent:', node.parent.fitness, 'Level:', node.parent.level, 'IDX:', node.parent.state.get_genes_list(Type=0))
+            print(s)
+        s = '{:15} {:08.6E} {:6} {:3} {} {}'.format('Node:', node.fitness, 'Level:', node.level, 'IDX:', node.state.get_genes_list(Type=0))            
+        print('Explored length=', len(problem.explored), 'Chromosome size=', node.state.Size)
+        library.Print('{} {}'.format('Queue length =', len(queue)), library.CYAN)
+        q = ''
+        i = 0
+        while i < 10 and i < len(queue):
+            q = '{} {}'.format(q, queue[i].fitness)
+            i += 1
+        print('Top 10 queue: ', q)
+        
+        children_states = problem.actions(node, problem)
         for child_state in children_states: # create children (chromosome)
-            if use_heuristic:
-                h = problem.heuristic(child_state) # heuristic                      
-            g = child_state.MSE_Train # path cost
+            h = problem.heuristic(child_state) # heuristic                      
+            g = problem.transition(child_state) # path cost
             child = Node(parent=node, state=child_state, level=node.level+1,\
-                path_cost=g, heuristic=h) # node
+                path_cost=g, heuristic=h, time=0) # node
             node.children.append(child) # link to parent   
-            if (in_queue(child, explored) == -10): # if not explored
+            if (in_queue(child, problem.explored) == -10): # if not explored
                 idx = in_queue(child, queue)
                 if idx != -10: # is in queue?
                     if queue[idx].fitness > child.fitness: # new MSE smaller
@@ -1370,16 +1382,157 @@ def A_star(problem, use_heuristic=False, q_max=0, start_time=0):
                         continue # old child is better
                 idx = Find_place_in_queue(queue, child) # where to place new node                               
                 queue.insert(idx, child) # put on appropriate place into sorted queue
-                if (len(queue) > q_max):
-                    del(queue[len(queue)-1])
-            k += 1    
-    library.Print('{}{}'.format('Number of Best Fit improvements', len(problem.best_states)), library.GREEN)
-    return 'Solution', problem.best_state, count, explored
+                if (len(queue) > q_max): # if queue is longer than q_max - kill weakest child
+                    del(queue[len(queue)-1])  
+    library.Print('{}{}'.format('Number of Best Fit improvements', len(problem.best_nodes)), library.GREEN)
+    return 'Solution', problem, count
             
 # return: Status, Solution node, Number of goal tests
 # Status: 'Solution', 'Cutoff', 'Failure'
         
-  
+class Node(dict):
+    """ Class Node"""
+    
+    def __init__(self, parent=None, state=None, level=None, path_cost=0, heuristic=0, time=0):
+        self.parent = parent
+        self.children = []
+        self.level = level
+        self.finished = False     
+        self.path_cost = path_cost
+        self.heuristic = heuristic
+        self.fitness = path_cost + heuristic
+        self.state = state # chromosome object
+        self.time = time
+        
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+    
+    def Get_Path(self):
+        if self.represent is None:
+            return None
+        path = []
+        node = self
+        while node.parent is not None:
+            path.insert(0, node.represent)
+            node = node.parent
+        path.insert(0, node.represent)        
+        return path   
+# end of class Node
+    
+class Problem(dict):
+    
+    """
+initial_state - starting chromosome 
+final_state - not used for this problem
+epoch - time without improvement
+goal - desired final fitness
+model: 
+'Fast' - fastest convergence. child generates only if better than existing best
+'Level' - child generates if it is better than best in its level
+'Parent' - child generates if it is better than parent 
+'Level and Parent' - if two conditions applicable
+'Slow' - all children to be generated.
+actions(node, problem), transition(state), heuristic(state) - external functions
+    """    
+    def __init__(self, initial_node=None, actions=None,\
+                 transition=None, heuristic=None, goal=None, epoch=100, model='Fast'):
+       
+        self.initial_node = initial_node
+        self.best_node = initial_node        
+        self.transition = transition # function of state
+        self.heuristic = heuristic # function of state
+        self.actions = actions # function of node
+        self.goal = goal # 0 or required fitness
+        self.start_time = int(time())
+        self.last_improvement_time = self.start_time
+        self.epoch = epoch # time without improvement, then stop algorithm
+        self.best_nodes = [] # list of best states
+        self.best_per_level = [] # best states one per each explored level
+        self.explored = [] # all explored states
+        self.model = model # algorithm's model
+        
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return ''.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in self.items()])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+
+# check if goal is reached    
+    def Goal_Test(self, node): 
+        if len(self.best_per_level) == node.level:            
+            self.best_per_level.append(node)            
+        elif node.fitness < self.best_per_level[node.level].fitness: 
+            self.best_per_level[node.level] = node # update best fit on level
+            library.Print('Level fitness updated', library.GREEN)    
+        fitness = (self.heuristic(self.best_node.state) + self.transition(self.best_node.state))
+        if node.fitness < fitness: # update best fit
+            self.last_improvement_time = int(time())
+            self.best_node = node
+            self.best_nodes.append(self.best_node)
+            library.Print('Found Better fit A*', library.RED)    
+        if (self.goal - node.fitness) > 0 or \
+            abs(time() - self.last_improvement_time) > self.epoch: 
+            return True  
+        library.Print('{} {}'.format('Remaining time:', self.epoch - time() + self.last_improvement_time), library.BLUE)    
+        return False
+
+    def Check_Child(self, child_fitness, parent_fitness, level):
+        if self.model == 'Fast':
+            best_fitness = self.heuristic(self.best_node.state) + self.transition(self.best_node.state) # best fitness
+            if (child_fitness < best_fitness):
+                return True
+            else:
+                return False
+        elif self.model == 'Parent':
+            if (child_fitness < parent_fitness):
+                return True  
+            else:
+                return False
+        elif (self.model == 'Level'):
+            if child_fitness < self.best_per_level[level].fitness: # or try [level+1]
+                return True                            
+            else:
+                return False
+        elif self.model == 'Level and Parent':
+            if (child_fitness < self.best_per_level[level].fitness) and (child_fitness < parent_fitness): # or try [level+1]
+                return True
+            else:
+                return False
+        return True # 'Slow'
+            
+
+
 # Breadth first search
 def BFS(problem):
     node = Node(parent=None, state=problem.initial_state, level=0,\
@@ -1447,70 +1600,5 @@ def IDS(problem, max_depth):
         Counter += counter
         if result != 'Cutoff':        
             return result, solution, Counter  
-
-
-    
-class Problem(dict):
-    
-#    initial_state = None
-#    final_state = None
-# epoch - time in sec for algorithm
-# goal - desired MSE for fit
-    
-    def __init__(self, initial_state=None, final_state=None, actions=None,\
-                 transitions=None, heuristic=None, goal=None, epoch=100):
-   
-        self.initial_state = initial_state
-        self.final_state = final_state
-        self.best_state = initial_state
-        self.heuristic = heuristic
-        self.actions = actions
-        self.transitions = transitions
-        self.goal = goal
-        self.start_time = int(time())
-        self.last_improvement_time = self.start_time
-        self.epoch = epoch
-        self.best_states = []
-        self.best_per_level = []
-        
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError:
-            raise AttributeError(name)
-
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-    def __repr__(self):
-        if self.keys():
-            m = max(map(len, list(self.keys()))) + 1
-            return ''.join([k.rjust(m) + ': ' + repr(v)
-                              for k, v in self.items()])
-        else:
-            return self.__class__.__name__ + "()"
-
-    def __dir__(self):
-        return list(self.keys())
-
-# check if goal is reached    
-    def Goal_Test(self, node): 
-        if len(self.best_per_level) == node.level:            
-            self.best_per_level.append(node)            
-        elif node.fitness < self.best_per_level[node.level].fitness:
-            self.best_per_level[node.level] = node
-            library.Print('Level fitness updated', library.GREEN)
-        if node.fitness < self.best_state.MSE_Train:
-            self.last_improvement_time = int(time())
-            self.best_state = node.state
-            self.best_states.append(self.best_state)
-            library.Print('Found Better fit A*', library.RED)    
-        if (self.goal - node.fitness) > 0 or \
-            abs(time() - self.last_improvement_time) > self.epoch: 
-            return True  
-        library.Print('{} {}'.format('Remaining time:', self.epoch - time() + self.last_improvement_time), library.BLUE)    
-        return False
-
-
 
     
