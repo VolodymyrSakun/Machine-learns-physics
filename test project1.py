@@ -213,7 +213,7 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
     if nNontrained_bins != 0: # plot true energy on non-trained region without legend
         for i in range(0, len(NontrainedIntervals), 1):
             plt.plot(x_nontrained[i], e_True_bin_nontrained[i], ms=marker_size,\
-                c=color_nontrain_enegry, marker=marker_energy, label=None)
+                c=color_nontrain_enegry, marker=marker_energy, label=None, lw=line_width)
     for i in range(0, nFunctions, 1): # plot functions on trained region
         plt.scatter(X_Trained, E_Predicted_bin_trained[i], s=marker_size,\
             c=color_train_fun[i], marker=marker_fun[i], label=Legend[i+1])
@@ -243,13 +243,18 @@ Files = {'Response Train': 'ResponseTrain.csv', 'Response Test': 'ResponseTest.c
 # for set 6
 # seed 10 
 # ConfidenceInterval=0.95
+# set 4
+# ConfidenceInterval=0.85
+# set 2
+# ConfidenceInterval=0.95 MinCorrBestFit=0.9 model='Parent'
+# ChromosomeSize=15, StopTime=600, BestFitStopTime=100, nIter=200
 
 random_seed = 10
 
-FilterDataResults = library.FilterData(F_Records='SET 6.x', F_MoleculesDescriptor = 'MoleculesDescriptor.',\
-    TrainIntervals=[(2.8, 5.6)], F_Train = 'Training Set.x', F_Test = 'Test Set.x',\
+FilterDataResults = library.FilterData(F_Records='SET 2.x', F_MoleculesDescriptor = 'MoleculesDescriptor.',\
+    TrainIntervals=[(0, 20)], F_Train = 'Training Set.x', F_Test = 'Test Set.x',\
     D_Train = 'D Train.csv', D_Test = 'D Test.csv',\
-    GridStart = 2.8, GridEnd = 5.6, GridSpacing=0.2, ConfidenceInterval=0.95,\
+    GridStart = 0, GridEnd = 20, GridSpacing=0.2, ConfidenceInterval=0.95,\
     TestFraction=0.2, TrainFraction=1, RandomSeed=random_seed)
 
 f, f_old = library.RedirectPrintToFile('FilterDataResults.txt')
@@ -266,18 +271,17 @@ FilterDataResults = IOfunctions.LoadObject('FilterDataResults.dat')
 GenerateFeaturesResults = IOfunctions.LoadObject('GenerateFeaturesResults.dat') 
 
 ga = library.GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_ENet='ENet path',\
-        F_GA='GA path', UseVIP=True, nVIP=5, FirstAlgorithm='GA', goal=1e-18,\
+        F_GA='GA path', UseVIP=False, nVIP=6, FirstAlgorithm='GA', goal=1e-18,\
         L1_Single=0.7, eps_single=1e-3, n_alphas_single=100, L1=0.7, eps=1e-3,\
         n_alphas=100, alpha_grid_start=-7, alpha_grid_end=-3, cv=30, MinChromosomeSize=2,\
         ChromosomeSize=15, StopTime=600, BestFitStopTime=200, nIter=200, PopulationSize=100,\
-        MutationProbability=0.3, MutationInterval=[1, 4], BestFitMaxQueue=1000,\
+        MutationProbability=0.3, MutationInterval=[1, 4], BestFitMaxQueue=100,\
         EliteFraction=0.5, MutationCrossoverFraction=0.5, CrossoverFractionInterval=[0.6, 0.4],\
         UseCorrelationMutation=False, MinCorrMutation=0.8, CrossoverMethod='Random',\
         MutationMethod='Random', LinearSolver='sklearn', cond=1e-03,\
-        lapack_driver='gelsy', UseCorrelationBestFit=False, MinCorrBestFit=0.9,\
-        PrintInterval=10, RandomSeed=random_seed, model='Level', verbose=True)
+        lapack_driver='gelsy', UseCorrelationBestFit=True, MinCorrBestFit=0.9,\
+        PrintInterval=10, RandomSeed=random_seed, model='Parent', verbose=True)
 
-#gp = library.GetFitGP(Files, GaussianPrecision=5, GaussianStart=0.01, GaussianEnd=20, GaussianLen=5)
 # set 6 R2= 0.640574623205 length_scale= 1.5367666815875023 noise_level= 0.0314196466815393
 # set 6 R2= 0.642671463024 length_scale= 2.39927628617527 noise_level= 0.01194493099928471
 
@@ -285,8 +289,6 @@ gp = library.GetFitGP5(Files, length_scale_start=2.399, noise_level_start=0.0119
     length_scale_bounds=(1e-3, 20), noise_level_bounds=(1e-20, 1),\
     length_scale_inc=0.1, noise_level_inc=0.1, length_scale_inc_min=0.02,\
     noise_level_inc_min=0.02, simulation=None, random_state=random_seed)
-    
-#gp = library.GetFitGP2(Files)
 
 IOfunctions.SaveObject('ga.dat', ga) 
 IOfunctions.SaveObject('gp.dat', gp)   
