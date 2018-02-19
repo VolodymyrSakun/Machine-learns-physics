@@ -1,6 +1,6 @@
 Initial dataset : SET 4.x
 Number of molecules per record : 3
-Train Intervals : [(0, 20)]
+Train Intervals : [(0, 10)]
 Test Intervals : []
 Train records number : 203
 Train Grid : [(1.7, 1.8), (1.8, 1.9), (1.9, 2.0), (2.0, 2.1), (2.1, 2.2), (2.2, 2.3), (2.3, 2.4)]
