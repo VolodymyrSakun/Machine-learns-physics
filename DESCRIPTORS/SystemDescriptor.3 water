@@ -1,58 +1,77 @@
 &FEATURES
-&SingleDistances
-SingleDistancesInclude = True
-&SingleDistancesDescription
+
+&LinearSingleDistances
+LinearSingleDistancesInclude = True
+&LinearSingleDistancesDescription
 O,O,intermolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15
 O,H,intermolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15
 H,H,intermolecular: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15
-O,H,intramolecular: 
-H,H,intramolecular: 
-&endSingleDistancesDescription
-&DefaultSingleDistances
-SinglePowers: -1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15
-&endSingleDistances
+O,H,intramolecular:
+H,H,intramolecular:
+&endLinearSingleDistancesDescription
+&endLinearSingleDistances
 
-&DoubleDistances
-DoubleDistancesInclude=False
-&DoubleDistancesDescription
+&LinearDoubleDistances
+LinearDoubleDistancesInclude=True
+&LinearDoubleDistancesDescription
 O,O,intermolecular: -1,-2,-3,-4,-5,-6
 O,H,intermolecular: -1,-2,-3,-4,-5,-6
 H,H,intermolecular: -1,-2,-3,-4,-5,-6
 O,H,intramolecular: 
 H,H,intramolecular: 
-&endDoubleDistancesDescription
-&DefaultDoubleDistances
-DoublePowers: -1
-IncludeSameType=True
-IncludeAllExcept=True
-ExcludeAllExcept=False
-&IncludeExcludeList
-&endIncludeExcludeList
-&endDoubleDistances
+&endLinearDoubleDistancesDescription
+LinearDoubleIncludeSameType=True
+LinearDoubleIncludeOnlySamePower=False
+&endLinearDoubleDistances
 
-&Harmonics
-HarmonicsInclude=False
-Order: 0
-Degree: 0
-# symbol of atom to be a center of coordinate system to calculate harmonics
-HarmonicCenter: O
-HarmonicAtoms: O,H
-&HarmonicDescription
-O,O,intermolecular: 
-O,H,intermolecular: -1,-2,-3,-4,-5,-6
-H,H,intermolecular: 
+&LinearTripleDistances
+LinearTripleDistancesInclude=True
+&LinearTripleDistancesDescription
+O,O,intermolecular: -1,-2,-3,-4
+O,H,intermolecular: -1,-2,-3,-4
+H,H,intermolecular: -1,-2,-3,-4
 O,H,intramolecular: 
 H,H,intramolecular: 
-&endHarmonicDescription
-&DefaultHarmonics
-HarmonicPowers: -1,-2
-IncludeHarmonicSameType=True
-IncludeHarmonicAllExcept=True
-ExcludeHarmonicAllExcept=False
-&IncludeExcludeHarmonicList
-O,O,intermolecular; O,O,intermolecular
-&endIncludeExcludeHarmonicList
-&endHarmonics
+&endLinearTripleDistancesDescription
+LinearTripleIncludeSameType=True
+LinearTripleIncludeOnlySamePower=True
+&endLinearTripleDistances
+
+&ExpSingleDistances
+ExpSingleDistancesInclude=False
+&ExpSingleDistancesDescription
+O,O,intermolecular: -1,-2,-3,-12,-13
+O,H,intermolecular: -1,-2,-3,-12,-13
+H,H,intermolecular: -1,-2,-3,-12,-13
+O,H,intramolecular: 
+H,H,intramolecular:
+&endExpSingleDistancesDescription
+&endExpSingleDistances
+
+&ExpDoubleDistances
+ExpDoubleDistancesInclude=False
+&ExpDoubleDistancesDescription
+O,O,intermolecular: 0,-1,-2,-3
+O,H,intermolecular: 0,-1,-2,-3
+H,H,intermolecular: 0,-1,-2,-3
+O,H,intramolecular: 
+H,H,intramolecular: 
+&endExpDoubleDistancesDescription
+ExpDoubleIncludeSameType=True
+ExpDoubleIncludeOnlySamePower=False
+&endExpDoubleDistances
+
+&GaussianSingleDistances
+GaussianSingleDistancesInclude=True
+&GaussianSingleDistancesDescription
+O,O,intermolecular: 1
+O,H,intermolecular: 1
+H,H,intermolecular: 1
+O,H,intramolecular: 1
+H,H,intramolecular: 1
+&endGaussianSingleDistancesDescription
+&endGaussianSingleDistances
+
 &endFEATURES
 
 &SYSTEM

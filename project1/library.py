@@ -1684,22 +1684,19 @@ def CreateGrid(GridStart, GridEnd, GridSpacing):
         i += GridSpacing
     return Grid
 
-def FilterData(F_Records='SET 6.x', F_MoleculesDescriptor = 'MoleculesDescriptor.',\
-        TrainIntervals=[(0, 20)], F_Train = 'Training Set.x', F_Test = 'Test Set.x',\
-        D_Train = 'D Train.csv', D_Test = 'D Test.csv', GridStart = 0.0, GridEnd = 20.0,\
-        GridSpacing=0.1, ConfidenceInterval=1, TestFraction=0.3, TrainFraction=1, RandomSeed=None):
+def FilterData(Files, Data):
 
-    MoleculePrototypes = IOfunctions.ReadMoleculeDescription(F=F_MoleculesDescriptor)
-    if RandomSeed is not None:
-        random.seed(RandomSeed)
+    MoleculePrototypes = IOfunctions.ReadMoleculeDescription(F=Files['System descriptor'])
+    if Data['Random state'] is not None:
+        random.seed(Data['Random state'])
     else:
         random.seed()    
-    GridTrain = CreateGrid(GridStart, GridEnd, GridSpacing) # trained region bins
-    GridTest = CreateGrid(GridStart, GridEnd, GridSpacing) # non-trained and trained region bins
+    GridTrain = CreateGrid(Data['Grid start'], Data['Grid end'], Data['Grid spacing']) # trained region bins
+    GridTest = CreateGrid(Data['Grid start'], Data['Grid end'], Data['Grid spacing']) # non-trained and trained region bins
     N = np.zeros(shape=(len(GridTest)), dtype=int) # number of points in each grid  
     NTrain = list(np.zeros(shape=(len(GridTrain)), dtype=int)) # count test points
     NTest = list(np.zeros(shape=(len(GridTest)), dtype=int)) # count test points        
-    Records = IOfunctions.ReadRecordMolecules(F_Records, MoleculePrototypes) # Read records
+    Records = IOfunctions.ReadRecordMolecules(Files['Set'], MoleculePrototypes) # Read records
     DMin = 1000 # will be shortest distance
     DMax = 0 # will be most distant distance
     nMolecules = Records[0].nMolecules
@@ -1710,8 +1707,8 @@ def FilterData(F_Records='SET 6.x', F_MoleculesDescriptor = 'MoleculesDescriptor
                 DMax = record.R_Average
             if record.R_Average < DMin:
                 DMin = record.R_Average
-            if record.R_Average >= GridStart:
-                j = int((record.R_Average - GridStart) / GridSpacing)
+            if record.R_Average >= Data['Grid start']:
+                j = int((record.R_Average - Data['Grid start']) / Data['Grid spacing'])
                 if j < len(N):
                     N[j] += 1
         else:
@@ -1719,13 +1716,13 @@ def FilterData(F_Records='SET 6.x', F_MoleculesDescriptor = 'MoleculesDescriptor
                 DMax = record.R_CenterOfMass_Average
             if record.R_CenterOfMass_Average < DMin:
                 DMin = record.R_CenterOfMass_Average
-            if record.R_CenterOfMass_Average >= GridStart:
-                j = int((record.R_CenterOfMass_Average - GridStart) / GridSpacing)
+            if record.R_CenterOfMass_Average >= Data['Grid start']:
+                j = int((record.R_CenterOfMass_Average - Data['Grid start']) / Data['Grid spacing'])
                 if j < len(N):
                     N[j] += 1
 # Estimate number of points per grid
     n = np.asarray(N.nonzero()).reshape(-1) # indices with nonzero records nonzero   
-    nGrids = int(len(n) * ConfidenceInterval)
+    nGrids = int(len(n) * Data['Confidence interval'])
     N_list = list(N)
     N_Reduced = []
     while len(N_Reduced) < nGrids:
@@ -1733,14 +1730,15 @@ def FilterData(F_Records='SET 6.x', F_MoleculesDescriptor = 'MoleculesDescriptor
         N_Reduced.append(N_list[i])
         del(N_list[i])
     nPointsGrid = N_Reduced[-1]
-    nTestPointsGrid = int(nPointsGrid * TestFraction)
+    nTestPointsGrid = int(nPointsGrid * Data['Test fraction'])
     nTotalTrainPointsGrid = nPointsGrid - nTestPointsGrid  
-    nTrainPointsGrid = int(nTotalTrainPointsGrid * TrainFraction)
+    nTrainPointsGrid = int(nTotalTrainPointsGrid * Data['Train fraction'])
     N_list = list(N)    
     i = 0
     while i < len(N_list): # remove regions where there are not enough points
 # trained region        
-        if (library.InInterval(GridTest[i][0], TrainIntervals) != -10) and (library.InInterval(GridTest[i][1], TrainIntervals) != -10):
+        if (library.InInterval(GridTest[i][0], Data['Train intervals']) != -10)\
+            and (library.InInterval(GridTest[i][1], Data['Train intervals']) != -10):
             if N_list[i] < nPointsGrid: # not enough points for training and test, discard
                 del(N_list[i])
                 del(NTrain[i])
@@ -1760,7 +1758,8 @@ def FilterData(F_Records='SET 6.x', F_MoleculesDescriptor = 'MoleculesDescriptor
                 i += 1
     i = 0 # remove remaining train grid that not in training region
     while i < len(GridTrain):
-        if (library.InInterval(GridTrain[i][0], TrainIntervals) != -10) and (library.InInterval(GridTrain[i][1], TrainIntervals) != -10):
+        if (library.InInterval(GridTrain[i][0], Data['Train intervals']) != -10)\
+            and (library.InInterval(GridTrain[i][1], Data['Train intervals']) != -10):
             i += 1
             continue
         else:
@@ -1795,27 +1794,28 @@ def FilterData(F_Records='SET 6.x', F_MoleculesDescriptor = 'MoleculesDescriptor
                     RecordsTest.append(record)
         del(Records[r]) 
 
-    IOfunctions.store_records(F_Train, RecordsTrain) # store trained set
-    IOfunctions.store_records(F_Test, RecordsTest) # store test set
-    IOfunctions.store_average_distances(D_Train, RecordsTrain)
-    IOfunctions.store_average_distances(D_Test, RecordsTest)
+    IOfunctions.store_records(Files['Training set'], RecordsTrain) # store trained set
+    IOfunctions.store_records(Files['Test set'], RecordsTest) # store test set
+    IOfunctions.store_average_distances(Files['COM train'], RecordsTrain)
+    IOfunctions.store_average_distances(Files['COM test'], RecordsTest)
     TestIntervals = [] # Define test regions
-    if TrainIntervals[0][0] != 0:
-        TestIntervals.append((0, TrainIntervals[0][0]))
-    for i in range(0, (len(TrainIntervals)-1), 1):
-        if TrainIntervals[i][1] != TrainIntervals[i+1][0]:
-            TestIntervals.append((TrainIntervals[i][1], TrainIntervals[i+1][0]))
-    if TrainIntervals[-1][1] < GridTest[-1][1]:
-        TestIntervals.append((TrainIntervals[-1][1], GridTest[-1][1]))
+    if Data['Train intervals'][0][0] != 0:
+        TestIntervals.append((0, Data['Train intervals'][0][0]))
+    for i in range(0, (len(Data['Train intervals'])-1), 1):
+        if Data['Train intervals'][i][1] != Data['Train intervals'][i+1][0]:
+            TestIntervals.append((Data['Train intervals'][i][1], Data['Train intervals'][i+1][0]))
+    if Data['Train intervals'][-1][1] < GridTest[-1][1]:
+        TestIntervals.append((Data['Train intervals'][-1][1], GridTest[-1][1]))
     
-    results = {'Initial dataset': F_Records,'Number of molecules per record': nMolecules,\
-               'Train Intervals': TrainIntervals,'Test Intervals': TestIntervals,\
+    results = {'Initial dataset': Files['Set'],'Number of molecules per record': nMolecules,\
+               'Train Intervals': Data['Train intervals'],'Test Intervals': TestIntervals,\
                'Train records number': len(RecordsTrain),'Train Grid': GridTrain,\
                'Test Grid': GridTest, 'Test records number': len(RecordsTest),\
                'Molecule prototypes': MoleculePrototypes, 'Max points per grid': nPointsGrid,\
-               'Train points per grid': nTrainPointsGrid, 'Train Fraction Used': TrainFraction,\
-               'Test points per grid': nTestPointsGrid, 'Confidence Interval used': ConfidenceInterval,\
-               'Training Set': F_Train, 'Test Set': F_Test, 'COM Train': D_Train, 'COM Test': D_Test}
+               'Train points per grid': nTrainPointsGrid, 'Train Fraction Used': Data['Train fraction'],\
+               'Test points per grid': nTestPointsGrid, 'Confidence Interval used': Data['Confidence interval'],\
+               'Training Set': Files['Training set'], 'Test Set': Files['Test set'],\
+               'COM Train': Files['COM train'], 'COM Test': Files['COM test']}
             
     return results
     
@@ -1910,7 +1910,7 @@ def StoreFeatures(F_LinearFeatures, first, last, FeaturesAll, FeaturesReduced, r
     return
 # end of StoreFeatures
 
-def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'): 
+def GenerateFeatures(Filter, Files): 
 
     def CreateDtPList(Distances, Description):
     # make list of distances raised to corresponding power    
@@ -1997,10 +1997,8 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
         for i in range(0, len(FeaturesReduced), 1):
             FeaturesReduced[i].idx.append(i)
         return FeaturesReduced
-    
-    for i in Files.values():
-        EraseFile(i)
-    
+        
+    F_SystemDescriptor = Files['System descriptor']
     Prototypes = IOfunctions.ReadMoleculeDescription(F_SystemDescriptor, keyword='MoleculeDescription')
     Atoms, Molecules = IOfunctions.ReadSystemDescription(F_SystemDescriptor, 'SYSTEM')        
     LinearSingle = IOfunctions.ReadFeatureDescription(F_SystemDescriptor, keyword='LinearSingle')
@@ -2046,8 +2044,8 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
         nAtoms=nAtoms, nAtomTypes=nAtomTypes, nMolecules=nMolecules, Distances=Distances,\
         nDistances=nDistances, nDiTypes=nDiTypes)
     
-    records_train_list = IOfunctions.ReadRecordAtoms(Filter['Training Set'], Atoms)
-    records_test_list = IOfunctions.ReadRecordAtoms(Filter['Test Set'], Atoms)
+    records_train_list = IOfunctions.ReadRecordAtoms(Files['Training set'], Atoms)
+    records_test_list = IOfunctions.ReadRecordAtoms(Files['Test set'], Atoms)
     IOfunctions.StoreEnergy(Files['Response Train'], records_train_list)
     IOfunctions.StoreEnergy(Files['Response Test'], records_test_list)
     
@@ -2122,9 +2120,9 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
         FeaturesGaussianSingleAll = CreateSingleFeaturesAll(DtP_GaussianSingle_list,\
             FeType='Gauss', nDistances=1, nConstants=1)
         FeaturesGaussianSingleReduced = CreateFeaturesReduced(FeaturesGaussianSingleAll)
-        IOfunctions.StoreLinearFeatures(Files['Gaussian Single Train'],\
+        IOfunctions.StoreLinearFeatures(Files['Gaussian Train'],\
             FeaturesGaussianSingleAll, FeaturesGaussianSingleReduced, records_train_list, Atoms)
-        IOfunctions.StoreLinearFeatures(Files['Gaussian Single Test'],\
+        IOfunctions.StoreLinearFeatures(Files['Gaussian Test'],\
             FeaturesGaussianSingleAll, FeaturesGaussianSingleReduced, records_test_list, Atoms)
     else:
         FeaturesGaussianSingleAll = None
@@ -2139,29 +2137,14 @@ def GenerateFeatures(Filter, Files, F_SystemDescriptor='SystemDescriptor.'):
         'FeaturesLinearTripleReduced': FeaturesLinearTripleReduced,\
         'FeaturesExpSingleAll': FeaturesExpSingleAll,\
         'FeaturesExpDoubleAll': FeaturesExpDoubleAll,\
-        'FeaturesGaussianSingleAll': FeaturesGaussianSingleAll,\
-        'FeaturesGaussianSingleReduced': FeaturesGaussianSingleReduced}
+        'FeaturesGaussianAll': FeaturesGaussianSingleAll,\
+        'FeaturesGaussianReduced': FeaturesGaussianSingleReduced}
     
-    IOfunctions.StoreStructure(Files['Structure'], Structure)
+    IOfunctions.StoreStructure(Files['Structure'], Structure) # excel
     
     return Structure  
             
-def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_ENet='ENet path',\
-        F_GA='GA path', UseVIP=False, nVIP=None, FirstAlgorithm='GA', goal=0,\
-        L1_Single=0.7, eps_single=1e-3, n_alphas_single=100, L1=0.7, eps=1e-3,\
-        n_alphas=100, alpha_grid_start=-7, alpha_grid_end=-3, cv=30, MinChromosomeSize=5,\
-        ChromosomeSize=15, StopTime=600, BestFitStopTime=100, BestFitMaxQueue=None, model='Fast',\
-        nIter=500, PopulationSize=100, MutationProbability=0.3, MutationInterval=[1, 3],\
-        EliteFraction=0.4, MutationCrossoverFraction=0.3, CrossoverFractionInterval=[0.6, 0.4],\
-        UseCorrelationMutation=True, MinCorrMutation=0.8, CrossoverMethod='Random',\
-        MutationMethod='Correlated', LinearSolver='sklearn', cond=1e-03,\
-        lapack_driver='gelsy', UseCorrelationBestFit=False, MinCorrBestFit=0.8,\
-        PrintInterval=50, RandomSeed=None, verbose=True):
-
-# 'sklearn', 'scipy', 'statsmodels'
-# 'gelsd', 'gelsy', 'gelss', for scipy solver
-# 'Random' or 'Best'
-# 'Random' or 'Correlated'
+def GetFitGA(FilterDataResults, Files, Data, GenerateFeaturesResults):
     
     Y_train = IOfunctions.ReadCSV(Files['Response Train'])
     Y_test = IOfunctions.ReadCSV(Files['Response Test'])   
@@ -2213,32 +2196,34 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
     else: # no linear features
         X_Linear_test = None   
         
-    if UseVIP and X_LinearSingle_train is not None:
-        if nVIP is None:
+    if Data['Use VIP'] and X_LinearSingle_train is not None:
+        if Data['Number of VIP features'] is None:
             if GenerateFeaturesResults.System.nAtoms == 6: # two water molecules system
                 nVIP = 5
             if GenerateFeaturesResults.System.nAtoms == 9: # three water molecules system
                 nVIP = 3
+        else:
+            nVIP = Data['Number of VIP features']
 
         t = time()       
-        ga = genetic.GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
-            MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
-            EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
-            CrossoverFractionInterval=CrossoverFractionInterval, PrintInterval=PrintInterval,\
-            StopTime=StopTime, RandomSeed=RandomSeed, verbose=verbose,\
-            UseCorrelationMutation=UseCorrelationMutation, MinCorrMutation=MinCorrMutation,\
-            UseCorrelationBestFit=UseCorrelationBestFit, MinCorrBestFit=MinCorrBestFit)   
+        ga = genetic.GA(PopulationSize=Data['GA population size'], ChromosomeSize=Data['GA chromosome size'],\
+            MutationProbability=Data['GA mutation probability'], MutationInterval=Data['GA mutation interval'],\
+            EliteFraction=Data['GA elite fraction'], MutationCrossoverFraction=Data['GA mutation crossover fraction'],\
+            CrossoverFractionInterval=Data['GA crossover fraction interval'], PrintInterval=Data['GA generations per output'],\
+            StopTime=Data['GA stop time'], RandomSeed=Data['Random state'], verbose=Data['GA verbose'],\
+            UseCorrelationMutation=Data['GA use correlation for mutation'], MinCorrMutation=Data['GA min correlation for mutation'],\
+            UseCorrelationBestFit=Data['A use correlation'], MinCorrBestFit=Data['A min correlation'])   
 
-        if (FirstAlgorithm == 'ENet'):
+        if (Data['First algorithm'] == 'ENet'):
             print('Only linear features will be considered')
-            Alphas = np.logspace(alpha_grid_start, alpha_grid_end, num=n_alphas_single,\
+            Alphas = np.logspace(Data['ENet alpha min single'], Data['ENet alpha max single'], num=Data['ENet number of alphas single'],\
                 endpoint=True, base=10.0, dtype=float)
-            enet = regression.ENet(L1=L1_Single, eps=eps_single, nAlphas=None,\
-                alphas=Alphas, random_state=None)
+            enet = regression.ENet(L1=Data['ENet ratio single'], nAlphas=None,\
+                alphas=Alphas, random_state=Data['Random state'])
             print('Number of features go to elastic net regularisation = ', X_LinearSingle_train.shape[1])
-            enet.fit(X_LinearSingle_train, Y_train, VIP_idx=None, Criterion='Mallow', normalize=True,\
-                max_iter=1000, tol=0.0001, cv=cv, n_jobs=1, selection='random', verbose=verbose)
-            enet.plot_path(1, F_ENet='{} {}'.format(F_ENet, 'Single.png'))
+            enet.fit(X_LinearSingle_train, Y_train, VIP_idx=None, Criterion=Data['ENet criterion'], normalize=True,\
+                max_iter=Data['ENet max number of iterations single'], tol=0.0001, cv=Data['ENet cv number single'], n_jobs=1, selection='random', verbose=Data['ENet verbose'])
+            enet.plot_path(1, F_ENet=Files['ENet path single'], FigSize=(4,3), FileFormat='eps')
             idx = enet.idx
             Gene_list = []
             for i in idx:
@@ -2260,25 +2245,24 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
             t_sec = time() - t
             print("\n", 'Elastic Net worked ', t_sec, 'sec')  
             print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
-        if FirstAlgorithm == 'GA':
+        if Data['First algorithm'] == 'GA':
             print('Genetic Algorithm for all features')
             ga.fit(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_LinearSingle_train,\
                 y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_LinearSingle_test,\
                 y_test=Y_test, idx_exp=None, idx_lin=None, VIP_idx_exp=None,\
-                VIP_idx_lin=None, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
-                LinearSolver=LinearSolver, cond=cond, lapack_driver=lapack_driver, nIter=nIter)
+                VIP_idx_lin=None, CrossoverMethod=Data['GA crossover method'], MutationMethod=Data['GA mutation method'],\
+                LinearSolver=Data['LR linear solver'], cond=Data['LR scipy condition'], lapack_driver=Data['LR scipy driver'], nIter=Data['GA max generations'])
             t_sec = time() - t
             print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
             chromosome = ga.BestChromosome        
             print("\n", 'Features left for Backward Elimination and Search Alternative = ',\
                   chromosome.Size)
-            ga.PlotChromosomes(2, ga.BestChromosomes, XAxis='time', YAxis='R2 Train',\
-                PlotType='Scatter', F=F_GA)
+
         while chromosome.Size > 1:
             if chromosome.Size <= ga.ChromosomeSize:
                 chromosome = ga.BestFit2(chromosome, x_expD=X_ExpSingleD_train,\
                     x_expDn=X_ExpSingleDn_train, x_lin=X_Linear_train, y=Y_train,\
-                    goal=goal, epoch=BestFitStopTime, q_max=BestFitMaxQueue, model=model, verbose=True)            
+                    goal=Data['A goal'], epoch=Data['A stop time'], q_max=Data['A max queue'], model=Data['A selection criterion'], verbose=Data['A verbose'])            
                 chromosome.score(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_LinearSingle_train,\
                     y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_LinearSingle_test,\
                     y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver) 
@@ -2287,24 +2271,25 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
                 chromosome_copy.print_score()
                 ga.DecreasingChromosomes.append(chromosome_copy)
             chromosome = ga.RemoveWorstGene(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train,\
-                x_lin=X_LinearSingle_train, y=Y_train, verbose=True)
+                x_lin=X_LinearSingle_train, y=Y_train, verbose=Data['BE verbose'])
         t_sec = time() - t
-        ga.PlotChromosomes(3, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE Train',\
-            PlotType='Line', F='Single')
-        ga.PlotChromosomes(4, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2 Adjusted Train',\
-            PlotType='Line', F='Single')
-        
         for i in range(0, len(ga.BestFitPath), 1): # get fitness from test set
             ga.BestFitPath[i].score(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_LinearSingle_train,\
                     y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_LinearSingle_test,\
                     y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)        
-        ga.PlotChromosomes2('GA PATH Single', 3, ga.DecreasingChromosomes, XAxis='Nonzero',\
-            PlotType='Line', figsize=(4, 3), marker_size=1, line_width=0.5)
-        ga.PlotChromosomes2('BF PATH Single', 4, ga.BestFitPath, XAxis='Time',\
-            PlotType='Scatter', figsize=(4, 3), marker_size=1, line_width=0.5)
+
+        ga.PlotChromosomes2(Files['GA path RMSE single'], 2, ga.DecreasingChromosomes,\
+            XAxis='Nonzero', YAxis='RMSE', Title=None, PlotType='Line',\
+            figsize=Data['Figure size'], marker_size=5, line_width=1, FileFormat='eps')
+        ga.PlotChromosomes2(Files['GA path R2 single'], 3, ga.DecreasingChromosomes,\
+            XAxis='Nonzero', YAxis='R2', Title=None, PlotType='Line', FileFormat='eps',\
+            figsize=Data['Figure size'], marker_size=5, line_width=1)           
+        ga.PlotChromosomes2(Files['BF path RMSE single'], 4, ga.BestFitPath, XAxis='Time',\
+            YAxis='RMSE', Title=None, PlotType='Scatter', figsize=Data['Figure size'],\
+            marker_size=5, line_width=1, FileFormat='eps')
     
         print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
-        ga.Results_to_xlsx('{} {}'.format(F_xlsx, 'Single.xlsx'), \
+        ga.Results_to_xlsx('{} {}'.format(Files['Fit'], 'Single.xlsx'), \
             FeaturesNonlinear=GenerateFeaturesResults['FeaturesExpSingleAll'],\
             FeaturesAll=GenerateFeaturesResults['FeaturesLinearSingleAll'],\
             FeaturesReduced=GenerateFeaturesResults['FeaturesLinearSingleReduced'],\
@@ -2313,36 +2298,38 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
             if i.Size == nVIP:
                 VIP_idx_exp = i.get_genes_list(Type=1)
                 VIP_idx_lin = i.get_genes_list(Type=0)
+                break
     else:
         VIP_idx_exp = []
         VIP_idx_lin = []      
 # proceed all features 
     Print('{} {} {} {}'.format('VIP linear:', VIP_idx_lin, 'VIP exponential:', VIP_idx_exp), RED)
-    t = time()           
-    ga = genetic.GA(PopulationSize=PopulationSize, ChromosomeSize=ChromosomeSize,\
-        MutationProbability=MutationProbability, MutationInterval=MutationInterval,\
-        EliteFraction=EliteFraction, MutationCrossoverFraction=MutationCrossoverFraction,\
-        CrossoverFractionInterval=CrossoverFractionInterval, PrintInterval=PrintInterval,\
-        StopTime=StopTime, RandomSeed=RandomSeed, verbose=verbose,\
-        UseCorrelationMutation=UseCorrelationMutation, MinCorrMutation=MinCorrMutation,\
-        UseCorrelationBestFit=UseCorrelationBestFit, MinCorrBestFit=MinCorrBestFit)
+    t = time()    
+    ga = genetic.GA(PopulationSize=Data['GA population size'], ChromosomeSize=Data['GA chromosome size'],\
+        MutationProbability=Data['GA mutation probability'], MutationInterval=Data['GA mutation interval'],\
+        EliteFraction=Data['GA elite fraction'], MutationCrossoverFraction=Data['GA mutation crossover fraction'],\
+        CrossoverFractionInterval=Data['GA crossover fraction interval'], PrintInterval=Data['GA generations per output'],\
+        StopTime=Data['GA stop time'], RandomSeed=Data['Random state'], verbose=Data['GA verbose'],\
+        UseCorrelationMutation=Data['GA use correlation for mutation'], MinCorrMutation=Data['GA min correlation for mutation'],\
+        UseCorrelationBestFit=Data['A use correlation'], MinCorrBestFit=Data['A min correlation'])   
+       
 # linear only for now
-#    idx = list(range(0, X_Linear_train.shape[1], 1))
-#    ga.n_lin = X_Linear_train.shape[1]   
-    if (FirstAlgorithm == 'ENet'):
+    if (Data['First algorithm'] == 'ENet'):
         print('Only linear features will be considered')
-        Alphas = np.logspace(alpha_grid_start, alpha_grid_end, num=n_alphas,\
+        Alphas = np.logspace(Data['ENet alpha min'], Data['ENet alpha max'], num=Data['ENet number of alphas'],\
             endpoint=True, base=10.0, dtype=float)
-        enet = regression.ENet(L1=L1, eps=eps, nAlphas=None, alphas=Alphas, random_state=None)
+        enet = regression.ENet(L1=Data['ENet ratio'], nAlphas=None,\
+            alphas=Alphas, random_state=Data['Random state'])
         print('Number of features go to elastic net regularisation = ', X_Linear_train.shape[1])
-        enet.fit(X_Linear_train, Y_train, VIP_idx=VIP_idx_lin, Criterion='Mallow', normalize=True,\
-            max_iter=1000, tol=0.0001, cv=cv, n_jobs=1, selection='random', verbose=verbose)        
-        enet.plot_path(2, F_ENet='{} {}'.format(F_ENet, '.png'))
+        enet.fit(X_LinearSingle_train, Y_train, VIP_idx=None, Criterion=Data['ENet criterion'],\
+            normalize=True, max_iter=Data['ENet max number of iterations'], tol=0.0001,\
+            cv=Data['ENet cv number'], n_jobs=1, selection='random', verbose=Data['ENet verbose'])               
+        enet.plot_path(2, F_ENet=Files['ENet path'], FigSize=(4,3), FileFormat='eps')
         idx = enet.idx
         Gene_list = []
         for i in idx:
-            Gene_list.append(genetic.GA.Gene(i, Type=0))
-        chromosome = ga.Chromosome(Gene_list)
+            Gene_list.append(genetic.Gene(i, Type=0))
+        chromosome = genetic.Chromosome(Gene_list)
         chromosome.erase_score()
         chromosome.score(x_expD_train=None, x_expDn_train=None, x_lin_train=X_Linear_train,\
             y_train=Y_train, x_expD_test=None, x_expDn_test=None, x_lin_test=X_Linear_test,\
@@ -2351,27 +2338,31 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
         chromosome.rank_sort(x_expD=None, x_expDn=None, x_lin=X_Linear_train, y=Y_train,\
             LinearSolver=ga.LinearSolver, cond=ga.cond, lapack_driver=ga.lapack_driver)        
         t_sec = time() - t
+        ga.idx_lin = list(range(0, X_Linear_train.shape[1], 1))
+        ga.n_lin = len(ga.idx_lin)
+        x, _ = regression.Standardize(X_Linear_train)
+        ga.C = np.cov(x, rowvar=False, bias=True)
         print("\n", 'Elastic Net worked ', t_sec, 'sec')  
         print("\n", 'Features left for Backward Elimination and Search Alternative = ', len(idx))
-    if FirstAlgorithm == 'GA':        
+    if Data['First algorithm'] == 'GA':        
         print('Genetic Algorithm for all features')
         ga.fit(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_Linear_train, y_train=Y_train,\
             x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_Linear_test, y_test=Y_test,\
             idx_exp=None, idx_lin=None, VIP_idx_exp=VIP_idx_exp,\
-            VIP_idx_lin=VIP_idx_lin, CrossoverMethod=CrossoverMethod, MutationMethod=MutationMethod,\
-            LinearSolver=LinearSolver, cond=cond, lapack_driver=lapack_driver, nIter = nIter)
+            VIP_idx_lin=VIP_idx_lin, CrossoverMethod=Data['GA crossover method'], MutationMethod=Data['GA mutation method'],\
+            LinearSolver=Data['LR linear solver'], cond=Data['LR scipy condition'], lapack_driver=Data['LR scipy driver'], nIter = Data['GA max generations'])
+
         t_sec = time() - t
         print("\n", 'Genetic Algorithm worked ', t_sec, 'sec')
         chromosome = copy.deepcopy(ga.BestChromosome)
         print("\n", 'Features left for Backward Elimination and Search Alternative = ',\
               chromosome.Size)
-        ga.PlotChromosomes(3, ga.BestChromosomes, XAxis='time', YAxis='R2 Train',\
-            PlotType='Scatter', F=F_GA)          
+            
     ga.start_time = time()
-    while chromosome.Size >= MinChromosomeSize:
+    while chromosome.Size >= Data['BE min chromosome size']:
         if chromosome.Size <= ga.ChromosomeSize:
             chromosome = ga.BestFit2(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train, x_lin=X_Linear_train,\
-                y=Y_train, goal=goal, epoch=BestFitStopTime, q_max=BestFitMaxQueue, model=model, verbose=True)
+                y=Y_train, goal=Data['A goal'], epoch=Data['A stop time'], q_max=Data['A max queue'], model=Data['A selection criterion'], verbose=Data['A verbose'])
             chromosome.score(x_expD_train=X_ExpSingleD_train, x_expDn_train=X_ExpSingleDn_train, x_lin_train=X_Linear_train,\
                 y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_Linear_test,\
                 y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond,\
@@ -2391,13 +2382,15 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
             y_train=Y_train, x_expD_test=X_ExpSingleD_test, x_expDn_test=X_ExpSingleDn_test, x_lin_test=X_Linear_test,\
             y_test=Y_test, LinearSolver=ga.LinearSolver, cond=ga.cond,\
             lapack_driver=ga.lapack_driver)        
-    ga.PlotChromosomes2('GA PATH', 5, ga.DecreasingChromosomes, XAxis='Nonzero',\
-        PlotType='Line', figsize=(4, 3), marker_size=1, line_width=0.5)
-    ga.PlotChromosomes2('BF PATH', 6, ga.BestFitPath, XAxis='Time',\
-        PlotType='Scatter', figsize=(4, 3), marker_size=1, line_width=0.5)
+    ga.PlotChromosomes2(Files['GA path RMSE'], 5, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='RMSE',\
+        Title=None, PlotType='Line', figsize=Data['Figure size'], marker_size=5, line_width=1, FileFormat='eps')
+    ga.PlotChromosomes2(Files['GA path R2'], 6, ga.DecreasingChromosomes, XAxis='Nonzero', YAxis='R2',\
+        Title=None, PlotType='Line', figsize=Data['Figure size'], marker_size=5, line_width=1, FileFormat='eps')           
+    ga.PlotChromosomes2(Files['BF path RMSE'], 7, ga.BestFitPath, XAxis='Time', YAxis='RMSE',\
+        Title=None, PlotType='Scatter', figsize=Data['Figure size'], marker_size=7, line_width=1, FileFormat='eps')
+    
     print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
-
-            
+# append ethalon to the end of list            
     gene0 = genetic.Gene(0, Type=0, p_Value=None, rank=None)
     gene1 = genetic.Gene(15, Type=0, p_Value=None, rank=None)
     gene2 = genetic.Gene(30, Type=0, p_Value=None, rank=None)
@@ -2410,10 +2403,11 @@ def GetFitGA(FilterDataResults, Files, GenerateFeaturesResults, F_xlsx='Fit', F_
         lapack_driver=ga.lapack_driver)
     if etalon is not None:
         ga.BestFitPath.append(etalon)  
-        ga.DecreasingChromosomes.append(etalon)
-    ga.Results_to_xlsx('{} {}'.format(F_xlsx, '.xlsx'), \
+        ga.DecreasingChromosomes.append(etalon)   
+    ga.Results_to_xlsx(Files['Fit'],\
         FeaturesNonlinear=GenerateFeaturesResults['FeaturesExpSingleAll'],\
-        FeaturesAll=FeaturesLinearAll, FeaturesReduced=FeaturesLinearReduced,\
+        FeaturesAll=FeaturesLinearAll,\
+        FeaturesReduced=FeaturesLinearReduced,\
         X_Linear=X_Linear_train)
     return ga
 
@@ -2621,29 +2615,45 @@ class NodeHill(dict):
                 best = self.children[i]
         return best
 
-def GetFitGP5(Files, length_scale_start, noise_level_start, length_scale_bounds,\
-    noise_level_bounds, length_scale_inc=0.1, noise_level_inc=0.1,\
-    length_scale_inc_min=0.01, noise_level_inc_min=0.01, simulation=None, random_state=None):
+def GetFitGP5(Files, Data):
     
     def f(x, y):
         kernel = RBF(length_scale=x, length_scale_bounds=None) +\
             WhiteKernel(noise_level=y, noise_level_bounds=None)
         gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
             n_restarts_optimizer=0, normalize_y=True, copy_X_train=True,\
-            random_state=random_state)
+            random_state=Data['Random state'])
         gp.fit(X_Gaussian_train, Y_train) # set from distances
         gpR2 = gp.score(X_Gaussian_test, Y_test)
         return gpR2
-
+    
     def hill(length_scale_start, noise_level_start):
-        Length_scale_inc = length_scale_inc * (length_scale_bounds[0] + length_scale_bounds[1]) / 2
-        Length_scale_inc_min = length_scale_inc_min * (length_scale_bounds[0] + length_scale_bounds[1]) / 2
-        Noise_level_inc = noise_level_inc * (noise_level_bounds[0] + noise_level_bounds[1]) / 2
-        Noise_level_inc_min = noise_level_inc_min * (noise_level_bounds[0] + noise_level_bounds[1]) / 2        
+
+        def get_root(node):
+            while node.parent is not None:
+                node = node.parent
+            return node
+        
+        fitness = []
+        length_scale = []
+        noise_level = []
+        
+        def preorderTraversal(node):
+            fitness.append(node.fitness)
+            length_scale.append(node.length_scale)
+            noise_level.append(node.noise_level)
+            for child in node.children:
+                preorderTraversal(child)
+            return
+
+        Length_scale_inc = Data['GP length scale increment'] * (Data['GP length scale bounds'][0] + Data['GP length scale bounds'][1]) / 2
+        Length_scale_inc_min = Data['GP min length scale increment'] * (Data['GP length scale bounds'][0] + Data['GP length scale bounds'][1]) / 2
+        Noise_level_inc = Data['GP noise level increment'] * (Data['GP noise level bounds'][0] + Data['GP noise level bounds'][1]) / 2
+        Noise_level_inc_min = Data['GP min noise level increment'] * (Data['GP noise level bounds'][0] + Data['GP noise level bounds'][1]) / 2        
         current = NodeHill(parent=None, length_scale=length_scale_start,\
             noise_level=noise_level_start, length_scale_inc=Length_scale_inc,\
-            noise_level_inc=Noise_level_inc, length_scale_bounds=length_scale_bounds,\
-            noise_level_bounds=noise_level_bounds, function=f)
+            noise_level_inc=Noise_level_inc, length_scale_bounds=Data['GP length scale bounds'],\
+            noise_level_bounds=Data['GP noise level bounds'], function=f)
         count = 0 
         while True:
             count += 1
@@ -2664,39 +2674,47 @@ def GetFitGP5(Files, length_scale_start, noise_level_start, length_scale_bounds,
                     current.noise_level_inc = Noise_level_inc
                     Finish = False
                 if Finish:
-                    return current, count
+                    root = get_root(current)
+                    preorderTraversal(root)
+                    path = {'R2': fitness, 'length_scale': length_scale, 'noise_level': noise_level}
+                    return current, count, path
                 else:
                     continue # with old node but smaller intervals
             else:
                 current = successor
     
     print('Gaussian started') 
-    X_Gaussian_train = IOfunctions.ReadCSV(Files['Gaussian Single Train'])
-    X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Single Test'])
+    X_Gaussian_train = IOfunctions.ReadCSV(Files['Gaussian Train'])
+    X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Test'])
     Y_train = IOfunctions.ReadCSV(Files['Response Train'])
     Y_test = IOfunctions.ReadCSV(Files['Response Test']) 
     nodes = []
-    node, count = hill(length_scale_start, noise_level_start)
+    node, count, Path = hill(Data['GP initial length scale'], Data['GP initial noise level'])
     nodes.append(node)
-    if simulation is not None:
-        for i in range(0, 10, 1):
-            length_scale_start = random.random() * (length_scale_bounds[1] - length_scale_bounds[0]) + length_scale_bounds[0]
-            noise_level_start = random.random() * (noise_level_bounds[1] - noise_level_bounds[0]) + noise_level_bounds[0]    
-            node, count = hill(length_scale_start, noise_level_start)
+    if Data['GP hill simulations'] is not None:
+        for i in range(0, Data['GP hill simulations'], 1):
+            length_scale_start = random.random() * (Data['GP length scale bounds'][1] - Data['GP length scale bounds'][0]) + Data['GP length scale bounds'][0]
+            noise_level_start = random.random() * (Data['GP noise level bounds'][1] - Data['GP noise level bounds'][0]) + Data['GP noise level bounds'][0]    
+            node, count, path = hill(length_scale_start, noise_level_start)
             nodes.append(node)
+            Path['R2'].extend(path['R2'])
+            Path['length_scale'].extend(path['length_scale'])
+            Path['noise_level'].extend(path['noise_level'])
     best_node = nodes.pop(0)
     while len(nodes) > 0:
         node = nodes.pop(0)
         if node.fitness > best_node.fitness:
             best_node = node                 
-    kernel = RBF(length_scale=best_node.length_scale, length_scale_bounds=length_scale_bounds) +\
-        WhiteKernel(noise_level=best_node.noise_level, noise_level_bounds=noise_level_bounds)
+    kernel = RBF(length_scale=best_node.length_scale, length_scale_bounds=Data['GP length scale bounds']) +\
+        WhiteKernel(noise_level=best_node.noise_level, noise_level_bounds=Data['GP noise level bounds'])
     gp = GaussianProcessRegressor(kernel=kernel, alpha=0, optimizer=None,\
         n_restarts_optimizer=0, normalize_y=True, copy_X_train=True,\
-        random_state=random_state)
-    gp.fit(X_Gaussian_train, Y_train) # set from distances    
-    
-    return gp
+        random_state=Data['Random state'])
+    gp.fit(X_Gaussian_train, Y_train) # set from distances   
+    gpR2 = gp.score(X_Gaussian_test, Y_test)
+    Print('{} {} {} {} {} {}'.format('Best Gaussian R2:', str(gpR2), 'length_scale:',\
+          best_node.length_scale, 'noise_level:', best_node.noise_level), RED)
+    return gp, Path
 
 def EraseFile(F):
     try:        

@@ -2,6 +2,26 @@
 # p - number of variables
 # n - number of observations
 # adjusted_R2 = 1 - (1-R2)*(y.size-1)/(y.size-x.shape[1]-1)
+"""
+A=[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,0,0]]
+B = [1,1,1,1,1]
+W = [1,2,3,4,5]
+W = np.sqrt(np.diag(W))
+Aw = np.dot(W,A)
+Bw = np.dot(B,W)
+X = np.linalg.lstsq(Aw, Bw)
+
+OLS
+from scipy import linalg
+w1 = linalg.lstsq(X, y)[0]
+print w1
+
+WLS
+weights = np.linspace(1, 2, N)
+Xw = X * np.sqrt(weights)[:, None]
+yw = y * np.sqrt(weights)
+print linalg.lstsq(Xw, yw)[0]
+"""
 
 from scipy.linalg import lstsq
 from sklearn.preprocessing import StandardScaler
@@ -138,7 +158,7 @@ def get_Mallow(idx_nonlin, idx_lin, x_nonlin, x_lin, y, MSEall=None, MSEp=None):
         if MSEall is None: # calculate MSE for all features using linear regression only
             lr = LR(normalize=True, LinearSolver='sklearn')
             lr.fit(x_lin, y)
-            MSEall = lr.MSE            
+            MSEall = lr.MSE_Train            
         if MSEp is None: # calculate MSE for reduced set of features using linear regression only
             results = fit_linear(idx_lin, x_lin, y, normalize=True, LinearSolver='sklearn')      
             MSEp = results['MSE Train']
@@ -150,9 +170,9 @@ def get_Mallow(idx_nonlin, idx_lin, x_nonlin, x_lin, y, MSEall=None, MSEp=None):
         if MSEall is None: # calculate MSE for all features using non-linear regression        
             r = expRegression()
             r.fit(x_nonlin, x_lin, y, jac=None, c0=None)
-            if r.MSE is None:
+            if r.MSE_Train is None:
                 return None, None, None
-            MSEall = r.MSE
+            MSEall = r.MSE_Train
         if MSEp is None:
             results = fit_exp(idx_nonlin, idx_lin, x_nonlin, x_lin, y,\
                 NonlinearFunction='exp', jac=None, c0=None)    
@@ -575,12 +595,12 @@ class ENet(dict):
         self.idx = nonzero_idx
         return
     
-    def plot_path(self, fig_number, F_ENet):
+    def plot_path(self, fig_number, F_ENet=None, FigSize=(4,3), FileFormat='eps'):
         nonzero = []
         for i in range(0, self.coefs.shape[1], 1):
             nonzero_count = np.count_nonzero(self.coefs[:, i])
             nonzero.append(nonzero_count)
-        fig = plt.figure(fig_number, figsize = (19, 10))
+        fig = plt.figure(fig_number, figsize = FigSize)
         plt.subplot(211)
         subplot11 = plt.gca()
         plt.plot(self.alphas, nonzero, ':')
@@ -597,8 +617,10 @@ class ENet(dict):
         plt.ylabel('MSE')
         plt.title('Mean squared error vs. regularization strength')
         plt.show()
-        plt.savefig(F_ENet, bbox_inches='tight')
-        plt.close(fig)
+        if F_ENet is not None:
+            F = '{}{}{}'.format(F_ENet, '.', FileFormat)
+            plt.savefig(F, bbox_inches='tight', format=FileFormat, dpi=1000)
+            plt.close(fig) 
         return
         
     

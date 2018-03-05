@@ -772,7 +772,7 @@ def StoreFeatures(writer, sheet_name, Features, Reduced=False):
     return
     
 def StoreStructure(F_xls, Structure):
-    writer = pd.ExcelWriter(F_xls, engine='xlsxwriter')  
+    writer = pd.ExcelWriter('{}{}'.format(F_xls, '.xlsx'), engine='xlsxwriter')  
     workbook = writer.book
     format_normal = workbook.add_format({'align':'center','valign':'vcenter'})
     format_red = workbook.add_format({'bold': True,'align':'center','valign':'vcenter','font_color': 'red'})
@@ -817,7 +817,7 @@ def StoreStructure(F_xls, Structure):
     StoreFeatures(writer, 'LinearTripleReduced', Structure['FeaturesLinearTripleReduced'], Reduced=True)
     StoreFeatures(writer, 'ExpSingle', Structure['FeaturesExpSingleAll'], Reduced=False)
     StoreFeatures(writer, 'ExpDouble', Structure['FeaturesExpDoubleAll'], Reduced=False)
-    StoreFeatures(writer, 'Gaussian', Structure['FeaturesGaussianSingleAll'], Reduced=False)
+    StoreFeatures(writer, 'Gaussian', Structure['FeaturesGaussianAll'], Reduced=False)
     writer.save()     
     return
 
