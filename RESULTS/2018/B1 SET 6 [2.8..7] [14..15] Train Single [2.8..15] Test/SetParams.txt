@@ -1,0 +1,18 @@
+Initial dataset : SET 6.x
+Number of molecules per record : 2
+Train Intervals : [(2.8, 5), (14, 15)]
+Test Intervals : [(0, 2.8), (5, 14)]
+Train records number : 1125
+Train Grid : [(2.8, 3.0), (3.0, 3.2), (3.2, 3.4), (3.4, 3.6), (3.6, 3.8), (3.8, 4.0), (4.0, 4.2), (4.2, 4.4), (4.4, 4.6), (4.6, 4.8), (14.0, 14.2), (14.2, 14.4), (14.4, 14.6), (14.6, 14.8), (14.8, 15.0)]
+Test Grid : [(2.8, 3.0), (3.0, 3.2), (3.2, 3.4), (3.4, 3.6), (3.6, 3.8), (3.8, 4.0), (4.0, 4.2), (4.2, 4.4), (4.4, 4.6), (4.6, 4.8), (5.0, 5.2), (5.2, 5.4), (5.4, 5.6), (5.6, 5.8), (5.8, 6.0), (6.0, 6.2), (6.2, 6.4), (6.4, 6.6), (6.6, 6.8), (6.8, 7.0), (7.0, 7.2), (7.2, 7.4), (7.4, 7.6), (7.6, 7.8), (7.8, 8.0), (8.0, 8.2), (8.2, 8.4), (8.4, 8.6), (8.6, 8.8), (8.8, 9.0), (9.0, 9.2), (9.2, 9.4), (9.4, 9.6), (9.6, 9.8), (9.8, 10.0), (10.0, 10.2), (10.2, 10.4), (10.4, 10.6), (10.6, 10.8), (10.8, 11.0), (11.0, 11.2), (11.2, 11.4), (11.4, 11.6), (11.6, 11.8), (11.8, 12.0), (12.0, 12.2), (12.2, 12.4), (12.4, 12.6), (12.6, 12.8), (12.8, 13.0), (13.0, 13.2), (13.2, 13.4), (13.4, 13.6), (13.6, 13.8), (13.8, 14.0), (14.0, 14.2), (14.2, 14.4), (14.4, 14.6), (14.6, 14.8), (14.8, 15.0)]
+Test records number : 1080
+Molecule prototypes : [        Atoms: [         Symbol: 'O'          Index: 0         AtType: 0 MolecularIndex: 0   AtTypeDigits: 1           Mass: 15.999         Radius: 0.6          Bonds: [1, 2]              x: 0.0              y: 0.0              z: 0.0,          Symbol: 'H'          Index: 1         AtType: 1 MolecularIndex: 0   AtTypeDigits: 1           Mass: 1.008         Radius: 0.25          Bonds: [0]              x: 0.58584290449803              y: 0.75799214458286              z: 0.0,          Symbol: 'H'          Index: 2         AtType: 1 MolecularIndex: 0   AtTypeDigits: 1           Mass: 1.008         Radius: 0.25          Bonds: [0]              x: 0.58584290449803              y: -0.75799214458286              z: 0.0]       nAtoms: 3         Name: 'Water'        Bonds: [(0, 1), (0, 2)]    AtomIndex: [0, 1, 2] CenterOfMass:  x: 0.06555977216031243 y: 0.0 z: 0.0         Mass: 18.015,         Atoms: [         Symbol: 'O'          Index: 3         AtType: 0 MolecularIndex: 1   AtTypeDigits: 1           Mass: 15.999         Radius: 0.6          Bonds: [4, 5]              x: 0.0              y: 0.0              z: 0.0,          Symbol: 'H'          Index: 4         AtType: 1 MolecularIndex: 1   AtTypeDigits: 1           Mass: 1.008         Radius: 0.25          Bonds: [3]              x: 0.58584290449803              y: 0.75799214458286              z: 0.0,          Symbol: 'H'          Index: 5         AtType: 1 MolecularIndex: 1   AtTypeDigits: 1           Mass: 1.008         Radius: 0.25          Bonds: [3]              x: 0.58584290449803              y: -0.75799214458286              z: 0.0]       nAtoms: 3         Name: 'Water'        Bonds: [(3, 4), (3, 5)]    AtomIndex: [3, 4, 5] CenterOfMass:  x: 0.06555977216031243 y: 0.0 z: 0.0         Mass: 18.015]
+Max points per grid : 93
+Train points per grid : 75
+Train Fraction Used : 1
+Test points per grid : 18
+Confidence Interval used : 0.95
+Training Set : Training Set.x
+Test Set : Test Set.x
+COM Train : COM Train.csv
+COM Test : COM Test.csv
