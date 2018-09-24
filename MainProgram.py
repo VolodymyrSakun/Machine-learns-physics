@@ -31,7 +31,7 @@ if __name__ == '__main__':
             'Gaussian Train': 'GaussianTrain.csv',\
             'Gaussian Test': 'GaussianTest.csv',\
             'Structure': 'Structure',\
-            'Set': 'SET 1.x',\
+            'Set': 'SET 6.x',\
             'System descriptor': 'SystemDescriptor.',\
             'Training set': 'Training Set.x',\
             'Test set': 'Test Set.x',\
@@ -60,9 +60,9 @@ if __name__ == '__main__':
             'Plot energy': 'Energy'}
     
     Data = {'Proceed fractions': False,\
-            'Train intervals': [(0, 20)],\
-            'Grid start': 0,\
-            'Grid end': 20,\
+            'Train intervals': [(2.8, 5.6)],\
+            'Grid start': 2.8,\
+            'Grid end': 5.6,\
             'Grid spacing': 0.2,\
             'Confidence interval': 0.95,\
             'Test fraction': 0.2,\
@@ -70,7 +70,7 @@ if __name__ == '__main__':
             'Train fractions': np.linspace(0.2, 1, 9, endpoint=True, dtype=float),\
             'Random state': 1001,\
             'Figure file format': 'png',\
-            'Figure size': (4, 3),\
+            'Figure size': (19, 10),\
             'Use VIP': False,\
             'Number of VIP features': 5,\
             # ENet or GA

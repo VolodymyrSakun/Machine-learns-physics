@@ -12,7 +12,7 @@ H,H,intramolecular:
 &endLinearSingleDistances
 
 &LinearDoubleDistances
-LinearDoubleDistancesInclude=True
+LinearDoubleDistancesInclude=False
 &LinearDoubleDistancesDescription
 O,O,intermolecular: -1,-2,-3,-4,-5,-6
 O,H,intermolecular: -1,-2,-3,-4,-5,-6
