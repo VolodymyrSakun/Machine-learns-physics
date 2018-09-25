@@ -1,0 +1,18 @@
+Train Fraction Used : 1
+Train points per grid : 78
+Molecule prototypes : [        Atoms: [              x: 0.0   AtTypeDigits: 1              z: 0.0          Index: 0              y: 0.0 MolecularIndex: 0         Symbol: 'O'         AtType: 0          Bonds: [1, 2]         Radius: 0.6           Mass: 15.999,               x: 0.58584290449803   AtTypeDigits: 1              z: 0.0          Index: 1              y: 0.75799214458286 MolecularIndex: 0         Symbol: 'H'         AtType: 1          Bonds: [0]         Radius: 0.25           Mass: 1.008,               x: 0.58584290449803   AtTypeDigits: 1              z: 0.0          Index: 2              y: -0.75799214458286 MolecularIndex: 0         Symbol: 'H'         AtType: 1          Bonds: [0]         Radius: 0.25           Mass: 1.008]        Bonds: [(0, 1), (0, 2)] CenterOfMass:  z: 0.0 x: 0.06555977216031243 y: 0.0    AtomIndex: [0, 1, 2]         Name: 'Water'       nAtoms: 3         Mass: 18.015,         Atoms: [              x: 0.0   AtTypeDigits: 1              z: 0.0          Index: 3              y: 0.0 MolecularIndex: 1         Symbol: 'O'         AtType: 0          Bonds: [4, 5]         Radius: 0.6           Mass: 15.999,               x: 0.58584290449803   AtTypeDigits: 1              z: 0.0          Index: 4              y: 0.75799214458286 MolecularIndex: 1         Symbol: 'H'         AtType: 1          Bonds: [3]         Radius: 0.25           Mass: 1.008,               x: 0.58584290449803   AtTypeDigits: 1              z: 0.0          Index: 5              y: -0.75799214458286 MolecularIndex: 1         Symbol: 'H'         AtType: 1          Bonds: [3]         Radius: 0.25           Mass: 1.008]        Bonds: [(3, 4), (3, 5)] CenterOfMass:  z: 0.0 x: 0.06555977216031243 y: 0.0    AtomIndex: [3, 4, 5]         Name: 'Water'       nAtoms: 3         Mass: 18.015]
+COM Train : COM Train.csv
+Train records number : 1014
+Train Intervals : [(2.8, 5.6)]
+Number of molecules per record : 2
+Train Grid : [(2.8, 3.0), (3.0, 3.2), (3.2, 3.4), (3.4, 3.6), (3.6, 3.8), (3.8, 4.0), (4.0, 4.2), (4.2, 4.4), (4.4, 4.6), (4.6, 4.8), (5.0, 5.2), (5.2, 5.4), (5.4, 5.6)]
+Training Set : Training Set.x
+Initial dataset : SET 6.x
+Test Set : Test Set.x
+Confidence Interval used : 0.95
+COM Test : COM Test.csv
+Test Intervals : [(0, 2.8)]
+Test records number : 247
+Test Grid : [(2.8, 3.0), (3.0, 3.2), (3.2, 3.4), (3.4, 3.6), (3.6, 3.8), (3.8, 4.0), (4.0, 4.2), (4.2, 4.4), (4.4, 4.6), (4.6, 4.8), (5.0, 5.2), (5.2, 5.4), (5.4, 5.6)]
+Max points per grid : 97
+Test points per grid : 19
