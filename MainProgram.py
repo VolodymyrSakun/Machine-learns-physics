@@ -31,7 +31,7 @@ if __name__ == '__main__':
             'Gaussian Train': 'GaussianTrain.csv',\
             'Gaussian Test': 'GaussianTest.csv',\
             'Structure': 'Structure',\
-            'Set': 'SET 6.x',\
+            'Set': 'SET 4.x',\
             'System descriptor': 'SystemDescriptor.',\
             'Training set': 'Training Set.x',\
             'Test set': 'Test Set.x',\
@@ -59,12 +59,15 @@ if __name__ == '__main__':
             'Plot error': 'Error',\
             'Plot energy': 'Energy'}
     
+    # set6 Train intervals 2.8 .. 5.6
+    # set6 Confidence interval 0.95
+    # set6 Grid spacing 0.2
     Data = {'Proceed fractions': False,\
-            'Train intervals': [(2.8, 5.6)],\
-            'Grid start': 2.8,\
-            'Grid end': 5.6,\
-            'Grid spacing': 0.2,\
-            'Confidence interval': 0.95,\
+            'Train intervals': [(1.7, 2.4)],\
+            'Grid start': 1.7,\
+            'Grid end': 2.4,\
+            'Grid spacing': 0.1,\
+            'Confidence interval': 0.85,\
             'Test fraction': 0.2,\
             'Train fraction': 1,\
             'Train fractions': np.linspace(0.2, 1, 9, endpoint=True, dtype=float),\
@@ -136,7 +139,7 @@ if __name__ == '__main__':
     # A* stop when its fitness function reaches this number        
             'A goal': 1e-18,\
             'A stop time': 200,\
-            'A max queue': 1000,\
+            'A max queue': 200,\
             'A use correlation': False,\
             'A min correlation': 0.9,\
             'A verbose': True,\

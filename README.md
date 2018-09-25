@@ -6,19 +6,21 @@ SystemDescriptor - description of system
 
 MoleculeDescriptor - description of molecules in system
 
-datafile1 from github gaussian process.x (from quantum mechanics)
+SET 1.x from github gaussian process.x (from quantum mechanics)
 
-datafile2.x  (from rotation of molecules)
+SET 2.x  (from rotation of molecules)
 
-datafile3.x (two water molecules)
+SET 3.x (two water molecules)
 
-datafile4.x (three water molecules small)
+SET 4.x (three water molecules small)
 
-datafile5.x (three water molecules huge)
+SET 5.x (three water molecules huge)
 
-datafile6.x (two water molecules, random rotations, 6500 points, MP2)
+SET 6.x (two water molecules, random rotations, 6500 points, MP2)
 
 * Libraries:
+
+structure.py - definitions of classes
 
 regression.py - objects for linear and non-linear fit
 
@@ -30,10 +32,6 @@ spherical.py - functions that sre used for constructing spherical harmonics feat
 
 IOfunctions.py - Input / output functions
 
-1. Filter data.py - Prepares data for feature generation using filters
+Run MainProgram.py
 
-2. Generate features.py - Generates linear and exponential features for fitting
-
-3. Fit.py - Fits the dataset, stores results and model and plots fitting path
-
-4. Final Plot.py - Plots additional graphs
+Hyperparameters are in top part of MainProgram

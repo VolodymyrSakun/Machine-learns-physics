@@ -1,0 +1,18 @@
+COM Test : COM Test.csv
+Max points per grid : 171
+Train Intervals : [(1.7, 2.4)]
+Test Intervals : [(0, 1.7)]
+Test records number : 170
+Training Set : Training Set.x
+Train Fraction Used : 1
+Test Grid : [(1.7, 1.8), (1.8, 1.9), (1.9, 2.0), (2.0, 2.1), (2.1, 2.2)]
+Confidence Interval used : 0.85
+Test Set : Test Set.x
+Test points per grid : 34
+Molecule prototypes : [        Atoms: [              y: 0.0              x: 0.0         Symbol: 'O'              z: 0.0          Bonds: [1, 2]         AtType: 0   AtTypeDigits: 1         Radius: 0.6 MolecularIndex: 0          Index: 0           Mass: 15.999,               y: 0.75799214458286              x: 0.58584290449803         Symbol: 'H'              z: 0.0          Bonds: [0]         AtType: 1   AtTypeDigits: 1         Radius: 0.25 MolecularIndex: 0          Index: 1           Mass: 1.008,               y: -0.75799214458286              x: 0.58584290449803         Symbol: 'H'              z: 0.0          Bonds: [0]         AtType: 1   AtTypeDigits: 1         Radius: 0.25 MolecularIndex: 0          Index: 2           Mass: 1.008]         Mass: 18.015        Bonds: [(0, 1), (0, 2)] CenterOfMass:  y: 0.0 z: 0.0 x: 0.06555977216031243       nAtoms: 3    AtomIndex: [0, 1, 2]         Name: 'Water',         Atoms: [              y: 0.0              x: 0.0         Symbol: 'O'              z: 0.0          Bonds: [4, 5]         AtType: 0   AtTypeDigits: 1         Radius: 0.6 MolecularIndex: 1          Index: 3           Mass: 15.999,               y: 0.75799214458286              x: 0.58584290449803         Symbol: 'H'              z: 0.0          Bonds: [3]         AtType: 1   AtTypeDigits: 1         Radius: 0.25 MolecularIndex: 1          Index: 4           Mass: 1.008,               y: -0.75799214458286              x: 0.58584290449803         Symbol: 'H'              z: 0.0          Bonds: [3]         AtType: 1   AtTypeDigits: 1         Radius: 0.25 MolecularIndex: 1          Index: 5           Mass: 1.008]         Mass: 18.015        Bonds: [(3, 4), (3, 5)] CenterOfMass:  y: 0.0 z: 0.0 x: 0.06555977216031243       nAtoms: 3    AtomIndex: [3, 4, 5]         Name: 'Water',         Atoms: [              y: 0.0              x: 0.0         Symbol: 'O'              z: 0.0          Bonds: [7, 8]         AtType: 0   AtTypeDigits: 1         Radius: 0.6 MolecularIndex: 2          Index: 6           Mass: 15.999,               y: 0.75799214458286              x: 0.58584290449803         Symbol: 'H'              z: 0.0          Bonds: [6]         AtType: 1   AtTypeDigits: 1         Radius: 0.25 MolecularIndex: 2          Index: 7           Mass: 1.008,               y: -0.75799214458286              x: 0.58584290449803         Symbol: 'H'              z: 0.0          Bonds: [6]         AtType: 1   AtTypeDigits: 1         Radius: 0.25 MolecularIndex: 2          Index: 8           Mass: 1.008]         Mass: 18.015        Bonds: [(6, 7), (6, 8)] CenterOfMass:  y: 0.0 z: 0.0 x: 0.06555977216031243       nAtoms: 3    AtomIndex: [6, 7, 8]         Name: 'Water']
+Train points per grid : 137
+Initial dataset : SET 4.x
+COM Train : COM Train.csv
+Train Grid : [(1.7, 1.8), (1.8, 1.9), (1.9, 2.0), (2.0, 2.1), (2.1, 2.2)]
+Number of molecules per record : 3
+Train records number : 685
