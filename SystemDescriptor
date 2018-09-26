@@ -12,7 +12,7 @@ H,H,intramolecular:
 &endLinearSingleDistances
 
 &LinearDoubleDistances
-LinearDoubleDistancesInclude=True
+LinearDoubleDistancesInclude=False
 &LinearDoubleDistancesDescription
 O,O,intermolecular: -1,-2,-3,-4,-5,-6
 O,H,intermolecular: -1,-2,-3,-4,-5,-6
@@ -88,12 +88,6 @@ O,1
 H,1    
 H,1
 &endMolecule
-# water 3
-&Molecule=Water
-O,2
-H,2    
-H,2
-&endMolecule
 &endSYSTEM
 
 # List of all molecules in the system
@@ -109,11 +103,5 @@ H,2
 3,Symbol=O,Bond=4,5,Mass=15.999,Radius=0.6,Coordinates:0,0,0
 4,Symbol=H,Bond=3,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,0.75799214458286,0
 5,Symbol=H,Bond=3,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,-0.75799214458286,0
-&endMolecule
-&Molecule=Water
-# Atoms Index, Atom symbol, Bonds (indices), Mass, Atomic radius, x, y, z
-6,Symbol=O,Bond=7,8,Mass=15.999,Radius=0.6,Coordinates:0,0,0
-7,Symbol=H,Bond=6,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,0.75799214458286,0
-8,Symbol=H,Bond=6,Mass=1.008,Radius=0.25,Coordinates:0.58584290449803,-0.75799214458286,0
 &endMolecule
 &endMoleculeDescription

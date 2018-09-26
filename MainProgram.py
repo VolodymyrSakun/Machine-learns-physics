@@ -31,7 +31,7 @@ if __name__ == '__main__':
             'Gaussian Train': 'GaussianTrain.csv',\
             'Gaussian Test': 'GaussianTest.csv',\
             'Structure': 'Structure',\
-            'Set': 'SET 4.x',\
+            'Set': 'SET 6.x',\
             'System descriptor': 'SystemDescriptor.',\
             'Training set': 'Training Set.x',\
             'Test set': 'Test Set.x',\
@@ -63,11 +63,11 @@ if __name__ == '__main__':
     # set6 Confidence interval 0.95
     # set6 Grid spacing 0.2
     Data = {'Proceed fractions': False,\
-            'Train intervals': [(1.7, 2.4)],\
-            'Grid start': 1.7,\
-            'Grid end': 2.4,\
-            'Grid spacing': 0.1,\
-            'Confidence interval': 0.85,\
+            'Train intervals': [(2.8, 5.6)],\
+            'Grid start': 2.8,\
+            'Grid end': 5.6,\
+            'Grid spacing': 0.2,\
+            'Confidence interval': 0.95,\
             'Test fraction': 0.2,\
             'Train fraction': 1,\
             'Train fractions': np.linspace(0.2, 1, 9, endpoint=True, dtype=float),\
