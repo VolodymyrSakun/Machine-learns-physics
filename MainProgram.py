@@ -32,7 +32,7 @@ if __name__ == '__main__':
             'Gaussian Test': 'GaussianTest.csv',\
             'Structure': 'Structure',\
             'Set': 'SET 6.x',\
-            'System descriptor': 'SystemDescriptor.',\
+            'System descriptor': 'SystemDescriptor.2H2O',\
             'Training set': 'Training Set.x',\
             'Test set': 'Test Set.x',\
             'COM train': 'COM Train.csv',\
@@ -67,16 +67,25 @@ if __name__ == '__main__':
             'Grid start': 2.8,\
             'Grid end': 5.6,\
             'Grid spacing': 0.2,\
+    # RZK: This keyword makes sure that all bins contain equal number of points. Unless you know how it works set to 1.
             'Confidence interval': 0.95,\
+    # How many points in the database goes into the test set
             'Test fraction': 0.2,\
+    # IF proceed-fractions = FALSE: the fraction of points (out of the total training points) is used for training
             'Train fraction': 1,\
+    # IF proceed-fractions = TRUE: perform several runs with different fractions of training points
             'Train fractions': np.linspace(0.2, 1, 9, endpoint=True, dtype=float),\
+    # Random generator seed
             'Random state': 1001,\
+    # png or eps (perhaps other formats supported by mathplotlib)
             'Figure file format': 'png',\
+    # Figure size in inches
             'Figure size': (19, 10),\
+    # Keep some of the features in the set permanently throughout the optimization?
             'Use VIP': False,\
+    # Number of permanent features (RZK: which one are kept? atomatic detection of best single features)
             'Number of VIP features': 5,\
-            # ENet or GA
+    # ENet or GA
             'First algorithm': 'GA',\
     # 'sklearn', 'scipy', 'statsmodels': which library to use for OLS. 'statsmodels' also provides p-values
             'LR linear solver': 'sklearn',\
@@ -115,12 +124,18 @@ if __name__ == '__main__':
     ###################### Genetic algorithm parameters ###########################
             'GA population size': 100,\
             'GA chromosome size': 15,\
+    # Time limit after the last improvement in seconds
             'GA stop time': 600,\
+    # Max number of GA iterations
             'GA max generations': 200,\
             'GA mutation probability': 0.1,\
+    # How many genes to mutate? 
             'GA mutation interval': [1, 4],\
+    # Elite fraction of genes used for crossover
             'GA elite fraction': 0.5,\
+    # how many operations (mutations+crossovers) will be performed
             'GA mutation crossover fraction': 0.5,\
+    # a random number is chosen from this interval. it determines what fraction of genes is taken from one chromosome, the rest of the genes are taken from the other chromosome
             'GA crossover fraction interval': [0.6, 0.4],\
             'GA use correlation for mutation': False,\
     # applicable if 'GA use correlation for mutation' is True
