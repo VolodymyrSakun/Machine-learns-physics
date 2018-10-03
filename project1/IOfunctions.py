@@ -97,7 +97,6 @@ def ReadSystemDescription(F, keyword='SYSTEM'):
 # returns atoms and molecules    
     first_line = '{}{}'.format('&', keyword)
     last_line = '{}{}'.format('&end', keyword)
-    F = 'SystemDescriptor.'
     with open(F) as f:
         lines = f.readlines()
     f.close()
@@ -375,12 +374,97 @@ def store_average_distances(F, record_list):
     return
 
 # Read records and return as list of RecordMolecules objects
-def ReadRecordMolecules(F, MoleculePrototypes):
-    # Read coordinates from file
+
+def getSetType(fName):
+# Read coordinates from file
+    f = open(fName, "r")
+    data0 = f.readlines()
+    f.close()
+    data1 = []
+# convert lines in nice shape string    
+    for i in range(0, len(data0), 1):
+        data1.append(data0[i].rstrip())
+    del(data0)   
+    i = 0
+    s = [1, 1]
+    while len(s) != 0:
+        s = data1[i].split() # line of text separated in list
+        if len(s) == 0:
+            i += 1
+            continue
+        if len(s) == 4:
+            if library.isfloat(s[1]) and library.isfloat(s[3]) and library.isfloat(s[3]):
+                return 'Old'
+            else:
+                return 'New'
+        else:
+            return 'New'
+    return None
+# in set atoms names MUST NOT be numeric
+def ReadRecordMoleculesNew(F, MoleculePrototypes):
+# Read coordinates from file
     f = open(F, "r")
     data0 = f.readlines()
     f.close()
     data1 = []
+# convert lines in nice shape string    
+    for i in range(0, len(data0), 1):
+        data1.append(data0[i].rstrip())
+    del(data0)
+    # Rearrange data in structure
+    nAtoms = 0
+    molecules = copy.deepcopy(MoleculePrototypes)
+    for molecule in molecules:
+        nAtoms += molecule.nAtoms
+    i = 0 # counts lines in textdata
+    j = 0 # molecule number
+    k = 0 # atom number in molecule
+    m = 0 # atom number in system
+    Records = []
+    while i < len(data1):
+        s = data1[i].split() # line of text separated in list
+        if len(s) == 0: # empty line
+            i += 1 # next line
+            continue
+        if library.isfloat(s[0]): # either energy line or number of atoms
+            if len(s[0]) > 2: # energy line
+                j = 0 # reset molecules counter
+                k = 0 # reset counter atoms in molecule
+                m = 0 # reset counter atoms in system
+                e = float(s[0])    
+            else: # number of atoms line; skip
+                i += 1
+                continue
+# atoms recors            
+        elif (len(s) == 4) and library.isfloat(s[1]) and library.isfloat(s[3]) and library.isfloat(s[3]): 
+            molecules[j].Atoms[k].x = float(s[1])
+            molecules[j].Atoms[k].y = float(s[2])
+            molecules[j].Atoms[k].z = float(s[3])
+            k += 1 # atom number in molecule
+            m += 1 # atom number in system
+            if m == nAtoms:
+                for molecule in molecules:
+                    molecule._refresh()
+                rec = structure.RecordMolecules(copy.deepcopy(molecules), E_True=e)
+                Records.append(rec)
+                j = 0 # reset molecules counter
+                k = 0 # reset counter atoms in molecule
+                m = 0 # reset counter atoms in system
+                molecules = copy.deepcopy(MoleculePrototypes)
+            if k >= molecules[j].nAtoms: # go to next molecule
+                k = 0 # reset counter atoms in molecule
+                j += 1 # to next molecule
+                
+        i += 1
+    return Records
+
+def ReadRecordMoleculesOld(F, MoleculePrototypes):
+# Read coordinates from file
+    f = open(F, "r")
+    data0 = f.readlines()
+    f.close()
+    data1 = []
+# convert lines in nice shape string    
     for i in range(0, len(data0), 1):
         data1.append(data0[i].rstrip())
     del(data0)
@@ -418,7 +502,44 @@ def ReadRecordMolecules(F, MoleculePrototypes):
     return Records
 
 # Read records and return as list of RecordAtoms objects
+
+
 def ReadRecordAtoms(F_data, Atoms):
+        # Read coordinates from file
+    atoms = copy.deepcopy(Atoms)
+    f = open(F_data, "r")
+    data0 = f.readlines()
+    f.close()
+    data = []
+    for i in range(0, len(data0), 1):
+        data.append(data0[i].rstrip())
+    del(data0)
+    # Rearrange data in structure
+    i = 0 # counts lines in textdata
+    j = 0 # counts atom records for each energy value
+    atoms_list = [] # temporary list
+    records_list = []
+    while i < len(data):
+        s = data[i].split() # line of text separated in list
+        if len(s) == 0: # empty line
+            i += 1
+            continue
+    # record for energy value
+        elif (len(s) == 1) and library.isfloat(s[0]): 
+            records_list.append(structure.RecordAtoms(Atoms=atoms_list, Energy=float(s[0])))
+            j = 0
+            atoms_list = []
+            atoms = copy.deepcopy(Atoms)
+        elif (len(s) == 4): 
+            atoms[j].x = float(s[1])
+            atoms[j].y = float(s[2])
+            atoms[j].z = float(s[3])
+            atoms_list.append(atoms[j])
+            j += 1
+        i += 1
+    return records_list
+
+def ReadRecordAtoms2(F_data, Atoms):
         # Read coordinates from file
     atoms = copy.deepcopy(Atoms)
     f = open(F_data, "r")

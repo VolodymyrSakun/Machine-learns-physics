@@ -31,8 +31,10 @@ if __name__ == '__main__':
             'Gaussian Train': 'GaussianTrain.csv',\
             'Gaussian Test': 'GaussianTest.csv',\
             'Structure': 'Structure',\
-            'Set': 'SET 6.x',\
-            'System descriptor': 'SystemDescriptor.2H2O',\
+            'Set': 'SET 7.x',\
+            'System descriptor': 'SystemDescriptor.BF3NH3',\
+    #            'Set': 'SET 6.x',\
+    #            'System descriptor': 'SystemDescriptor.2H2O',\
             'Training set': 'Training Set.x',\
             'Test set': 'Test Set.x',\
             'COM train': 'COM Train.csv',\
@@ -63,12 +65,12 @@ if __name__ == '__main__':
     # set6 Confidence interval 0.95
     # set6 Grid spacing 0.2
     Data = {'Proceed fractions': False,\
-            'Train intervals': [(2.8, 5.6)],\
-            'Grid start': 2.8,\
-            'Grid end': 5.6,\
+            'Train intervals': [(0, 10)],\
+            'Grid start': 0,\
+            'Grid end': 10,\
             'Grid spacing': 0.2,\
     # RZK: This keyword makes sure that all bins contain equal number of points. Unless you know how it works set to 1.
-            'Confidence interval': 0.95,\
+            'Confidence interval': 0.85,\
     # How many points in the database goes into the test set
             'Test fraction': 0.2,\
     # IF proceed-fractions = FALSE: the fraction of points (out of the total training points) is used for training
@@ -81,6 +83,8 @@ if __name__ == '__main__':
             'Figure file format': 'png',\
     # Figure size in inches
             'Figure size': (19, 10),\
+    # Resolution
+            'Figure resolution': 100,\
     # Keep some of the features in the set permanently throughout the optimization?
             'Use VIP': False,\
     # Number of permanent features (RZK: which one are kept? atomatic detection of best single features)
@@ -172,8 +176,8 @@ if __name__ == '__main__':
     # fraction of interval determined by bounds        
             'GP length scale increment': 0.1,\
             'GP noise level increment': 0.1,\
-            'GP min length scale increment': 0.1,\
-            'GP min noise level increment': 0.1,\
+            'GP min length scale increment': 0.01,\
+            'GP min noise level increment': 0.01,\
     # None of number of random climbing hill simulations
             'GP hill simulations': 0}
     
@@ -262,7 +266,7 @@ if __name__ == '__main__':
             plt.xlabel('% of training set used')
             plt.ylabel('Average error (kJ/mol)')
             plt.show(fig)
-            plt.savefig('{} {}{}{}'.format(nPredictors[j], 'predictors. RMSE vs. percentage of training set used', '.', Data['Figure file format']), bbox_inches='tight', format=Data['Figure file format'], dpi=1000)
+            plt.savefig('{} {}{}{}'.format(nPredictors[j], 'predictors. RMSE vs. percentage of training set used', '.', Data['Figure file format']), bbox_inches='tight', format=Data['Figure file format'], dpi=Data['Figure resolution'])
             plt.close(fig)
     
             fig = plt.figure(j, figsize=Data['Figure size'])    
@@ -278,7 +282,7 @@ if __name__ == '__main__':
             plt.xlabel('% of training set used')
             plt.ylabel('Coefficient of determination R2')
             plt.show(fig)
-            plt.savefig('{} {}{}{}'.format(nPredictors[j], 'predictors. R2 vs. percentage of training set used', '.', Data['Figure file format']), bbox_inches='tight', format=Data['Figure file format'], dpi=1000)
+            plt.savefig('{} {}{}{}'.format(nPredictors[j], 'predictors. R2 vs. percentage of training set used', '.', Data['Figure file format']), bbox_inches='tight', format=Data['Figure file format'], dpi=Data['Figure resolution'])
             plt.close(fig)
     
         files = [] # move plots into subdir

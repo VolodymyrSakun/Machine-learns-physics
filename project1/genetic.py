@@ -775,7 +775,7 @@ class GA:
         return
     
     def PlotChromosomes(self, Fig_Number, ChromosomesList, XAxis='#',\
-        YAxis='RMSE Train', PlotType='Line', F=None):
+        YAxis='RMSE Train', PlotType='Line', F=None, Resolution=100):
         
         fig = plt.figure(Fig_Number, figsize=(19,10))
         if XAxis == '#':
@@ -828,12 +828,13 @@ class GA:
             F = YAxis
         else:
             F += ' ' + YAxis 
-        plt.savefig('{}{}'.format(F, '.eps'), bbox_inches='tight', format='eps', dpi=1000)
+        plt.savefig('{}{}'.format(F, '.eps'), bbox_inches='tight', format='eps', dpi=Resolution)
         plt.close(fig)
         return
     
-    def PlotChromosomes2(self, FileName, Fig_Number, ChromosomesList, XAxis='Nonzero', YAxis='RMSE',\
-            Title=None, PlotType='Line', figsize=(4, 3), marker_size=1, line_width=0.5, FileFormat='eps'):
+    def PlotChromosomes2(self, FileName, Fig_Number, ChromosomesList, XAxis='Nonzero',\
+            YAxis='RMSE', Title=None, PlotType='Line', figsize=(4, 3),\
+            marker_size=1, line_width=0.5, FileFormat='eps', Resolution=100):
         
         Legend = ['Training set', 'Test set']
         marker_fun = ['o', 's', '*', 'd', 'h', '.', ',']
@@ -873,7 +874,7 @@ class GA:
         plt.axis('tight')
         plt.legend()
         plt.show(fig)
-        plt.savefig('{}{}{}'.format(FileName, '.', FileFormat), bbox_inches='tight', format=FileFormat, dpi=1000)
+        plt.savefig('{}{}{}'.format(FileName, '.', FileFormat), bbox_inches='tight', format=FileFormat, dpi=Resolution)
         plt.close(fig)
         return
 

@@ -595,7 +595,7 @@ class ENet(dict):
         self.idx = nonzero_idx
         return
     
-    def plot_path(self, fig_number, F_ENet=None, FigSize=(4,3), FileFormat='eps'):
+    def plot_path(self, fig_number, F_ENet=None, FigSize=(4,3), FileFormat='eps', Resolution=100):
         nonzero = []
         for i in range(0, self.coefs.shape[1], 1):
             nonzero_count = np.count_nonzero(self.coefs[:, i])
@@ -619,7 +619,7 @@ class ENet(dict):
         plt.show()
         if F_ENet is not None:
             F = '{}{}{}'.format(F_ENet, '.', FileFormat)
-            plt.savefig(F, bbox_inches='tight', format=FileFormat, dpi=1000)
+            plt.savefig(F, bbox_inches='tight', format=FileFormat, dpi=Resolution)
             plt.close(fig) 
         return
         

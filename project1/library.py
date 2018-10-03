@@ -220,8 +220,13 @@ def FilterData(Files, Data):
     GridTest = CreateGrid(Data['Grid start'], Data['Grid end'], Data['Grid spacing']) # non-trained and trained region bins
     N = np.zeros(shape=(len(GridTest)), dtype=int) # number of points in each grid  
     NTrain = list(np.zeros(shape=(len(GridTrain)), dtype=int)) # count train points
-    NTest = list(np.zeros(shape=(len(GridTest)), dtype=int)) # count test points        
-    Records = IOfunctions.ReadRecordMolecules(Files['Set'], MoleculePrototypes) # Read records
+    NTest = list(np.zeros(shape=(len(GridTest)), dtype=int)) # count test points   
+    setType = IOfunctions.getSetType(Files['Set'])  
+    print(setType)
+    if setType == 'Old':
+        Records = IOfunctions.ReadRecordMoleculesOld(Files['Set'], MoleculePrototypes) # Read records
+    else:
+        Records = IOfunctions.ReadRecordMoleculesNew(Files['Set'], MoleculePrototypes) # Read records        
     DMin = 1000 # will be shortest distance
     DMax = 0 # will be most distant distance
     nMolecules = Records[0].nMolecules
@@ -384,12 +389,19 @@ def GenerateFeatures(Filter, Files):
     def CreateDtPList(Distances, Description):
     # make list of distances raised to corresponding power    
         Powers = []
+        
         for distance in Distances:
+            Found = False
             for description in Description:
                 if distance.isIntermolecular == description[2]:
                     if ((distance.Atom1.Symbol == description[0]) and (distance.Atom2.Symbol == description[1])) or\
                         ((distance.Atom1.Symbol == description[1]) and (distance.Atom2.Symbol == description[0])):
-                        Powers.append(description[3])    
+                        Powers.append(description[3])  
+                        Found = True
+                        break
+            if not Found:
+                print('Missing distances in SystemDescriptor')
+                print(distance.Atom1.Symbol, '-', distance.Atom2.Symbol)                
         DtP_list = []
         for i in range(0, nDistances, 1):
             for power in Powers[i]:
@@ -609,18 +621,38 @@ def GenerateFeatures(Filter, Files):
 def GetFitGA(FilterDataResults, Files, Data, GenerateFeaturesResults):
     
     Y_train = IOfunctions.ReadCSV(Files['Response Train'])
-    Y_test = IOfunctions.ReadCSV(Files['Response Test'])   
-    X_LinearSingle_train = IOfunctions.ReadCSV(Files['Linear Single Train'])
-    X_LinearSingle_test = IOfunctions.ReadCSV(Files['Linear Single Test'])
-    X_LinearDouble_train = IOfunctions.ReadCSV(Files['Linear Double Train'])
-    X_LinearDouble_test = IOfunctions.ReadCSV(Files['Linear Double Test'])
-    X_LinearTriple_train = IOfunctions.ReadCSV(Files['Linear Triple Train'])
-    X_LinearTriple_test = IOfunctions.ReadCSV(Files['Linear Triple Test'])
-    X_ExpSingleD_train = IOfunctions.ReadCSV(Files['Exp Single Train D'])
-    X_ExpSingleDn_train = IOfunctions.ReadCSV(Files['Exp Single Train D^n'])
-    X_ExpSingleD_test = IOfunctions.ReadCSV(Files['Exp Single Test D'])
-    X_ExpSingleDn_test = IOfunctions.ReadCSV(Files['Exp Single Test D^n'])   
-
+    Y_test = IOfunctions.ReadCSV(Files['Response Test'])  
+    if GenerateFeaturesResults['FeaturesLinearSingleAll'] is not None:
+        X_LinearSingle_train = IOfunctions.ReadCSV(Files['Linear Single Train'])
+        X_LinearSingle_test = IOfunctions.ReadCSV(Files['Linear Single Test'])
+    else:
+        X_LinearSingle_train = None
+        X_LinearSingle_test = None
+    if GenerateFeaturesResults['FeaturesLinearDoubleAll'] is not None:
+        X_LinearDouble_train = IOfunctions.ReadCSV(Files['Linear Double Train'])
+        X_LinearDouble_test = IOfunctions.ReadCSV(Files['Linear Double Test'])
+    else:
+        X_LinearDouble_train = None
+        X_LinearDouble_test = None        
+    if GenerateFeaturesResults['FeaturesLinearTripleAll'] is not None:
+        X_LinearTriple_train = IOfunctions.ReadCSV(Files['Linear Triple Train'])
+        X_LinearTriple_test = IOfunctions.ReadCSV(Files['Linear Triple Test'])
+    else:
+        X_LinearTriple_train = None
+        X_LinearTriple_test = None   
+    if GenerateFeaturesResults['FeaturesExpSingleAll'] is not None:
+        X_ExpSingleD_train = IOfunctions.ReadCSV(Files['Exp Single Train D'])
+        X_ExpSingleDn_train = IOfunctions.ReadCSV(Files['Exp Single Train D^n'])
+    else:
+        X_ExpSingleD_train = None
+        X_ExpSingleDn_train = None           
+    if GenerateFeaturesResults['FeaturesExpDoubleAll'] is not None:
+        X_ExpSingleD_test = IOfunctions.ReadCSV(Files['Exp Single Test D'])
+        X_ExpSingleDn_test = IOfunctions.ReadCSV(Files['Exp Single Test D^n'])   
+    else:
+        X_ExpSingleD_test = None
+        X_ExpSingleDn_test = None           
+        
     if (X_LinearSingle_train is not None) and (X_LinearDouble_train is not None) and (X_LinearTriple_train is not None): # all three exist
         X_Linear_train = np.concatenate((X_LinearSingle_train, X_LinearDouble_train, X_LinearTriple_train),axis=1)
         FeaturesLinearAll = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleAll'])
@@ -1218,7 +1250,8 @@ def get_bounds(*argv, adj=0.02):
     return YMinAdj, YMaxAdj
 
 def PlotHistogram(FileName=None, y_true=None, y_pred=None, FigNumber=1,\
-        FigSize=(4,3), Bins='auto', xLabel=None, yLabel='Frequency', FileFormat='eps'):
+        FigSize=(4,3), Bins='auto', xLabel=None, yLabel='Frequency',\
+        FileFormat='eps', Resolution=100):
     
     if y_true.size != y_pred.size:
         return False
@@ -1232,12 +1265,13 @@ def PlotHistogram(FileName=None, y_true=None, y_pred=None, FigNumber=1,\
     plt.show(fig)
     if FileName is not None:
         F = '{}{}{}'.format(FileName, '.', FileFormat)
-        plt.savefig(F, bbox_inches='tight', format=FileFormat, dpi=1000)
+        plt.savefig(F, bbox_inches='tight', format=FileFormat, dpi=Resolution)
         plt.close(fig)         
     return 
 
 def plot_contour(x, y, z, x_res=100, y_res=100, FileName=None,\
-        FileFormat='eps', FigSize=(4,3), xTitle=None, yTitle=None, barTitle=None):
+        FileFormat='eps', FigSize=(4,3), xTitle=None, yTitle=None,\
+        barTitle=None, Resolution=100):
     
     fig = plt.figure(100, figsize=FigSize)
     x_min, x_max = get_bounds(x, adj=0.02)
@@ -1259,7 +1293,7 @@ def plot_contour(x, y, z, x_res=100, y_res=100, FileName=None,\
     plt.show()
     if FileName is not None:
         F = '{}{}{}'.format(FileName, '.', FileFormat)
-        plt.savefig(F, bbox_inches='tight', format=FileFormat, dpi=1000)
+        plt.savefig(F, bbox_inches='tight', format=FileFormat, dpi=Resolution)
         plt.close(fig)         
     return
 
@@ -1267,7 +1301,7 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
         yEnergyLabel='Average Energy (kJ/mol)', yErrorLabel='Average bin error (kJ/mol)',\
         Legend=None, Grid=None, GridTrained=None, TrainedIntervals=None,\
         NontrainedIntervals=None, F_Error='Error', F_Energy='Energy', F_R2='R2', figsize=(4, 3),\
-        fig_format='eps', marker_size=1, line_width = 0.3, bounds=None):
+        fig_format='eps', marker_size=1, line_width = 0.3, bounds=None, Resolution=100):
 
     """
     first description in Legend is true energy function
@@ -1372,6 +1406,8 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
     Std_energy = np.zeros(shape=(nFunctions, nIntervals), dtype=float)
     Std_error = np.zeros(shape=(nFunctions, nIntervals), dtype=float)    
     R2 = np.zeros(shape=(nFunctions, nIntervals), dtype=float)
+    mse = np.zeros(shape=(nFunctions, nIntervals), dtype=float)
+
     for i in range(0, nFunctions, 1):
         for j in range(nIntervals):
             if i == 0:
@@ -1379,6 +1415,7 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
             Std_energy[i, j] = np.std(e_pred_list[i][j]) # STD predicted energy for each bin
             Std_error[i, j] = np.std(error_list[i][j]) # STD error for each bin
             R2[i, j] = skm.r2_score(e_true_list[j], e_pred_list[i][j])
+            mse[i, j] = skm.mean_squared_error(e_true_list[j], e_pred_list[i][j])
            
     j = 0 # trained index
     k = 0 # nontrained index
@@ -1456,11 +1493,25 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
     plt.xlabel(xLabel)
     plt.ylabel(yErrorLabel)
     plt.show(fig_error)
-    plt.savefig(F_Error, bbox_inches='tight', format=fig_format, dpi=1000)
+    plt.savefig(F_Error, bbox_inches='tight', format=fig_format, dpi=Resolution)
     plt.close(fig_error)
+
+# plot MSE    
+    fig_mse = plt.figure(3, figsize=figsize)
+    xMin, xMax = get_bounds(Grid, adj=0.02)   
+    plt.xlim((xMin, xMax))
+    for i in range(0, nFunctions, 1):
+        plt.plot(X, mse[i, :], c=color_train_fun[i], marker=marker_fun[i], label=Legend[i+1])
+    plt.legend()
+    plt.xlabel(xLabel)
+    plt.ylabel('MSE')
+    plt.show(fig_mse)
+    F_mse = 'mse.png'
+    plt.savefig(F_mse, bbox_inches='tight', format=fig_format, dpi=Resolution)
+    plt.close(fig_mse)
     
 # plot R2    
-    fig_R2 = plt.figure(3, figsize=figsize)
+    fig_R2 = plt.figure(4, figsize=figsize)
     xMin, xMax = get_bounds(Grid, adj=0.02)   
     plt.xlim((xMin, xMax))
     for i in range(0, nFunctions, 1):
@@ -1469,7 +1520,7 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
     plt.xlabel(xLabel)
     plt.ylabel('R2')
     plt.show(fig_R2)
-    plt.savefig(F_R2, bbox_inches='tight', format=fig_format, dpi=1000)
+    plt.savefig(F_R2, bbox_inches='tight', format=fig_format, dpi=Resolution)
     plt.close(fig_R2)
     
 # plot Energy. x bounds are the same as prev. plot
@@ -1510,7 +1561,7 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
     plt.xlabel(xLabel)
     plt.ylabel(yEnergyLabel)
     plt.show(fig_energy)    
-    plt.savefig(F_Energy, bbox_inches='tight', format=fig_format, dpi=1000)
+    plt.savefig(F_Energy, bbox_inches='tight', format=fig_format, dpi=Resolution)
     plt.close(fig_energy)
     return
         
@@ -1535,13 +1586,7 @@ def Proceed(Files, Data):
     RedirectPrintToConsole(f, f_old)
     
     FeaturesDict = GenerateFeatures(FilterDataDict, Files)
-    
-    #IOfunctions.SaveObject(Files['Filter data'], FilterDataDict)
-    #IOfunctions.SaveObject(Files['Generate features'], FeaturesDict)
-    
-    #FilterDataDict = IOfunctions.LoadObject(Files['Filter data'])        
-    #FeaturesDict = IOfunctions.LoadObject(Files['Generate features']) 
-    
+       
     ga = GetFitGA(FilterDataDict, Files, Data, FeaturesDict)
     
     gp, Path = GetFitGP5(Files, Data)
@@ -1549,36 +1594,42 @@ def Proceed(Files, Data):
 #    plot_contour(Path['length_scale'], Path['noise_level'], Path['R2'], 100, 100,\
 #        FileName=Files['GP path'], FileFormat=Data['Figure file format'],\
 #        FigSize=Data['Figure size'], xTitle='Length scale',\
-#        yTitle='Noise level', barTitle='Gaussian R2')
+#        yTitle='Noise level', barTitle='Gaussian R2', Resolution=Data['Figure resolution'])
       
-#    COM_train = IOfunctions.ReadCSV(Files['COM train'])
     COM_test = IOfunctions.ReadCSV(Files['COM test']) 
-#    Y_train = IOfunctions.ReadCSV(Files['Response Train'])
     Y_test = IOfunctions.ReadCSV(Files['Response Test'])   
-    X_LinearSingle_train = IOfunctions.ReadCSV(Files['Linear Single Train'])
-    X_LinearSingle_test = IOfunctions.ReadCSV(Files['Linear Single Test'])
-    X_LinearDouble_train = IOfunctions.ReadCSV(Files['Linear Double Train'])
-    X_LinearDouble_test = IOfunctions.ReadCSV(Files['Linear Double Test'])
-    X_LinearTriple_train = IOfunctions.ReadCSV(Files['Linear Triple Train'])
-    X_LinearTriple_test = IOfunctions.ReadCSV(Files['Linear Triple Test'])
-#    X_ExpSingleD_train = IOfunctions.ReadCSV(Files['Exp Single Train D'])
-#    X_ExpSingleDn_train = IOfunctions.ReadCSV(Files['Exp Single Train D^n'])
-    X_ExpSingleD_test = IOfunctions.ReadCSV(Files['Exp Single Test D'])
-    X_ExpSingleDn_test = IOfunctions.ReadCSV(Files['Exp Single Test D^n'])    
-#    X_Gaussian_train = IOfunctions.ReadCSV(Files['Gaussian Train'])
+    if FeaturesDict['FeaturesLinearSingleAll'] is not None:
+        X_LinearSingle_train = IOfunctions.ReadCSV(Files['Linear Single Train'])
+        X_LinearSingle_test = IOfunctions.ReadCSV(Files['Linear Single Test'])
+    else:
+        X_LinearSingle_train, X_LinearSingle_test = None, None
+    if FeaturesDict['FeaturesLinearDoubleAll'] is not None:
+        X_LinearDouble_train = IOfunctions.ReadCSV(Files['Linear Double Train'])
+        X_LinearDouble_test = IOfunctions.ReadCSV(Files['Linear Double Test'])
+    else:
+        X_LinearDouble_train, X_LinearDouble_test = None, None        
+    if FeaturesDict['FeaturesLinearTripleAll'] is not None:        
+        X_LinearTriple_train = IOfunctions.ReadCSV(Files['Linear Triple Train'])
+        X_LinearTriple_test = IOfunctions.ReadCSV(Files['Linear Triple Test'])
+    else:
+        X_LinearTriple_train, X_LinearTriple_test = None, None    
+    if FeaturesDict['FeaturesExpSingleAll'] is not None:     
+        X_ExpSingleD_test = IOfunctions.ReadCSV(Files['Exp Single Test D'])
+    else:
+        X_ExpSingleD_test = None
+    if FeaturesDict['FeaturesExpDoubleAll'] is not None:          
+        X_ExpSingleDn_test = IOfunctions.ReadCSV(Files['Exp Single Test D^n'])    
+    else:
+        X_ExpSingleDn_test = None
     X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Test'])
         
     y_pred = gp.predict(X_Gaussian_test)
     ga.gp_MSE = skm.mean_squared_error(Y_test, y_pred)
     ga.gp_R2 = gp.score(X_Gaussian_test, Y_test)
     IOfunctions.SaveObject(Files['GA object'], ga)    
-    #ga = IOfunctions.LoadObject(Files['GA object'])
     IOfunctions.SaveObject(Files['GP object'], gp) 
-    #gp = IOfunctions.LoadObject(Files['GP object']) 
 
-    
     if (X_LinearSingle_train is not None) and (X_LinearDouble_train is not None) and (X_LinearTriple_train is not None): # all three exist
-#        X_Linear_train = np.concatenate((X_LinearSingle_train, X_LinearDouble_train, X_LinearTriple_train),axis=1)
         FeaturesLinearAll = copy.deepcopy(FeaturesDict['FeaturesLinearSingleAll'])
         FeaturesLinearAll.extend(FeaturesDict['FeaturesLinearDoubleAll'])
         FeaturesLinearAll.extend(FeaturesDict['FeaturesLinearTripleAll'])
@@ -1586,21 +1637,17 @@ def Proceed(Files, Data):
         FeaturesLinearReduced.extend(FeaturesDict['FeaturesLinearDoubleReduced'])
         FeaturesLinearReduced.extend(FeaturesDict['FeaturesLinearTripleReduced'])
     elif X_LinearSingle_train is not None and X_LinearDouble_train is not None: # single + double exist
-#        X_Linear_train = np.concatenate((X_LinearSingle_train,X_LinearDouble_train),axis=1)
         FeaturesLinearAll = copy.deepcopy(FeaturesDict['FeaturesLinearSingleAll'])
         FeaturesLinearAll.extend(FeaturesDict['FeaturesLinearDoubleAll'])
         FeaturesLinearReduced = copy.deepcopy(FeaturesDict['FeaturesLinearSingleReduced'])
         FeaturesLinearReduced.extend(FeaturesDict['FeaturesLinearDoubleReduced'])
     elif X_LinearSingle_train is not None and X_LinearDouble_train is None: # only single
-#        X_Linear_train = X_LinearSingle_train
         FeaturesLinearAll = copy.deepcopy(FeaturesDict['FeaturesLinearSingleAll'])
         FeaturesLinearReduced = copy.deepcopy(FeaturesDict['FeaturesLinearSingleReduced'])
     elif X_LinearSingle_train is None and X_LinearDouble_train is not None: # only double
-#        X_Linear_train = X_LinearDouble_train
         FeaturesLinearAll = copy.deepcopy(FeaturesDict['FeaturesLinearDoubleAll'])
         FeaturesLinearReduced = copy.deepcopy(FeaturesDict['FeaturesLinearDoubleReduced'])
     else: # no linear features
-#        X_Linear_train = None
         FeaturesLinearAll = None
         FeaturesLinearReduced = None
     if (X_LinearSingle_test is not None) and (X_LinearDouble_test is not None) and (X_LinearTriple_test is not None): # all exist
@@ -1622,7 +1669,7 @@ def Proceed(Files, Data):
     PlotHistogram(FileName='{} {} {}'.format(Files['GP energy error histogram'],\
         X_Gaussian_test.shape[1], 'predictors'), y_true=y_test_kj, y_pred=y_pred_gp_kj,\
         FigNumber=1, FigSize=Data['Figure size'], Bins='auto', FileFormat=Data['Figure file format'],\
-        xLabel='GP energy error, kJ/mol', yLabel='Frequency')
+        xLabel='GP energy error, kJ/mol', yLabel='Frequency', Resolution=Data['Figure resolution'])
             
     for chromosome in ga.DecreasingChromosomes:
         y_pred_ga = chromosome.predict(x_expD=X_ExpSingleD_test,\
@@ -1631,7 +1678,7 @@ def Proceed(Files, Data):
         PlotHistogram(FileName='{} {} {}'.format(Files['GA energy error histogram'],\
             chromosome.Size, 'predictors'), y_true=y_test_kj, y_pred=y_pred_ga_kj,\
             FigNumber=2, FigSize=Data['Figure size'], Bins='auto', FileFormat=Data['Figure file format'],\
-            xLabel='GA energy error, kJ/mol', yLabel='Frequency')
+            xLabel='GA energy error, kJ/mol', yLabel='Frequency', Resolution=Data['Figure resolution'])
         Plot(CoM=COM_test, E_True=y_test_kj, nFunctions=2, xLabel='R, CoM (Å)', \
             yErrorLabel='Average Error (kJ/mol)', yEnergyLabel='Average Energy (kJ/mol)',\
             E_Predicted=[y_pred_ga_kj, y_pred_gp_kj],\
@@ -1642,6 +1689,6 @@ def Proceed(Files, Data):
             F_Error='{} {} {}'.format(Files['Plot error'], chromosome.Size, 'predictors'),\
             F_Energy='{} {} {}'.format(Files['Plot energy'], chromosome.Size, 'predictors'),\
             figsize=Data['Figure size'], fig_format=Data['Figure file format'], marker_size=3,\
-            line_width = 1, bounds=(Data['Grid start'] , Data['Grid end']))
+            line_width = 1, bounds=(Data['Grid start'] , Data['Grid end']), Resolution=Data['Figure resolution'])
 
     return FilterDataDict, FeaturesDict
