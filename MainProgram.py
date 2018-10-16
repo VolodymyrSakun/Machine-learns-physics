@@ -127,11 +127,11 @@ if __name__ == '__main__':
             'ENet verbose': True,\
     ###################### Genetic algorithm parameters ###########################
             'GA population size': 100,\
-            'GA chromosome size': 15,\
+            'GA chromosome size': 5,\
     # Time limit after the last improvement in seconds
             'GA stop time': 600,\
     # Max number of GA iterations
-            'GA max generations': 200,\
+            'GA max generations': 2,\
             'GA mutation probability': 0.1,\
     # How many genes to mutate? 
             'GA mutation interval': [1, 4],\
