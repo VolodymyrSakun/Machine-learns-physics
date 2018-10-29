@@ -115,15 +115,21 @@ H,1
 &Molecule=BF3
 # Atoms Index, Atom symbol, Bonds (indices), Mass, Atomic radius, x, y, z
 0,Symbol=B,Bond=1,2,3,Mass=10.806,Radius=0.9,Coordinates:0.6565,0.379030451723235,0
-1,Symbol=F,Bond=0,Mass=18.998,Radius=0.64,Coordinates:0,0,0
-2,Symbol=F,Bond=0,Mass=18.998,Radius=0.64,Coordinates:1.313,0,0
-3,Symbol=F,Bond=0,Mass=18.998,Radius=0.64,Coordinates:0.6565,1.13709135516897,0
+1,Symbol=F,Bond=0,Mass=0.0001,Radius=0.64,Coordinates:0,0,0
+2,Symbol=F,Bond=0,Mass=0.0001,Radius=0.64,Coordinates:1.313,0,0
+3,Symbol=F,Bond=0,Mass=0.0001,Radius=0.64,Coordinates:0.6565,1.13709135516897,0
+#1,Symbol=F,Bond=0,Mass=18.998,Radius=0.64,Coordinates:0,0,0
+#2,Symbol=F,Bond=0,Mass=18.998,Radius=0.64,Coordinates:1.313,0,0
+#3,Symbol=F,Bond=0,Mass=18.998,Radius=0.64,Coordinates:0.6565,1.13709135516897,0
 &endMolecule
 &Molecule=NH3
 # Atoms Index, Atom symbol, Bonds (indices), Mass, Atomic radius, x, y, z
 4,Symbol=N,Bond=5,6,7,Mass=14.006,Radius=0.71,Coordinates:0.82172571192332,0.474423560979273,0.366030243493429
-5,Symbol=H,Bond=4,Mass=1.008,Radius=0.25,Coordinates:0,0,0
-6,Symbol=H,Bond=4,Mass=1.008,Radius=0.25,Coordinates:1.64345142384664,0,0
-7,Symbol=H,Bond=4,Mass=1.008,Radius=0.25,Coordinates:0.82172571192332,1.4232706829369,0
+5,Symbol=H,Bond=4,Mass=0.0001,Radius=0.25,Coordinates:0,0,0
+6,Symbol=H,Bond=4,Mass=0.0001,Radius=0.25,Coordinates:1.64345142384664,0,0
+7,Symbol=H,Bond=4,Mass=0.0001,Radius=0.25,Coordinates:0.82172571192332,1.4232706829369,0
+#5,Symbol=H,Bond=4,Mass=1.008,Radius=0.25,Coordinates:0,0,0
+#6,Symbol=H,Bond=4,Mass=1.008,Radius=0.25,Coordinates:1.64345142384664,0,0
+#7,Symbol=H,Bond=4,Mass=1.008,Radius=0.25,Coordinates:0.82172571192332,1.4232706829369,0
 &endMolecule
 &endMoleculeDescription

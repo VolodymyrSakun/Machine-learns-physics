@@ -6,9 +6,6 @@ from project1 import regression
 from time import time
 import copy
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
-from matplotlib.ticker import AutoLocator
-
 import pandas as pd
 
 class Gene:
@@ -152,6 +149,19 @@ class Chromosome:
         print('Chash: Found duplicates in chromosome')
         return True
         
+    def equalsTo(self, chromosome):
+        idx_lin1 = self.get_genes_list(Type=0)
+        idx_lin1.sort()
+        idx_nonlin1 = self.get_genes_list(Type=1)
+        idx_nonlin1.sort()
+        idx_lin2 = chromosome.get_genes_list(Type=0)
+        idx_lin2.sort()
+        idx_nonlin2 = chromosome.get_genes_list(Type=1)
+        idx_nonlin2.sort()  
+        if (idx_lin1 == idx_lin2) and (idx_nonlin1 == idx_nonlin2):
+            return True
+        return False
+    
 # calculate Coefficients, MSE, R2, R2 adjusted
     def score(self, x_expD_train=None, x_expDn_train=None, x_lin_train=None,\
             y_train=None, x_expD_test=None, x_expDn_test=None, x_lin_test=None,\
@@ -464,7 +474,7 @@ class GA:
             Gene_list.append(i_copy) # copy VIP genes
         chromosome = Chromosome(Gene_list)
         if (old_gene.Type == 0) and (MutationMethod == 'Correlated'):
-            corr_idx = self.get_correlated_features_list(chromosome, Model=2,\
+            corr_idx = self.get_correlated_features_list(chromosome,\
                 UseCorrelationMatrix = self.UseCorrelationMutation, MinCorr = self.MinCorrMutation)
             idx = []
             for i in range(0, len(corr_idx), 1):
@@ -821,7 +831,7 @@ class GA:
             plt.scatter(XPlot, YPlot, s=1)
         plt.title('Progress of Genetic Algorithm')       
         plt.axis('tight')
-        plt.show(fig)
+#        plt.show(fig)
         if F is None:
             return
         if F is 'Default':
@@ -869,11 +879,13 @@ class GA:
         if PlotType == 'Scatter':
             plt.scatter(XPlot, YPlot1, s=marker_size, label=Legend[0], marker=marker_fun[0])
             plt.scatter(XPlot, YPlot2, s=marker_size, label=Legend[1], marker=marker_fun[1])
-        if Title is not None:
-            plt.title('Progress of GA')       
+        if Title is None:
+            plt.title('Progress of GA')  
+        else:
+            plt.title(Title)  
         plt.axis('tight')
         plt.legend()
-        plt.show(fig)
+#        plt.show(fig)
         plt.savefig('{}{}{}'.format(FileName, '.', FileFormat), bbox_inches='tight', format=FileFormat, dpi=Resolution)
         plt.close(fig)
         return
@@ -899,7 +911,7 @@ class GA:
             LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)
         return chromosome
     
-    def get_correlated_features_list(self, chromosome, Model=1,\
+    def get_correlated_features_list(self, chromosome,\
             UseCorrelationMatrix=True, MinCorr=0.9):
 # returns nested list of correlated features idx_corr[i][j]
 # each list [j] contains indices of features that have correlation <= to MinCorr
@@ -908,42 +920,43 @@ class GA:
 # Model 1: correlated features may overlap each other
 # Model 2: correlated features do not overlap each other. Works faster
     
-        def InList(List, Value):
-    # returns True if Value is in List        
-            for i in range(0, len(List), 1):
-                for j in range(0, len(List[i]), 1):
-                    if List[i][j] == Value:
-                        return True
-            return False
+#        def InList(List, Value):
+#    # returns True if Value is in List        
+#            for i in range(0, len(List), 1):
+#                for j in range(0, len(List[i]), 1):
+#                    if List[i][j] == Value:
+#                        return True
+#            return False
         
         if not UseCorrelationMatrix:
             return self.get_all_features_list(chromosome)
         idx_lin = chromosome.get_genes_list(Type=0)
         if idx_lin is []:
             return []        
-        list1 = []
-        list2 = []
+        idxList = []
+        corrList = []
         for i in range(0, len(idx_lin), 1):
             idx = idx_lin[i]
-            list1.append(list(''))
-            list2.append(list(''))
-            list1[i].append(idx)
-            list2[i].append(idx)
+            idxList.append(list(''))
+            corrList.append(list(''))
+            idxList[i].append(idx)
+            corrList[i].append(1) # correlation to itself == 1
         k = 0
         for i in idx_lin:
             for j in range(0, self.n_lin, 1):
                 if i == j:
                     continue
                 if self.C[i, j] > MinCorr:
-                    if j not in list1:
-                        list1[k].append(j)
-                    if not InList(list2, j):
-                        list2[k].append(j)
+                    idxList[k].append(j)
+                    corrList[k].append(self.C[i, j])
+                                         
             k += 1
-        if Model == 1:
-            return list1
-        elif Model == 2:
-            return list2
+            
+        for i in range(0, len(idxList), 1):
+            sortedList = [x for _, x in sorted(zip(corrList[i], idxList[i]), reverse=True)]
+            idxList[i] = sortedList
+            
+        return idxList
     
     def get_all_features_list(self, chromosome):
         idx_lin = chromosome.get_genes_list(Type=0) # only linear features
@@ -964,7 +977,7 @@ class GA:
         Best.score(x_expD_train=x_expD, x_expDn_train=x_expDn, x_lin_train=x_lin, y_train=y,\
             LinearSolver=self.LinearSolver, cond=self.cond, lapack_driver=self.lapack_driver)        
         Found = True
-        idx_corr = self.get_correlated_features_list(Best, Model=1,\
+        idx_corr = self.get_correlated_features_list(Best,\
             UseCorrelationMatrix=self.UseCorrelationBestFit, MinCorr=self.MinCorrBestFit)
         if idx_corr == []: # only for linear features
             return Best
@@ -1197,7 +1210,7 @@ class GA:
         x_std, _ = regression.Standardize(x_lin)
         y_std = y
         
-        corr_list = self.get_correlated_features_list(chromosome, Model=2,\
+        corr_list = self.get_correlated_features_list(chromosome,\
             UseCorrelationMatrix=self.UseCorrelationBestFit, MinCorr=self.MinCorrBestFit)
         
         idx = library.FindBestSetTree(x_std, y_std, active_features, corr_list, VIP_idx=VIP_idx,\
@@ -1262,7 +1275,7 @@ class GA:
         def Path_cost(state): # user defined
             return state.MSE_Train
         
-        idx_corr = self.get_correlated_features_list(chromosome, Model=1,\
+        idx_corr = self.get_correlated_features_list(chromosome,\
             UseCorrelationMatrix=self.UseCorrelationBestFit, MinCorr=self.MinCorrBestFit)
         if idx_corr == []: # only for linear features
             return chromosome
@@ -1284,18 +1297,18 @@ class GA:
             del(p.best_nodes[idx])  
         return p.best_node.state
 
-def are_equal(chromosome1, chromosome2):
-    idx_lin1 = chromosome1.get_genes_list(Type=0)
-    idx_lin1.sort()
-    idx_nonlin1 = chromosome1.get_genes_list(Type=1)
-    idx_nonlin1.sort()
-    idx_lin2 = chromosome2.get_genes_list(Type=0)
-    idx_lin2.sort()
-    idx_nonlin2 = chromosome2.get_genes_list(Type=1)
-    idx_nonlin2.sort()  
-    if (idx_lin1 == idx_lin2) and (idx_nonlin1 == idx_nonlin2):
-        return True
-    return False
+#def are_equal(chromosome1, chromosome2):
+#    idx_lin1 = chromosome1.get_genes_list(Type=0)
+#    idx_lin1.sort()
+#    idx_nonlin1 = chromosome1.get_genes_list(Type=1)
+#    idx_nonlin1.sort()
+#    idx_lin2 = chromosome2.get_genes_list(Type=0)
+#    idx_lin2.sort()
+#    idx_nonlin2 = chromosome2.get_genes_list(Type=1)
+#    idx_nonlin2.sort()  
+#    if (idx_lin1 == idx_lin2) and (idx_nonlin1 == idx_nonlin2):
+#        return True
+#    return False
 
 def in_queue(node, queue):
     if queue is None:
@@ -1303,7 +1316,7 @@ def in_queue(node, queue):
     if queue == []:
         return -10
     for i in range(0, len(queue), 1):
-        if are_equal(node.state, queue[i].state):
+        if node.state.equalsTo(queue[i].state):
             return i # index in queue
     return -10 
 
@@ -1349,7 +1362,7 @@ def A_star(problem, q_max=None, start_time=None):
     problem.best_per_level.append(copy.deepcopy(node))
     count = 0
     while len(queue) != 0:
-        node = queue.pop(0)  
+        node = queue.pop(0)  # pop best node from sorted list
         problem.explored.append(node) # add to explored
         if problem.Goal_Test(node): # is it the goal?                  
             library.Print('{}{}'.format('Number of Best Fit improvements', len(problem.best_nodes)), color=library.GREEN)
@@ -1397,7 +1410,8 @@ def A_star(problem, q_max=None, start_time=None):
             i += 1
         print('Top 10 queue: ', q)
         
-        children_states = problem.actions(node, problem)
+        children_states = problem.actions(node, problem) # create children from parent node
+# insert non-existing cinld nodes in sorted list        
         for child_state in children_states: # create children (chromosome)
             h = problem.heuristic(child_state) # heuristic                      
             g = problem.transition(child_state) # path cost

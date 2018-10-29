@@ -65,8 +65,8 @@ if __name__ == '__main__':
     # set6 Confidence interval 0.95
     # set6 Grid spacing 0.2
     Data = {'Proceed fractions': False,\
-            'Train intervals': [(0, 10)],\
-            'Grid start': 0,\
+            'Train intervals': [(2.6, 10)],\
+            'Grid start': 2.6,\
             'Grid end': 10,\
             'Grid spacing': 0.2,\
     # RZK: This keyword makes sure that all bins contain equal number of points. Unless you know how it works set to 1.
@@ -127,11 +127,11 @@ if __name__ == '__main__':
             'ENet verbose': True,\
     ###################### Genetic algorithm parameters ###########################
             'GA population size': 100,\
-            'GA chromosome size': 5,\
+            'GA chromosome size': 15,\
     # Time limit after the last improvement in seconds
             'GA stop time': 600,\
     # Max number of GA iterations
-            'GA max generations': 2,\
+            'GA max generations': 200,\
             'GA mutation probability': 0.1,\
     # How many genes to mutate? 
             'GA mutation interval': [1, 4],\
@@ -158,9 +158,9 @@ if __name__ == '__main__':
     # A* stop when its fitness function reaches this number        
             'A goal': 1e-18,\
             'A stop time': 200,\
-            'A max queue': 200,\
-            'A use correlation': False,\
-            'A min correlation': 0.9,\
+            'A max queue': 1000,\
+            'A use correlation': True,\
+            'A min correlation': 0.1,\
             'A verbose': True,\
     # 'Fast' - accept only child better than current best,
     # 'Parent' - all children that better than parent,
@@ -188,28 +188,33 @@ if __name__ == '__main__':
     else:
         fractions = Data['Train fractions']# full analysis
     for fraction in fractions:
+#        fraction = 1
         Data['Train fraction'] = fraction
         FilterDataDict, FeaturesDict = library.Proceed(Files, Data)
         if fraction == fractions[0]: # first run
             parent_dir = os.getcwd() # get current directory
     # generate string subdir
-            main_dir = '{} {} {} {} {}'.format(FeaturesDict['System']['nMolecules'], 'molecules', FilterDataDict['Initial dataset'].split(".")[0], re.sub('\,|\[|\]|\;|\:', '', str(FilterDataDict['Train Intervals'])), datetime.datetime.now().strftime("%H-%M %B %d %Y"))
+            main_dir = '{} {} {} {} {}'.format(FeaturesDict['System']['nMolecules'],\
+                'molecules', FilterDataDict['Initial dataset'].split(".")[0],\
+                re.sub('\,|\[|\]|\;|\:', '', str(FilterDataDict['Train Intervals'])),\
+                datetime.datetime.now().strftime("%H-%M %B %d %Y"))
             os.mkdir(main_dir) # make subdir
-            main_dir = '{}{}{}'.format(parent_dir, '\\', main_dir) # main_dir full path  
+            main_dir = os.path.join(parent_dir, main_dir) # main_dir full path  
             subdirs = []
         subdir = '{:03.0f}{}'.format(Data['Train fraction']*100, '%') # generate string for subdir
-        subdir = '{}{}{}'.format(main_dir, '\\', subdir) # subdir full path   
+        subdir = os.path.join(main_dir, subdir)# subdir full path 
         os.mkdir(subdir) # make subdir
         subdirs.append(subdir) 
         files = [] # move files into subdir
         for file in glob.glob('{}{}'.format('*.', Data['Figure file format'])):
-            files.append('{}{}{}'.format(parent_dir, '\\', file)) # all plots    
-        files.append('{}{}{}'.format(parent_dir, '\\', Files['GA object'])) # ga.dat
-        files.append('{}{}{}'.format(parent_dir, '\\', Files['GP object'])) # gp.dat
-        files.append('{}{}{}'.format(parent_dir, '\\', Files['Set params'])) # txt
-        files.append('{}{}{}{}'.format(parent_dir, '\\', Files['Structure'], '.xlsx')) # structure xlsx
+            files.append(os.path.join(parent_dir, file)) # all plots             
+        files.append(os.path.join(parent_dir, Files['GA object'])) # ga.dat
+        files.append(os.path.join(parent_dir, Files['GP object'])) # gp.dat
+        files.append(os.path.join(parent_dir, Files['Set params'])) # txt
+        files.append('{}{}'.format(os.path.join(parent_dir, Files['Structure']), '.xlsx')) # structure xlsx        
+        
         for file in glob.glob('{}{}'.format(Files['Fit'], '*.xlsx')): # fit results xlsx
-            files.append('{}{}{}'.format(parent_dir, '\\', file))
+            files.append(os.path.join(parent_dir, file))
         i = 0 # check if files exist
         while i < len(files):
             if os.path.exists(files[i]):
@@ -226,7 +231,7 @@ if __name__ == '__main__':
             library.Print('Nunber of catalogs not equal to number of fractions', color=library.RED)
             # quit()
     
-        ga = IOfunctions.LoadObject('{}{}{}'.format(subdirs[0], '\\', Files['GA object']))
+        ga = IOfunctions.LoadObject(os.path.join(subdirs[0], Files['GA object']))
         nPlots = len(ga.DecreasingChromosomes) # number of plots
         nPredictors = []
         
@@ -238,9 +243,9 @@ if __name__ == '__main__':
         y_rmse_gp = np.zeros(shape=(x.size, nPlots), dtype=float)
         y_R2_gp = np.zeros(shape=(x.size, nPlots), dtype=float)
         for i in range(0, len(subdirs), 1): # x 
-            subdir = subdirs[i]
-            ga = IOfunctions.LoadObject('{}{}{}'.format(subdir, '\\', Files['GA object']))
-            gp = IOfunctions.LoadObject('{}{}{}'.format(subdir, '\\', Files['GP object']))        
+            subdir = subdirs[i]           
+            ga = IOfunctions.LoadObject(os.path.join(subdir, Files['GA object']))
+            gp = IOfunctions.LoadObject(os.path.join(subdir, Files['GP object']))               
             for j in range(0, nPlots, 1):
                 y_rmse_ga[i, j] = library.HARTREE_TO_KJMOL * np.sqrt(ga.DecreasingChromosomes[j].MSE_Test) # GA RMSE
                 y_R2_ga[i, j] = ga.DecreasingChromosomes[j].R2_Test # GA R2
@@ -265,8 +270,11 @@ if __name__ == '__main__':
             plt.legend()
             plt.xlabel('% of training set used')
             plt.ylabel('Average error (kJ/mol)')
-            plt.show(fig)
-            plt.savefig('{} {}{}{}'.format(nPredictors[j], 'predictors. RMSE vs. percentage of training set used', '.', Data['Figure file format']), bbox_inches='tight', format=Data['Figure file format'], dpi=Data['Figure resolution'])
+#            plt.show(fig)
+            plt.savefig('{} {}{}{}'.format(nPredictors[j],\
+                'predictors. RMSE vs. percentage of training set used',\
+                '.', Data['Figure file format']), bbox_inches='tight',\
+                format=Data['Figure file format'], dpi=Data['Figure resolution'])
             plt.close(fig)
     
             fig = plt.figure(j, figsize=Data['Figure size'])    
@@ -281,13 +289,16 @@ if __name__ == '__main__':
             plt.legend()
             plt.xlabel('% of training set used')
             plt.ylabel('Coefficient of determination R2')
-            plt.show(fig)
-            plt.savefig('{} {}{}{}'.format(nPredictors[j], 'predictors. R2 vs. percentage of training set used', '.', Data['Figure file format']), bbox_inches='tight', format=Data['Figure file format'], dpi=Data['Figure resolution'])
+#            plt.show(fig)
+            plt.savefig('{} {}{}{}'.format(nPredictors[j],\
+                'predictors. R2 vs. percentage of training set used',\
+                '.', Data['Figure file format']), bbox_inches='tight',\
+                format=Data['Figure file format'], dpi=Data['Figure resolution'])
             plt.close(fig)
     
         files = [] # move plots into subdir
         for file in glob.glob('{}{}'.format('*.', Data['Figure file format'])):
-            files.append('{}{}{}'.format(parent_dir, '\\', file)) # all plots         
+            files.append(os.path.join(parent_dir, file)) # all plots    
     
         for file in files: # move all plots 
             shutil.move(file, main_dir)

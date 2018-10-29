@@ -248,18 +248,20 @@ def ReadFeatures(F_Nonlinear_Train=None, F_Nonlinear_Test=None, F_linear_Train=N
         F_linear_Test=None, F_Response_Test=None, F_NonlinearFeatures=None,\
         F_FeaturesAll=None, F_FeaturesReduced=None, F_System=None, F_Records=None,\
         verbose=False):
-# F_features - .csv file that contains data stored by Generape combined features.py
-# F_FeaturesAll - .dat file that contains object with all informations about features
-# F_FeaturesReduced - .dat file that contains object with all informations about reduced features
-# F_System - .dat file that contains object Class.System
-# F_Records - .dat file that contains list of records 
-# returns:
-# X - [n x m] numpy array of features
-# rows correspond to observations
-# columns correspond to features
-# Y - [n x 1] numpy array, recponse variable
-# FeaturesAll - class1.InvPowDistancesFeature object. Contains all features
-# FeaturesReduced - class1.InvPowDistancesFeature object. Contains combined features
+    """
+    F_features - .csv file that contains data stored by Generape combined features.py
+    F_FeaturesAll - .dat file that contains object with all informations about features
+    F_FeaturesReduced - .dat file that contains object with all informations about reduced features
+    F_System - .dat file that contains object Class.System
+    F_Records - .dat file that contains list of records 
+    returns:
+    X - [n x m] numpy array of features
+    rows correspond to observations
+    columns correspond to features
+    Y - [n x 1] numpy array, recponse variable
+    FeaturesAll - class1.InvPowDistancesFeature object. Contains all features
+    FeaturesReduced - class1.InvPowDistancesFeature object. Contains combined features
+    """
     if verbose:
         print('Reading data from file')
 # load features for non-linear fit

@@ -4,16 +4,17 @@ from project1 import spherical
 from project1 import library
 
 class Atom(dict):
-#    Symbol = None # atom symbol. Example: O, H, C, Si
-#    Index = None # order in the system 0 .. N-1 where N is number of atoms in the system
-#    AtType = None # atom type identification number. Example atom symbol 'O' corresponds to number 0
-#    AtTypeDigits = 1 # can be increased
-#    MolecularIndex = None # which molecule atom belongs to. In other words number of molecule in the system where this atom exists
-#    Mass = None
-#    Radius = None
-#    Bonds = [] # integers (indices of atoms)
-# x, y, z - atom coordinates
-
+    """
+    Symbol = None # atom symbol. Example: O, H, C, Si
+    Index = None # order in the system 0 .. N-1 where N is number of atoms in the system
+    AtType = None # atom type identification number. Example atom symbol 'O' corresponds to number 0
+    AtTypeDigits = 1 # can be increased
+    MolecularIndex = None # which molecule atom belongs to. In other words number of molecule in the system where this atom exists
+    Mass = None
+    Radius = None
+    Bonds = [] # integers (indices of atoms)
+    x, y, z - atom coordinates
+    """
     def __init__(self, Symbol, Index, AtType, MolecularIndex, AtTypeDigits=1,\
             Mass=None, Radius=None, Bonds=None, x=None, y=None, z=None):
         self.Symbol = Symbol
@@ -50,7 +51,14 @@ class Atom(dict):
         return list(self.keys())
             
 class Molecule(dict):
-    
+    """
+    Atoms
+    Atoms
+    Name
+    Bonds
+    AtomIndex
+    CenterOfMass
+    """
     def __init__(self, Atoms=None, Name=None, Mass=None):
         if type(Atoms) is Atom:
             Atoms = [Atoms]

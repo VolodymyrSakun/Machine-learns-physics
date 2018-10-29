@@ -865,7 +865,7 @@ def GetFitGA(FilterDataResults, Files, Data, GenerateFeaturesResults):
             chromosome_copy = copy.deepcopy(chromosome)
             chromosome_copy.print_score()
             ga.DecreasingChromosomes.append(chromosome_copy)
-# chromosome must be sorted before             
+        # chromosome must be sorted before             
         chromosome = ga.RemoveWorstGene(chromosome, x_expD=X_ExpSingleD_train, x_expDn=X_ExpSingleDn_train,\
             x_lin=X_Linear_train, y=Y_train, verbose=True)
         if chromosome is None:
@@ -884,7 +884,7 @@ def GetFitGA(FilterDataResults, Files, Data, GenerateFeaturesResults):
         Title=None, PlotType='Scatter', figsize=Data['Figure size'], marker_size=7, line_width=1, FileFormat=Data['Figure file format'])
     
     print('Backward Elimination and Search Alternative worked ', t_sec, 'sec')
-# append ethalon to the end of list            
+    # append ethalon to the end of list            
     gene0 = genetic.Gene(0, Type=0, p_Value=None, rank=None)
     gene1 = genetic.Gene(15, Type=0, p_Value=None, rank=None)
     gene2 = genetic.Gene(30, Type=0, p_Value=None, rank=None)
@@ -1262,7 +1262,7 @@ def PlotHistogram(FileName=None, y_true=None, y_pred=None, FigNumber=1,\
     if xLabel is not None:
         plt.xlabel(xLabel)
     plt.ylabel(yLabel)
-    plt.show(fig)
+#    plt.show(fig)
     if FileName is not None:
         F = '{}{}{}'.format(FileName, '.', FileFormat)
         plt.savefig(F, bbox_inches='tight', format=FileFormat, dpi=Resolution)
@@ -1290,7 +1290,7 @@ def plot_contour(x, y, z, x_res=100, y_res=100, FileName=None,\
         plt.xlabel(xTitle)
     if yTitle is not None:
         plt.ylabel(yTitle)    
-    plt.show()
+#    plt.show()
     if FileName is not None:
         F = '{}{}{}'.format(FileName, '.', FileFormat)
         plt.savefig(F, bbox_inches='tight', format=FileFormat, dpi=Resolution)
@@ -1492,7 +1492,7 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
     plt.legend()
     plt.xlabel(xLabel)
     plt.ylabel(yErrorLabel)
-    plt.show(fig_error)
+#    plt.show(fig_error)
     plt.savefig(F_Error, bbox_inches='tight', format=fig_format, dpi=Resolution)
     plt.close(fig_error)
 
@@ -1505,7 +1505,7 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
     plt.legend()
     plt.xlabel(xLabel)
     plt.ylabel('MSE')
-    plt.show(fig_mse)
+#    plt.show(fig_mse)
     F_mse = 'mse.png'
     plt.savefig(F_mse, bbox_inches='tight', format=fig_format, dpi=Resolution)
     plt.close(fig_mse)
@@ -1519,7 +1519,7 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
     plt.legend()
     plt.xlabel(xLabel)
     plt.ylabel('R2')
-    plt.show(fig_R2)
+#    plt.show(fig_R2)
     plt.savefig(F_R2, bbox_inches='tight', format=fig_format, dpi=Resolution)
     plt.close(fig_R2)
     
@@ -1560,7 +1560,7 @@ def Plot(CoM=None, E_True=None, nFunctions=None, E_Predicted=None, xLabel='R, Co
     plt.legend()
     plt.xlabel(xLabel)
     plt.ylabel(yEnergyLabel)
-    plt.show(fig_energy)    
+#    plt.show(fig_energy)    
     plt.savefig(F_Energy, bbox_inches='tight', format=fig_format, dpi=Resolution)
     plt.close(fig_energy)
     return
@@ -1588,14 +1588,14 @@ def Proceed(Files, Data):
     FeaturesDict = GenerateFeatures(FilterDataDict, Files)
        
     ga = GetFitGA(FilterDataDict, Files, Data, FeaturesDict)
-    
+    print("Gaussian started")
     gp, Path = GetFitGP5(Files, Data)
 # some mistake    
 #    plot_contour(Path['length_scale'], Path['noise_level'], Path['R2'], 100, 100,\
 #        FileName=Files['GP path'], FileFormat=Data['Figure file format'],\
 #        FigSize=Data['Figure size'], xTitle='Length scale',\
 #        yTitle='Noise level', barTitle='Gaussian R2', Resolution=Data['Figure resolution'])
-      
+    print("Read files")
     COM_test = IOfunctions.ReadCSV(Files['COM test']) 
     Y_test = IOfunctions.ReadCSV(Files['Response Test'])   
     if FeaturesDict['FeaturesLinearSingleAll'] is not None:
@@ -1622,10 +1622,11 @@ def Proceed(Files, Data):
     else:
         X_ExpSingleDn_test = None
     X_Gaussian_test = IOfunctions.ReadCSV(Files['Gaussian Test'])
-        
+    print("Predict gaussian")
     y_pred = gp.predict(X_Gaussian_test)
     ga.gp_MSE = skm.mean_squared_error(Y_test, y_pred)
     ga.gp_R2 = gp.score(X_Gaussian_test, Y_test)
+    print("Save objects")
     IOfunctions.SaveObject(Files['GA object'], ga)    
     IOfunctions.SaveObject(Files['GP object'], gp) 
 
