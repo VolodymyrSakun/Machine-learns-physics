@@ -4,30 +4,31 @@
 import matplotlib.pyplot as plt
 
 x = list(range(1, 16, 1))
-y = [-0.0240097, 0.612791, -7.043, 48.2289, -219.296, 693.937, -1594.65,\
- 2633.41, -3107.96, 2523.57, -1273.46, 266.353, 95.1984, -72.4919, 13.6115]
+y = [-0.0240, 0.6128, -7.0430, 48.23, -219., 693., -1594.,\
+     2633., -3108., 2524., -1273., 266., 95.19, -72.49, 13.61]
 
-def autolabel(rects):
-    """
-    Attach a text label above each bar displaying its height
-    """
-    for rect in rects:
-        height = rect.get_height()
-        if height >= 0:
-            height += 100
-        else:
-            height -= 200
-        ax.text(rect.get_x() + rect.get_width()/2., height, '%f' % height, ha='center', va='bottom')
+yStr = ['-0.0240', '0.6128', '-7.043', '48.23', '-219', '693', '-1594',\
+        '2633', '-3108', '2524', '-1273', '266', '95.19', '72.49', '13.61']
         
-fig, ax = plt.subplots(figsize=(19, 10))        
+fig, ax = plt.subplots(figsize=(4, 3))        
+plt.rcParams['font.size'] = 5
 p1 = ax.bar(x, y)
 ax.set_ylabel('Coefficient, reduced LJ units')
 ax.set_xlabel('Power')
 ax.set_xticks(x, [str(q) for q in x])
 
-autolabel(p1)
-plt.show()
+i = 0
+for rect in p1:
+    height = rect.get_height()
+    if height >= 0:
+        height += 30
+    else:
+        height -= 250
+    ax.text(rect.get_x() + rect.get_width()/2., height, '%s' % yStr[i], ha='center', va='bottom')
+    i += 1
 
-plt.savefig('OLS_Bar.png', bbox_inches='tight', format='png')
+plt.show()
+plt.savefig('OLS_Bar.eps', bbox_inches='tight', format='eps')
 plt.close(fig)
+
 
