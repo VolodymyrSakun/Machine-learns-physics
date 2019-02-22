@@ -111,10 +111,13 @@ h2o.cluster().shutdown()
 mse = mean_squared_error(Y_forecast_true, Y_forecast_predict)
 print(mse)
 
+yPred = library.HARTREE_TO_KJMOL * Y_forecast_predict
+yTrue = library.HARTREE_TO_KJMOL * Y_forecast_true
+
 toPlotFull = pd.DataFrame(columns=['COM', 'Real', 'Predicted'], dtype=float)
 toPlotFull['COM'] = COM_forecast
-toPlotFull['Real'] = Y_forecast_true
-toPlotFull['Predicted'] = Y_forecast_predict
+toPlotFull['Real'] = yTrue
+toPlotFull['Predicted'] = yPred
 toPlotFull = toPlotFull.reindex(np.random.permutation(toPlotFull.index)) # shuffle 
 toPlotFull.reset_index(drop=True, inplace=True) # reset index  
 
@@ -130,7 +133,7 @@ fig = plt.figure(1, figsize=(19, 10))
 plt.plot(toPlot.COM.loc[0 : nSamplesPlot].values, toPlot.Predicted.loc[0 : nSamplesPlot].values, c='g', label='Predicted')
 plt.plot(toPlot.COM.loc[0 : nSamplesPlot].values, toPlot.Real.loc[0 : nSamplesPlot].values, c='r', label='True')
 plt.xlabel('Distance between center of masses')
-plt.ylabel('Energy')
+plt.ylabel('Energy kJ/mol')
 plt.title('{} {} {}'.format('Plot', nSamplesPlot, 'random observations'))
 plt.legend()
 plt.show()

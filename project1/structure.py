@@ -72,14 +72,14 @@ Files = {'Response Train': 'ResponseTrain.csv',\
 # set6 Confidence interval 0.95
 # set6 Grid spacing 0.2
 Data = {'Proceed fractions': False,\
-        'Train intervals': [(2.8, 10)],\
-        'Grid start': 2.8,\
-        'Grid end': 10,\
+        'Train intervals': [(1.6, 6)],\
+        'Grid start': 1.6,\
+        'Grid end': 6,\
         'Grid spacing': 0.2,\
 # RZK: This keyword makes sure that all bins contain equal number of points. Unless you know how it works set to 1.
-        'Confidence interval': 0.95,\
+        'Confidence interval': 0.85,\
 # How many points in the database goes into the test set
-        'Test fraction': 0.2,\
+        'Test fraction': 0.3,\
 # IF proceed-fractions = FALSE: the fraction of points (out of the total training points) is used for training
         'Train fraction': 1,\
 # IF proceed-fractions = TRUE: perform several runs with different fractions of training points
