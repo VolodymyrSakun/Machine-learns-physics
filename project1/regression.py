@@ -34,6 +34,7 @@ from sklearn.linear_model import ElasticNetCV
 from sklearn.linear_model import enet_path
 import matplotlib.pyplot as plt
 import statsmodels.regression.linear_model as sm
+from sklearn.linear_model import Ridge
 
 def Standardize(x):
     x_scale = StandardScaler(copy=True, with_mean=True, with_std=True)
@@ -187,7 +188,7 @@ def compute_Mallow(nObservations, nFeatures, MSEall, MSEp):
     return Cp
 
 def fit_linear(idx, x_train, y_train, x_test=None, y_test=None,\
-        normalize=True, LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'):
+        normalize=True, LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy', l2=None):
 # solver = 'sklearn'
 # solver = 'scipy'   
 # solver = 'statsmodels'  
@@ -207,7 +208,7 @@ def fit_linear(idx, x_train, y_train, x_test=None, y_test=None,\
             x_sel_test[:, i] = x_test[:, idx[i]] # copy selected features from initial set
     else:
         x_sel_test = None
-    lr = LR(normalize=normalize, LinearSolver=LinearSolver, cond=cond, lapack_driver=lapack_driver)        
+    lr = LR(normalize=normalize, LinearSolver=LinearSolver, cond=cond, lapack_driver=lapack_driver, l2=l2)        
     lr.fit(x_sel_train, y_train, x_test=x_sel_test, y_test=y_test)
     if lr.p_Values is None:
         a = np.zeros(shape=(1, len(idx)), dtype=float)
@@ -300,7 +301,7 @@ def fit_exp(idx_exp, idx_lin, x_expD_train, x_expDn_train, x_lin_train, y_train,
 
 class LR(dict):
 
-    def __init__(self, normalize=True, LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy'):
+    def __init__(self, normalize=True, LinearSolver='sklearn', cond=1e-20, lapack_driver='gelsy', l2=None):
         self.normalize = True
         self.LinearSolver = LinearSolver # 'sklearn', 'scipy', 'statsmodels'
         self.cond = cond # for scipy solver
@@ -316,6 +317,7 @@ class LR(dict):
         self.RMSE_Test=None
         self.R2_Test=None
         self.R2Adj_Test=None
+        self.l2 = l2
         return
 
     def __getattr__(self, name):
@@ -339,6 +341,11 @@ class LR(dict):
         return list(self.keys()) 
     
     def fit(self, x_train, y_train, x_test=None, y_test=None):
+        if self.l2 is not None:
+            ridge = Ridge(alpha=self.l2, copy_X=True, fit_intercept=False, max_iter=None,
+                normalize=self.normalize, random_state=None, solver='auto', tol=0.001)
+            ridge.fit(x_train, y_train)
+            self.coef_ = ridge.coef_.reshape(-1)
         if self.LinearSolver == 'sklearn': # 
             lr = LinearRegression(fit_intercept=False, normalize=self.normalize,\
                                   copy_X=True, n_jobs=1)

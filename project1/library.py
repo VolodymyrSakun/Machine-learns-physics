@@ -384,7 +384,7 @@ def ReadData(F_data, Atoms):
         i += 1
     return record_list
 
-def GenerateFeatures(Filter, Files): 
+def GenerateFeatures(Files, Forecast=False): 
 
     def CreateDtPList(Distances, Description):
     # make list of distances raised to corresponding power    
@@ -518,20 +518,28 @@ def GenerateFeatures(Filter, Files):
         nAtoms=nAtoms, nAtomTypes=nAtomTypes, nMolecules=nMolecules, Distances=Distances,\
         nDistances=nDistances, nDiTypes=nDiTypes)
     
-    records_train_list = IOfunctions.ReadRecordAtoms(Files['Training set'], Atoms)
-    records_test_list = IOfunctions.ReadRecordAtoms(Files['Test set'], Atoms)
-    IOfunctions.StoreEnergy(Files['Response Train'], records_train_list)
-    IOfunctions.StoreEnergy(Files['Response Test'], records_test_list)
-    
+    if not Forecast:
+        records_train_list = IOfunctions.ReadRecordAtoms(Files['Training set'], Atoms)
+        records_test_list = IOfunctions.ReadRecordAtoms(Files['Test set'], Atoms)
+        IOfunctions.StoreEnergy(Files['Response Train'], records_train_list)
+        IOfunctions.StoreEnergy(Files['Response Test'], records_test_list)
+    else:
+        records_forecast_list = IOfunctions.ReadRecordAtoms(Files['Forecast set'], Atoms)
+        IOfunctions.StoreEnergy(Files['Response Forecast'], records_forecast_list)        
+        
     if LinearSingle['Include']:
         DtP_LinearSingle_list = CreateDtPList(Distances, LinearSingle['Description'])
         FeaturesLinearSingleAll = CreateSingleFeaturesAll(DtP_LinearSingle_list,\
             FeType='Linear', nDistances=1, nConstants=1)
         FeaturesLinearSingleReduced = CreateFeaturesReduced(FeaturesLinearSingleAll)
-        IOfunctions.StoreLinearFeatures(Files['Linear Single Train'], FeaturesLinearSingleAll,\
-            FeaturesLinearSingleReduced, records_train_list, Atoms)
-        IOfunctions.StoreLinearFeatures(Files['Linear Single Test'], FeaturesLinearSingleAll,\
-            FeaturesLinearSingleReduced, records_test_list, Atoms)
+        if not Forecast:        
+            IOfunctions.StoreLinearFeatures(Files['Linear Single Train'], FeaturesLinearSingleAll,\
+                FeaturesLinearSingleReduced, records_train_list, Atoms)
+            IOfunctions.StoreLinearFeatures(Files['Linear Single Test'], FeaturesLinearSingleAll,\
+                FeaturesLinearSingleReduced, records_test_list, Atoms)
+        else:
+            IOfunctions.StoreLinearFeatures(Files['Linear Single Forecast'], FeaturesLinearSingleAll,\
+                FeaturesLinearSingleReduced, records_forecast_list, Atoms)            
     else:
         FeaturesLinearSingleAll = None
         FeaturesLinearSingleReduced = None
@@ -542,10 +550,14 @@ def GenerateFeatures(Filter, Files):
             FeType='Linear', IncludeOnlySamePower=LinearDouble['IncludeOnlySamePower'],\
             IncludeSameType=LinearDouble['IncludeSameType'], nConstants=1)
         FeaturesLinearDoubleReduced = CreateFeaturesReduced(FeaturesLinearDoubleAll)
-        IOfunctions.StoreLinearFeatures(Files['Linear Double Train'], FeaturesLinearDoubleAll,\
-            FeaturesLinearDoubleReduced, records_train_list, Atoms)
-        IOfunctions.StoreLinearFeatures(Files['Linear Double Test'], FeaturesLinearDoubleAll,\
-            FeaturesLinearDoubleReduced, records_test_list, Atoms)        
+        if not Forecast:  
+            IOfunctions.StoreLinearFeatures(Files['Linear Double Train'], FeaturesLinearDoubleAll,\
+                FeaturesLinearDoubleReduced, records_train_list, Atoms)
+            IOfunctions.StoreLinearFeatures(Files['Linear Double Test'], FeaturesLinearDoubleAll,\
+                FeaturesLinearDoubleReduced, records_test_list, Atoms)    
+        else:
+            IOfunctions.StoreLinearFeatures(Files['Linear Double Forecast'], FeaturesLinearDoubleAll,\
+                FeaturesLinearDoubleReduced, records_forecast_list, Atoms)             
     else:
         FeaturesLinearDoubleAll = None
         FeaturesLinearDoubleReduced = None
@@ -556,10 +568,14 @@ def GenerateFeatures(Filter, Files):
             FeType='Linear', IncludeOnlySamePower=LinearTriple['IncludeOnlySamePower'],\
             IncludeSameType=LinearTriple['IncludeSameType'], nConstants=1)
         FeaturesLinearTripleReduced = CreateFeaturesReduced(FeaturesLinearTripleAll)
-        IOfunctions.StoreLinearFeatures(Files['Linear Triple Train'], FeaturesLinearTripleAll,\
-            FeaturesLinearTripleReduced, records_train_list, Atoms)
-        IOfunctions.StoreLinearFeatures(Files['Linear Triple Test'], FeaturesLinearTripleAll,\
-            FeaturesLinearTripleReduced, records_test_list, Atoms)        
+        if not Forecast:
+            IOfunctions.StoreLinearFeatures(Files['Linear Triple Train'], FeaturesLinearTripleAll,\
+                FeaturesLinearTripleReduced, records_train_list, Atoms)
+            IOfunctions.StoreLinearFeatures(Files['Linear Triple Test'], FeaturesLinearTripleAll,\
+                FeaturesLinearTripleReduced, records_test_list, Atoms)    
+        else:
+            IOfunctions.StoreLinearFeatures(Files['Linear Triple Forecast'], FeaturesLinearTripleAll,\
+                FeaturesLinearTripleReduced, records_forecast_list, Atoms)              
     else:
         FeaturesLinearTripleAll = None
         FeaturesLinearTripleReduced = None
@@ -568,10 +584,14 @@ def GenerateFeatures(Filter, Files):
         DtP_ExpSingle_list = CreateDtPList(Distances, ExpSingle['Description'])
         FeaturesExpSingleAll = CreateSingleFeaturesAll(DtP_ExpSingle_list,\
             FeType='Exp', nDistances=1, nConstants=2)
-        IOfunctions.StoreExpSingleFeatures(Files['Exp Single Train D'],\
-            Files['Exp Single Train D^n'], FeaturesExpSingleAll, records_train_list, Atoms)
-        IOfunctions.StoreExpSingleFeatures(Files['Exp Single Test D'],\
-            Files['Exp Single Test D^n'], FeaturesExpSingleAll, records_test_list, Atoms)
+        if not Forecast:     
+            IOfunctions.StoreExpSingleFeatures(Files['Exp Single Train D'],\
+                Files['Exp Single Train D^n'], FeaturesExpSingleAll, records_train_list, Atoms)
+            IOfunctions.StoreExpSingleFeatures(Files['Exp Single Test D'],\
+                Files['Exp Single Test D^n'], FeaturesExpSingleAll, records_test_list, Atoms)
+        else:
+            IOfunctions.StoreExpSingleFeatures(Files['Exp Single Forecast D'],\
+                Files['Exp Single Forecast D^n'], FeaturesExpSingleAll, records_forecast_list, Atoms)            
     else:
         FeaturesExpSingleAll = None
                 
@@ -580,12 +600,17 @@ def GenerateFeatures(Filter, Files):
         FeaturesExpDoubleAll = CreateDoubleFeaturesAll(DtP_ExpDouble_list, FeType='Exp',\
             nConstants=3, IncludeOnlySamePower=ExpDouble['IncludeOnlySamePower'],\
             IncludeSameType=ExpDouble['IncludeSameType'])
-        IOfunctions.StoreExpDoubleFeatures(Files['Exp Double Train D1'],\
-            Files['Exp Double Train D2'], Files['Exp Double Train D1^mD2^n'],\
-            FeaturesExpDoubleAll, records_train_list, Atoms)
-        IOfunctions.StoreExpDoubleFeatures(Files['Exp Double Test D1'],\
-            Files['Exp Double Test D2'], Files['Exp Double Test D1^mD2^n'],\
-            FeaturesExpDoubleAll, records_test_list, Atoms)
+        if not Forecast: 
+            IOfunctions.StoreExpDoubleFeatures(Files['Exp Double Train D1'],\
+                Files['Exp Double Train D2'], Files['Exp Double Train D1^mD2^n'],\
+                FeaturesExpDoubleAll, records_train_list, Atoms)
+            IOfunctions.StoreExpDoubleFeatures(Files['Exp Double Test D1'],\
+                Files['Exp Double Test D2'], Files['Exp Double Test D1^mD2^n'],\
+                FeaturesExpDoubleAll, records_test_list, Atoms)
+        else:
+            IOfunctions.StoreExpDoubleFeatures(Files['Exp Double Forecast D1'],\
+                Files['Exp Double Forecast D2'], Files['Exp Double Forecast D1^mD2^n'],\
+                FeaturesExpDoubleAll, records_forecast_list, Atoms)            
     else:
         FeaturesExpDoubleAll = None
 
@@ -594,10 +619,14 @@ def GenerateFeatures(Filter, Files):
         FeaturesGaussianSingleAll = CreateSingleFeaturesAll(DtP_GaussianSingle_list,\
             FeType='Gauss', nDistances=1, nConstants=1)
         FeaturesGaussianSingleReduced = CreateFeaturesReduced(FeaturesGaussianSingleAll)
-        IOfunctions.StoreLinearFeatures(Files['Gaussian Train'],\
-            FeaturesGaussianSingleAll, FeaturesGaussianSingleReduced, records_train_list, Atoms)
-        IOfunctions.StoreLinearFeatures(Files['Gaussian Test'],\
-            FeaturesGaussianSingleAll, FeaturesGaussianSingleReduced, records_test_list, Atoms)
+        if not Forecast: 
+            IOfunctions.StoreLinearFeatures(Files['Gaussian Train'],\
+                FeaturesGaussianSingleAll, FeaturesGaussianSingleReduced, records_train_list, Atoms)
+            IOfunctions.StoreLinearFeatures(Files['Gaussian Test'],\
+                FeaturesGaussianSingleAll, FeaturesGaussianSingleReduced, records_test_list, Atoms)
+        else:
+            IOfunctions.StoreLinearFeatures(Files['Gaussian Forecast'],\
+                FeaturesGaussianSingleAll, FeaturesGaussianSingleReduced, records_forecast_list, Atoms)            
     else:
         FeaturesGaussianSingleAll = None
         FeaturesGaussianSingleReduced = None
@@ -614,82 +643,27 @@ def GenerateFeatures(Filter, Files):
         'FeaturesGaussianAll': FeaturesGaussianSingleAll,\
         'FeaturesGaussianReduced': FeaturesGaussianSingleReduced}
     
-    IOfunctions.StoreStructure(Files['Structure'], Structure) # excel
+    if not Forecast: 
+        IOfunctions.StoreStructure(Files['Structure'], Structure) # excel
     
     return Structure  
             
 def GetFitGA(FilterDataResults, Files, Data, GenerateFeaturesResults):
     
-    Y_train = IOfunctions.ReadCSV(Files['Response Train'])
-    Y_test = IOfunctions.ReadCSV(Files['Response Test'])  
-    if GenerateFeaturesResults['FeaturesLinearSingleAll'] is not None:
-        X_LinearSingle_train = IOfunctions.ReadCSV(Files['Linear Single Train'])
-        X_LinearSingle_test = IOfunctions.ReadCSV(Files['Linear Single Test'])
-    else:
-        X_LinearSingle_train = None
-        X_LinearSingle_test = None
-    if GenerateFeaturesResults['FeaturesLinearDoubleAll'] is not None:
-        X_LinearDouble_train = IOfunctions.ReadCSV(Files['Linear Double Train'])
-        X_LinearDouble_test = IOfunctions.ReadCSV(Files['Linear Double Test'])
-    else:
-        X_LinearDouble_train = None
-        X_LinearDouble_test = None        
-    if GenerateFeaturesResults['FeaturesLinearTripleAll'] is not None:
-        X_LinearTriple_train = IOfunctions.ReadCSV(Files['Linear Triple Train'])
-        X_LinearTriple_test = IOfunctions.ReadCSV(Files['Linear Triple Test'])
-    else:
-        X_LinearTriple_train = None
-        X_LinearTriple_test = None   
-    if GenerateFeaturesResults['FeaturesExpSingleAll'] is not None:
-        X_ExpSingleD_train = IOfunctions.ReadCSV(Files['Exp Single Train D'])
-        X_ExpSingleDn_train = IOfunctions.ReadCSV(Files['Exp Single Train D^n'])
-    else:
-        X_ExpSingleD_train = None
-        X_ExpSingleDn_train = None           
-    if GenerateFeaturesResults['FeaturesExpDoubleAll'] is not None:
-        X_ExpSingleD_test = IOfunctions.ReadCSV(Files['Exp Single Test D'])
-        X_ExpSingleDn_test = IOfunctions.ReadCSV(Files['Exp Single Test D^n'])   
-    else:
-        X_ExpSingleD_test = None
-        X_ExpSingleDn_test = None           
-        
-    if (X_LinearSingle_train is not None) and (X_LinearDouble_train is not None) and (X_LinearTriple_train is not None): # all three exist
-        X_Linear_train = np.concatenate((X_LinearSingle_train, X_LinearDouble_train, X_LinearTriple_train),axis=1)
-        FeaturesLinearAll = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleAll'])
-        FeaturesLinearAll.extend(GenerateFeaturesResults['FeaturesLinearDoubleAll'])
-        FeaturesLinearAll.extend(GenerateFeaturesResults['FeaturesLinearTripleAll'])
-        FeaturesLinearReduced = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleReduced'])
-        FeaturesLinearReduced.extend(GenerateFeaturesResults['FeaturesLinearDoubleReduced'])
-        FeaturesLinearReduced.extend(GenerateFeaturesResults['FeaturesLinearTripleReduced'])
-    elif X_LinearSingle_train is not None and X_LinearDouble_train is not None: # single + double exist
-        X_Linear_train = np.concatenate((X_LinearSingle_train,X_LinearDouble_train),axis=1)
-        FeaturesLinearAll = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleAll'])
-        FeaturesLinearAll.extend(GenerateFeaturesResults['FeaturesLinearDoubleAll'])
-        FeaturesLinearReduced = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleReduced'])
-        FeaturesLinearReduced.extend(GenerateFeaturesResults['FeaturesLinearDoubleReduced'])
-    elif X_LinearSingle_train is not None and X_LinearDouble_train is None: # only single
-        X_Linear_train = X_LinearSingle_train
-        FeaturesLinearAll = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleAll'])
-        FeaturesLinearReduced = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearSingleReduced'])
-    elif X_LinearSingle_train is None and X_LinearDouble_train is not None: # only double
-        X_Linear_train = X_LinearDouble_train
-        FeaturesLinearAll = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearDoubleAll'])
-        FeaturesLinearReduced = copy.deepcopy(GenerateFeaturesResults['FeaturesLinearDoubleReduced'])
-    else: # no linear features
-        X_Linear_train = None
-        FeaturesLinearAll = None
-        FeaturesLinearReduced = None
-    if (X_LinearSingle_test is not None) and (X_LinearDouble_test is not None) and (X_LinearTriple_test is not None): # all exist
-        X_Linear_test = np.concatenate((X_LinearSingle_test,X_LinearDouble_test,X_LinearTriple_test),axis=1)
-    elif X_LinearSingle_test is not None and X_LinearDouble_test is not None: # single + double exist
-        X_Linear_test = np.concatenate((X_LinearSingle_test,X_LinearDouble_test),axis=1)
-    elif X_LinearSingle_test is not None and X_LinearDouble_test is None: # only single
-        X_Linear_test = X_LinearSingle_test
-    elif X_LinearSingle_test is None and X_LinearDouble_test is not None: # only double
-        X_Linear_test = X_LinearDouble_test
-    else: # no linear features
-        X_Linear_test = None   
-        
+    featuresDict = IOfunctions.ReadFeatures(Files, GenerateFeaturesResults, Forecast=False) 
+    Y_train = featuresDict['Y_train']
+    Y_test = featuresDict['Y_test']
+    X_LinearSingle_train = featuresDict['X_LinearSingle_train']
+    X_LinearSingle_test = featuresDict['X_LinearSingle_test']
+    X_ExpSingleD_train = featuresDict['X_ExpSingleD_train']
+    X_ExpSingleDn_train = featuresDict['X_ExpSingleDn_train']
+    X_ExpSingleD_test = featuresDict['X_ExpSingleD_test']
+    X_ExpSingleDn_test = featuresDict['X_ExpSingleDn_test']
+    X_Linear_train = featuresDict['X_Linear_train']
+    X_Linear_test = featuresDict['X_Linear_test']
+    FeaturesLinearAll = featuresDict['FeaturesLinearAll']
+    FeaturesLinearReduced = featuresDict['FeaturesLinearReduced']
+    
     if Data['Use VIP'] and X_LinearSingle_train is not None:
         if Data['Number of VIP features'] is None:
             if GenerateFeaturesResults.System.nAtoms == 6: # two water molecules system
@@ -1585,7 +1559,7 @@ def Proceed(Files, Data):
         print(i, ':', j)   
     RedirectPrintToConsole(f, f_old)
     
-    FeaturesDict = GenerateFeatures(FilterDataDict, Files)
+    FeaturesDict = GenerateFeatures(Files)
        
     ga = GetFitGA(FilterDataDict, Files, Data, FeaturesDict)
     print("Gaussian started")

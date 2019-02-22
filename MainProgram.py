@@ -1,5 +1,6 @@
 from project1 import library
 from project1 import IOfunctions
+from project1 import structure
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -10,178 +11,9 @@ import glob
 
 if __name__ == '__main__':
     
-    Files = {'Response Train': 'ResponseTrain.csv',\
-            'Response Test': 'ResponseTest.csv',\
-            'Linear Single Train': 'LinearSingleTrain.csv',\
-            'Linear Single Test': 'LinearSingleTest.csv',\
-            'Linear Double Train': 'LinearDoubleTrain.csv',\
-            'Linear Double Test': 'LinearDoubleTest.csv',\
-            'Linear Triple Train': 'LinearTripleTrain.csv',\
-            'Linear Triple Test': 'LinearTripleTest.csv',\
-            'Exp Single Train D': 'ExpSingleTrainD.csv',\
-            'Exp Single Test D': 'ExpSingleTestD.csv',\
-            'Exp Single Train D^n': 'ExpSingleTrainD^n.csv',\
-            'Exp Single Test D^n': 'ExpSingleTestD^n.csv',\
-            'Exp Double Train D1': 'ExpDoubleTrainD1.csv',\
-            'Exp Double Test D1': 'ExpDoubleTestD1.csv',\
-            'Exp Double Train D2': 'ExpDoubleTrainD2.csv',\
-            'Exp Double Test D2': 'ExpDoubleTestD2.csv',\
-            'Exp Double Train D1^mD2^n': 'ExpDoubleTrainD1^mD2^n.csv',\
-            'Exp Double Test D1^mD2^n': 'ExpDoubleTestD1^mD2^n.csv',\
-            'Gaussian Train': 'GaussianTrain.csv',\
-            'Gaussian Test': 'GaussianTest.csv',\
-            'Structure': 'Structure',\
-            'Set': 'SET 7.x',\
-            'System descriptor': 'SystemDescriptor.BF3NH3',\
-    #            'Set': 'SET 6.x',\
-    #            'System descriptor': 'SystemDescriptor.2H2O',\
-            'Training set': 'Training Set.x',\
-            'Test set': 'Test Set.x',\
-            'COM train': 'COM Train.csv',\
-            'COM test': 'COM Test.csv',\
-            'Set params': 'SetParams.txt',\
-            'Filter data': 'FilterData.dat',\
-            'Generate features': 'GenerateFeatures.dat',\
-            'Fit': 'Fit',\
-            'GA object': 'ga.dat',\
-            'GP object': 'gp.dat',\
-    # plots        
-            'ENet path single': 'ENetPathSingle',\
-            'ENet path': 'ENetPath',\
-            'GA path': 'GApath',\
-            'GP path': 'GPpath',\
-            'GA path RMSE single': 'GA_PATH_RMSE_Single',\
-            'GA path R2 single': 'GA_PATH_R2_Single',\
-            'BF path RMSE single': 'BF_PATH_RMSE_Single',\
-            'GA path RMSE': 'GA_PATH_RMSE',\
-            'GA path R2': 'GA_PATH_R2',\
-            'BF path RMSE': 'BF_PATH_RMSE',\
-            'GP energy error histogram': 'GP_energy_error_histogram',\
-            'GA energy error histogram': 'GA_energy_error_histogram',\
-            'Plot error': 'Error',\
-            'Plot energy': 'Energy'}
-    
-    # set6 Train intervals 2.8 .. 5.6
-    # set6 Confidence interval 0.95
-    # set6 Grid spacing 0.2
-    Data = {'Proceed fractions': False,\
-            'Train intervals': [(2.6, 10)],\
-            'Grid start': 2.6,\
-            'Grid end': 10,\
-            'Grid spacing': 0.2,\
-    # RZK: This keyword makes sure that all bins contain equal number of points. Unless you know how it works set to 1.
-            'Confidence interval': 0.85,\
-    # How many points in the database goes into the test set
-            'Test fraction': 0.2,\
-    # IF proceed-fractions = FALSE: the fraction of points (out of the total training points) is used for training
-            'Train fraction': 1,\
-    # IF proceed-fractions = TRUE: perform several runs with different fractions of training points
-            'Train fractions': np.linspace(0.2, 1, 9, endpoint=True, dtype=float),\
-    # Random generator seed
-            'Random state': 1001,\
-    # png or eps (perhaps other formats supported by mathplotlib)
-            'Figure file format': 'png',\
-    # Figure size in inches
-            'Figure size': (19, 10),\
-    # Resolution
-            'Figure resolution': 100,\
-    # Keep some of the features in the set permanently throughout the optimization?
-            'Use VIP': False,\
-    # Number of permanent features (RZK: which one are kept? atomatic detection of best single features)
-            'Number of VIP features': 5,\
-    # ENet or GA
-            'First algorithm': 'GA',\
-    # 'sklearn', 'scipy', 'statsmodels': which library to use for OLS. 'statsmodels' also provides p-values
-            'LR linear solver': 'sklearn',\
-    # for 'scipy' solver      
-            'LR scipy condition': 1e-03,\
-    # 'gelsd', 'gelsy', 'gelss', for scipy solver only
-            'LR scipy driver': 'gelsy',\
-    ################################# Elastic Net parameters ######################        
-    # 'Mallow' - mallow statistics selection criteria, 'MSE' - best mse, 'CV' - for ElasticNetCV
-            'ENet criterion': 'MSE',\
-    # Elastic net parameters for single distances if VIP is to be used        
-    # L1 / L2 ration        
-            'ENet ratio single': 0.7,\
-    # number of L1 constants for enet_path
-            'ENet number of alphas single': 100,\
-    # log10 scale min L1. -2 corresponds to 0.01
-            'ENet alpha min single': -7,\
-    # log10 scale max L1. -2 corresponds to 0.01
-            'ENet alpha max single': -3,\
-    # number of cross validation. only for 'CV' criterion        
-            'ENet cv number single': 30,\
-            'ENet max number of iterations single': 1000,\
-    # Elastic net parameters for all cases except single for VIP        
-    # L1 / L2 ration        
-            'ENet ratio': 0.7,\
-    # number of L1 constants for enet_path
-            'ENet number of alphas': 100,\
-    # log10 scale min L1. -2 corresponds to 0.01
-            'ENet alpha min': -7,\
-    # log10 scale max L1. -2 corresponds to 0.01
-            'ENet alpha max': -3,\
-    # number of cross validation. only for 'CV' criterion        
-            'ENet cv number': 30,\
-            'ENet max number of iterations': 1000,\
-            'ENet verbose': True,\
-    ###################### Genetic algorithm parameters ###########################
-            'GA population size': 100,\
-            'GA chromosome size': 15,\
-    # Time limit after the last improvement in seconds
-            'GA stop time': 600,\
-    # Max number of GA iterations
-            'GA max generations': 200,\
-            'GA mutation probability': 0.1,\
-    # How many genes to mutate? 
-            'GA mutation interval': [1, 4],\
-    # Elite fraction of genes used for crossover
-            'GA elite fraction': 0.5,\
-    # how many operations (mutations+crossovers) will be performed
-            'GA mutation crossover fraction': 0.5,\
-    # a random number is chosen from this interval. it determines what fraction of genes is taken from one chromosome, the rest of the genes are taken from the other chromosome
-            'GA crossover fraction interval': [0.6, 0.4],\
-            'GA use correlation for mutation': False,\
-    # applicable if 'GA use correlation for mutation' is True
-            'GA min correlation for mutation': 0.8,\
-    # 'Random' or 'Best' - rank genes in each chromosome and take most important for crossover
-            'GA crossover method': 'Random',\
-    # 'Random' or 'Correlated' - pool with candidates for possible replacement created through correlation matrix rule
-            'GA mutation method': 'Random',\
-            'GA verbose': True,\
-    # if verbose, every n generations print
-            'GA generations per output': 10,\
-    # minimal chromosome size for backwards elimination
-            'BE min chromosome size': 2,\
-            'BE verbose': True,\
-    # A* - best first search tree algorithm parameters
-    # A* stop when its fitness function reaches this number        
-            'A goal': 1e-18,\
-            'A stop time': 200,\
-            'A max queue': 1000,\
-            'A use correlation': True,\
-            'A min correlation': 0.1,\
-            'A verbose': True,\
-    # 'Fast' - accept only child better than current best,
-    # 'Parent' - all children that better than parent,
-    # 'Level' - accept child that better then best on its level,
-    # 'Level and Parent' - useless
-    # 'Slow' - bredth first search
-            'A selection criterion': 'Level',\
-    ######################## Gaussian process parameters ##########################   
-            'GP initial length scale': 1,\
-            'GP initial noise level': 1e-5,\
-            'GP length scale bounds': (1e-3, 10),\
-            'GP noise level bounds': (1e-20, 0.6),\
-    # fraction of interval determined by bounds        
-            'GP length scale increment': 0.1,\
-            'GP noise level increment': 0.1,\
-            'GP min length scale increment': 0.01,\
-            'GP min noise level increment': 0.01,\
-    # None of number of random climbing hill simulations
-            'GP hill simulations': 0}
-    
 # main block
+    Files = structure.Files
+    Data = structure.Data
     
     if not Data['Proceed fractions']:
         fractions = [Data['Train fraction']] # one fit
@@ -207,9 +39,8 @@ if __name__ == '__main__':
         subdirs.append(subdir) 
         files = [] # move files into subdir
         for file in glob.glob('{}{}'.format('*.', Data['Figure file format'])):
-            files.append(os.path.join(parent_dir, file)) # all plots             
-        files.append(os.path.join(parent_dir, Files['GA object'])) # ga.dat
-        files.append(os.path.join(parent_dir, Files['GP object'])) # gp.dat
+            files.append(os.path.join(parent_dir, file)) # all plots   
+            
         files.append(os.path.join(parent_dir, Files['Set params'])) # txt
         files.append('{}{}'.format(os.path.join(parent_dir, Files['Structure']), '.xlsx')) # structure xlsx        
         
@@ -224,7 +55,10 @@ if __name__ == '__main__':
                 del(files[i]) # erase from list if does not exist
         for file in files: # move files
             shutil.move(file, subdir)
-            
+
+        shutil.copy(os.path.join(parent_dir, Files['GA object']), subdir) # ga.dat
+        shutil.copy(os.path.join(parent_dir, Files['GP object']), subdir) # gp.dat     
+        
     ########################### plot goodness of fit vs. fracrion of training poins
     if Data['Proceed fractions']: 
         if len(subdirs) != len(Data['Train fractions']):

@@ -244,99 +244,99 @@ def ReadMoleculeDescription(F, keyword='MoleculeDescription'):
     return Molecules
     
 # reads feature set and objects that describes it
-def ReadFeatures(F_Nonlinear_Train=None, F_Nonlinear_Test=None, F_linear_Train=None, F_Response_Train=None,\
-        F_linear_Test=None, F_Response_Test=None, F_NonlinearFeatures=None,\
-        F_FeaturesAll=None, F_FeaturesReduced=None, F_System=None, F_Records=None,\
-        verbose=False):
-    """
-    F_features - .csv file that contains data stored by Generape combined features.py
-    F_FeaturesAll - .dat file that contains object with all informations about features
-    F_FeaturesReduced - .dat file that contains object with all informations about reduced features
-    F_System - .dat file that contains object Class.System
-    F_Records - .dat file that contains list of records 
-    returns:
-    X - [n x m] numpy array of features
-    rows correspond to observations
-    columns correspond to features
-    Y - [n x 1] numpy array, recponse variable
-    FeaturesAll - class1.InvPowDistancesFeature object. Contains all features
-    FeaturesReduced - class1.InvPowDistancesFeature object. Contains combined features
-    """
-    if verbose:
-        print('Reading data from file')
-# load features for non-linear fit
-    if (F_Nonlinear_Train is not None) and os.path.isfile(F_Nonlinear_Train):
-        dataset = pd.read_csv(F_Nonlinear_Train)
-        X_Nonlinear_Train = dataset.iloc[:, :].values
-    else:
-        X_Nonlinear_Train = None
-    if (F_Nonlinear_Test is not None) and os.path.isfile(F_Nonlinear_Test):
-        dataset = pd.read_csv(F_Nonlinear_Test)
-        X_Nonlinear_Test = dataset.iloc[:, :].values
-    else:
-        X_Nonlinear_Test = None
-# load features for linear fit        
-    if (F_linear_Train is not None) and os.path.isfile(F_linear_Train):
-        dataset = pd.read_csv(F_linear_Train)
-        X_linear_Train = dataset.iloc[:, :].values
-    else:
-        X_linear_Train = None
-# load response variable (y)        
-    if (F_Response_Train is not None) and os.path.isfile(F_Response_Train):
-        dataset = pd.read_csv(F_Response_Train)
-        Y_Train = dataset.iloc[:, :].values
-    else:
-        Y_Train = None
-# load features for linear fit        
-    if (F_linear_Test is not None) and os.path.isfile(F_linear_Test):
-        dataset = pd.read_csv(F_linear_Test)
-        X_linear_Test = dataset.iloc[:, :].values
-    else:
-        X_linear_Test = None
-# load response variable (y)        
-    if (F_Response_Test is not None) and os.path.isfile(F_Response_Test):
-        dataset = pd.read_csv(F_Response_Test)
-        Y_Test = dataset.iloc[:, :].values
-    else:
-        Y_Test = None
-# load list FeaturesNonlinear into file        
-    if (F_NonlinearFeatures is not None) and os.path.isfile(F_NonlinearFeatures):
-        f = open(F_NonlinearFeatures, "rb")
-        FeaturesNonlinear = pickle.load(f)
-        f.close()        
-# load reduced features and energy from file
-    if (F_FeaturesReduced is not None) and os.path.isfile(F_FeaturesReduced):
-        f = open(F_FeaturesReduced, "rb")
-        FeaturesReduced = pickle.load(f)
-        f.close()
-    else:
-        FeaturesReduced = None
-# load list FeaturesAll from file
-    if (F_FeaturesAll is not None) and os.path.isfile(F_FeaturesAll):
-        f = open(F_FeaturesAll, "rb")
-        FeaturesAll = pickle.load(f)
-        f.close()
-    else:
-        FeaturesAll = None
-# load system object from file
-    if (F_System is not None) and os.path.isfile(F_System):
-        f = open(F_System, "rb")
-        system = pickle.load(f)
-        f.close()    
-    else:
-        system = None
-# load records list from file
-    if F_Records is not None and os.path.isfile(F_Records):
-        f = open(F_Records, "rb")
-        records = pickle.load(f)
-        f.close() 
-    else:
-        records = None
-    return {'X Nonlinear Train': X_Nonlinear_Train, 'X Nonlinear Test': X_Nonlinear_Test, 'X Linear Train': X_linear_Train,\
-            'Response Train': Y_Train, 'X Linear Test': X_linear_Test,\
-            'Response Test': Y_Test, 'Nonlinear Features': FeaturesNonlinear,\
-            'Linear Features All': FeaturesAll, 'Linear Features Reduced': FeaturesReduced,\
-            'System': system, 'Records': records}
+#def ReadFeatures2(F_Nonlinear_Train=None, F_Nonlinear_Test=None, F_linear_Train=None, F_Response_Train=None,\
+#        F_linear_Test=None, F_Response_Test=None, F_NonlinearFeatures=None,\
+#        F_FeaturesAll=None, F_FeaturesReduced=None, F_System=None, F_Records=None,\
+#        verbose=False):
+#    """
+#    F_features - .csv file that contains data stored by Generape combined features.py
+#    F_FeaturesAll - .dat file that contains object with all informations about features
+#    F_FeaturesReduced - .dat file that contains object with all informations about reduced features
+#    F_System - .dat file that contains object Class.System
+#    F_Records - .dat file that contains list of records 
+#    returns:
+#    X - [n x m] numpy array of features
+#    rows correspond to observations
+#    columns correspond to features
+#    Y - [n x 1] numpy array, recponse variable
+#    FeaturesAll - class1.InvPowDistancesFeature object. Contains all features
+#    FeaturesReduced - class1.InvPowDistancesFeature object. Contains combined features
+#    """
+#    if verbose:
+#        print('Reading data from file')
+## load features for non-linear fit
+#    if (F_Nonlinear_Train is not None) and os.path.isfile(F_Nonlinear_Train):
+#        dataset = pd.read_csv(F_Nonlinear_Train)
+#        X_Nonlinear_Train = dataset.iloc[:, :].values
+#    else:
+#        X_Nonlinear_Train = None
+#    if (F_Nonlinear_Test is not None) and os.path.isfile(F_Nonlinear_Test):
+#        dataset = pd.read_csv(F_Nonlinear_Test)
+#        X_Nonlinear_Test = dataset.iloc[:, :].values
+#    else:
+#        X_Nonlinear_Test = None
+## load features for linear fit        
+#    if (F_linear_Train is not None) and os.path.isfile(F_linear_Train):
+#        dataset = pd.read_csv(F_linear_Train)
+#        X_linear_Train = dataset.iloc[:, :].values
+#    else:
+#        X_linear_Train = None
+## load response variable (y)        
+#    if (F_Response_Train is not None) and os.path.isfile(F_Response_Train):
+#        dataset = pd.read_csv(F_Response_Train)
+#        Y_Train = dataset.iloc[:, :].values
+#    else:
+#        Y_Train = None
+## load features for linear fit        
+#    if (F_linear_Test is not None) and os.path.isfile(F_linear_Test):
+#        dataset = pd.read_csv(F_linear_Test)
+#        X_linear_Test = dataset.iloc[:, :].values
+#    else:
+#        X_linear_Test = None
+## load response variable (y)        
+#    if (F_Response_Test is not None) and os.path.isfile(F_Response_Test):
+#        dataset = pd.read_csv(F_Response_Test)
+#        Y_Test = dataset.iloc[:, :].values
+#    else:
+#        Y_Test = None
+## load list FeaturesNonlinear into file        
+#    if (F_NonlinearFeatures is not None) and os.path.isfile(F_NonlinearFeatures):
+#        f = open(F_NonlinearFeatures, "rb")
+#        FeaturesNonlinear = pickle.load(f)
+#        f.close()        
+## load reduced features and energy from file
+#    if (F_FeaturesReduced is not None) and os.path.isfile(F_FeaturesReduced):
+#        f = open(F_FeaturesReduced, "rb")
+#        FeaturesReduced = pickle.load(f)
+#        f.close()
+#    else:
+#        FeaturesReduced = None
+## load list FeaturesAll from file
+#    if (F_FeaturesAll is not None) and os.path.isfile(F_FeaturesAll):
+#        f = open(F_FeaturesAll, "rb")
+#        FeaturesAll = pickle.load(f)
+#        f.close()
+#    else:
+#        FeaturesAll = None
+## load system object from file
+#    if (F_System is not None) and os.path.isfile(F_System):
+#        f = open(F_System, "rb")
+#        system = pickle.load(f)
+#        f.close()    
+#    else:
+#        system = None
+## load records list from file
+#    if F_Records is not None and os.path.isfile(F_Records):
+#        f = open(F_Records, "rb")
+#        records = pickle.load(f)
+#        f.close() 
+#    else:
+#        records = None
+#    return {'X Nonlinear Train': X_Nonlinear_Train, 'X Nonlinear Test': X_Nonlinear_Test, 'X Linear Train': X_linear_Train,\
+#            'Response Train': Y_Train, 'X Linear Test': X_linear_Test,\
+#            'Response Test': Y_Test, 'Nonlinear Features': FeaturesNonlinear,\
+#            'Linear Features All': FeaturesAll, 'Linear Features Reduced': FeaturesReduced,\
+#            'System': system, 'Records': records}
 
 # save as a text file F records of class RecordMolecules
 def store_records(F, record_list):
@@ -955,7 +955,129 @@ def ReadCSV(F):
     else:
         return None
     
+def ReadFeatures(Files, FeaturesDict, Forecast=False):
 
+    Y_train = None
+    Y_test = None
+    Y_forecast = None
+    X_LinearSingle_train = None
+    X_LinearSingle_test = None
+    X_LinearSingle_forecast = None
+    X_LinearDouble_train = None
+    X_LinearDouble_test = None
+    X_LinearDouble_forecast = None
+    X_LinearTriple_train = None
+    X_LinearTriple_test = None
+    X_LinearTriple_forecast = None
+    X_ExpSingleD_train = None
+    X_ExpSingleDn_train = None
+    X_ExpSingleD_test = None
+    X_ExpSingleDn_test = None
+    X_ExpSingleD_forecast = None
+    X_ExpSingleDn_forecast = None
+    X_Linear_train = None
+    X_Linear_test = None
+    X_Linear_forecast = None
+    FeaturesLinearAll = None
+    FeaturesLinearReduced = None
+        
+    if not Forecast:
+        Y_train = ReadCSV(Files['Response Train'])
+        Y_test = ReadCSV(Files['Response Test'])      
+    else:
+        Y_forecast = ReadCSV(Files['Response Forecast'])
+    if FeaturesDict['FeaturesLinearSingleAll'] is not None:
+        if not Forecast:
+            X_LinearSingle_train = ReadCSV(Files['Linear Single Train'])
+            X_LinearSingle_test = ReadCSV(Files['Linear Single Test'])
+        else:
+            X_LinearSingle_forecast = ReadCSV(Files['Linear Single Forecast'])        
+    if FeaturesDict['FeaturesLinearDoubleAll'] is not None:
+        if not Forecast:        
+            X_LinearDouble_train = ReadCSV(Files['Linear Double Train'])
+            X_LinearDouble_test = ReadCSV(Files['Linear Double Test'])
+        else:
+            X_LinearDouble_forecast = ReadCSV(Files['Linear Double Forecast'])      
+    if FeaturesDict['FeaturesLinearTripleAll'] is not None:
+        if not Forecast:          
+            X_LinearTriple_train = ReadCSV(Files['Linear Triple Train'])
+            X_LinearTriple_test = ReadCSV(Files['Linear Triple Test'])
+        else:
+            X_LinearTriple_forecast = ReadCSV(Files['Linear Triple Forecast'])    
+    if FeaturesDict['FeaturesExpSingleAll'] is not None:
+        if not Forecast: 
+            X_ExpSingleD_train = ReadCSV(Files['Exp Single Train D'])
+            X_ExpSingleDn_train = ReadCSV(Files['Exp Single Train D^n'])
+            X_ExpSingleD_test = ReadCSV(Files['Exp Single Test D'])
+            X_ExpSingleDn_test = ReadCSV(Files['Exp Single Test D^n'])            
+        else:
+            X_ExpSingleD_forecast = ReadCSV(Files['Exp Single Forecast D'])
+            X_ExpSingleDn_forecast = ReadCSV(Files['Exp Single Forecast D^n'])
+         
+    if not Forecast:
+        if (X_LinearSingle_train is not None) and (X_LinearDouble_train is not None) and (X_LinearTriple_train is not None): # all three exist
+            X_Linear_train = np.concatenate((X_LinearSingle_train, X_LinearDouble_train, X_LinearTriple_train),axis=1)
+            FeaturesLinearAll = copy.deepcopy(FeaturesDict['FeaturesLinearSingleAll'])
+            FeaturesLinearAll.extend(FeaturesDict['FeaturesLinearDoubleAll'])
+            FeaturesLinearAll.extend(FeaturesDict['FeaturesLinearTripleAll'])
+            FeaturesLinearReduced = copy.deepcopy(FeaturesDict['FeaturesLinearSingleReduced'])
+            FeaturesLinearReduced.extend(FeaturesDict['FeaturesLinearDoubleReduced'])
+            FeaturesLinearReduced.extend(FeaturesDict['FeaturesLinearTripleReduced'])
+        elif X_LinearSingle_train is not None and X_LinearDouble_train is not None: # single + double exist
+            X_Linear_train = np.concatenate((X_LinearSingle_train,X_LinearDouble_train),axis=1)
+            FeaturesLinearAll = copy.deepcopy(FeaturesDict['FeaturesLinearSingleAll'])
+            FeaturesLinearAll.extend(FeaturesDict['FeaturesLinearDoubleAll'])
+            FeaturesLinearReduced = copy.deepcopy(FeaturesDict['FeaturesLinearSingleReduced'])
+            FeaturesLinearReduced.extend(FeaturesDict['FeaturesLinearDoubleReduced'])
+        elif X_LinearSingle_train is not None and X_LinearDouble_train is None: # only single
+            X_Linear_train = X_LinearSingle_train
+            FeaturesLinearAll = copy.deepcopy(FeaturesDict['FeaturesLinearSingleAll'])
+            FeaturesLinearReduced = copy.deepcopy(FeaturesDict['FeaturesLinearSingleReduced'])
+        elif X_LinearSingle_train is None and X_LinearDouble_train is not None: # only double
+            X_Linear_train = X_LinearDouble_train
+            FeaturesLinearAll = copy.deepcopy(FeaturesDict['FeaturesLinearDoubleAll'])
+            FeaturesLinearReduced = copy.deepcopy(FeaturesDict['FeaturesLinearDoubleReduced'])
     
+        if (X_LinearSingle_test is not None) and (X_LinearDouble_test is not None) and (X_LinearTriple_test is not None): # all exist
+            X_Linear_test = np.concatenate((X_LinearSingle_test,X_LinearDouble_test,X_LinearTriple_test),axis=1)
+        elif X_LinearSingle_test is not None and X_LinearDouble_test is not None: # single + double exist
+            X_Linear_test = np.concatenate((X_LinearSingle_test,X_LinearDouble_test),axis=1)
+        elif X_LinearSingle_test is not None and X_LinearDouble_test is None: # only single
+            X_Linear_test = X_LinearSingle_test
+        elif X_LinearSingle_test is None and X_LinearDouble_test is not None: # only double
+            X_Linear_test = X_LinearDouble_test
+    else:
+        if (X_LinearSingle_forecast is not None) and (X_LinearDouble_forecast is not None) and (X_LinearTriple_forecast is not None): # all exist
+            X_Linear_forecast = np.concatenate((X_LinearSingle_forecast, X_LinearDouble_forecast, X_LinearTriple_forecast),axis=1)
+        elif X_LinearSingle_forecast is not None and X_LinearDouble_forecast is not None: # single + double exist
+            X_Linear_forecast = np.concatenate((X_LinearSingle_forecast, X_LinearDouble_forecast),axis=1)
+        elif X_LinearSingle_forecast is not None and X_LinearDouble_forecast is None: # only single
+            X_Linear_forecast = X_LinearSingle_forecast
+        elif X_LinearSingle_forecast is None and X_LinearDouble_forecast is not None: # only double
+            X_Linear_forecast = X_LinearDouble_forecast        
+
+    resultsDict = {'Y_train': Y_train, 'Y_test': Y_test, 'Y_forecast': Y_forecast,\
+        'X_LinearSingle_train': X_LinearSingle_train,\
+        'X_LinearSingle_test': X_LinearSingle_test,\
+        'X_LinearSingle_forecast': X_LinearSingle_forecast,\
+        'X_LinearDouble_train': X_LinearDouble_train,\
+        'X_LinearDouble_test': X_LinearDouble_test,\
+        'X_LinearDouble_forecast': X_LinearDouble_forecast,\
+        'X_LinearTriple_train': X_LinearTriple_train,\
+        'X_LinearTriple_test': X_LinearTriple_test,\
+        'X_LinearTriple_forecast': X_LinearTriple_forecast,\
+        'X_ExpSingleD_train': X_ExpSingleD_train,\
+        'X_ExpSingleDn_train': X_ExpSingleDn_train,\
+        'X_ExpSingleD_test': X_ExpSingleD_test,\
+        'X_ExpSingleDn_test': X_ExpSingleDn_test,\
+        'X_ExpSingleD_forecast': X_ExpSingleD_forecast,\
+        'X_ExpSingleDn_forecast': X_ExpSingleDn_forecast,\
+        'X_Linear_train': X_Linear_train,\
+        'X_Linear_test': X_Linear_test,\
+        'X_Linear_forecast': X_Linear_forecast,\
+        'FeaturesLinearAll': FeaturesLinearAll,\
+        'FeaturesLinearReduced': FeaturesLinearReduced}
+
+    return resultsDict
     
     

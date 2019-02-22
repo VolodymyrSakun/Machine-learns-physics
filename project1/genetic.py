@@ -7,6 +7,7 @@ from time import time
 import copy
 import matplotlib.pyplot as plt
 import pandas as pd
+from project1 import structure
 
 class Gene:
     
@@ -186,7 +187,7 @@ class Chromosome:
                 fit_results = regression.fit_linear(idx_lin, x_lin_train,\
                     y_train, x_test=x_lin_test, y_test=y_test,\
                     normalize=True, LinearSolver=LinearSolver,\
-                    cond=cond, lapack_driver=lapack_driver)
+                    cond=cond, lapack_driver=lapack_driver, l2=structure.Data['LR l2'])
                 for i in range(0, self.Size, 1):
                     idx = self.Genes[i].Idx
                     if self.Genes[i].Type == 0:# linear
