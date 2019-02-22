@@ -1,0 +1,18 @@
+Initial dataset : SET 7.x
+Number of molecules per record : 2
+Train Intervals : [(1.6, 6)]
+Test Intervals : [(0, 1.6)]
+Train records number : 594
+Train Grid : [(1.6, 1.8), (1.8, 2.0), (2.0, 2.2), (2.2, 2.4), (2.4, 2.6), (2.6, 2.8), (3.4, 3.6), (3.6, 3.8), (3.8, 4.0), (4.0, 4.2), (4.2, 4.4), (4.4, 4.6), (4.6, 4.8), (4.8, 5.0), (5.0, 5.2), (5.2, 5.4), (5.4, 5.6), (5.6, 5.8)]
+Test Grid : [(1.6, 1.8), (1.8, 2.0), (2.0, 2.2), (2.2, 2.4), (2.4, 2.6), (2.6, 2.8), (3.4, 3.6), (3.6, 3.8), (3.8, 4.0), (4.0, 4.2), (4.2, 4.4), (4.4, 4.6), (4.6, 4.8), (4.8, 5.0), (5.0, 5.2), (5.2, 5.4), (5.4, 5.6), (5.6, 5.8)]
+Test records number : 252
+Molecule prototypes : [        Atoms: [         Symbol: 'B'          Index: 0         AtType: 0 MolecularIndex: 0   AtTypeDigits: 1           Mass: 10.806         Radius: 0.9          Bonds: [1, 2, 3]              x: 0.6565              y: 0.379030451723235              z: 0.0,          Symbol: 'F'          Index: 1         AtType: 1 MolecularIndex: 0   AtTypeDigits: 1           Mass: 0.0001         Radius: 0.64          Bonds: [0]              x: 0.0              y: 0.0              z: 0.0,          Symbol: 'F'          Index: 2         AtType: 1 MolecularIndex: 0   AtTypeDigits: 1           Mass: 0.0001         Radius: 0.64          Bonds: [0]              x: 1.313              y: 0.0              z: 0.0,          Symbol: 'F'          Index: 3         AtType: 1 MolecularIndex: 0   AtTypeDigits: 1           Mass: 0.0001         Radius: 0.64          Bonds: [0]              x: 0.6565              y: 1.13709135516897              z: 0.0]       nAtoms: 4         Name: 'BF3'        Bonds: [(0, 1), (0, 2), (0, 3)]    AtomIndex: [0, 1, 2, 3] CenterOfMass:  x: 0.6565 y: 0.379030451723235 z: 0.0         Mass: 10.806299999999998,         Atoms: [         Symbol: 'N'          Index: 4         AtType: 2 MolecularIndex: 1   AtTypeDigits: 1           Mass: 14.006         Radius: 0.71          Bonds: [5, 6, 7]              x: 0.82172571192332              y: 0.474423560979273              z: 0.366030243493429,          Symbol: 'H'          Index: 5         AtType: 3 MolecularIndex: 1   AtTypeDigits: 1           Mass: 0.0001         Radius: 0.25          Bonds: [4]              x: 0.0              y: 0.0              z: 0.0,          Symbol: 'H'          Index: 6         AtType: 3 MolecularIndex: 1   AtTypeDigits: 1           Mass: 0.0001         Radius: 0.25          Bonds: [4]              x: 1.64345142384664              y: 0.0              z: 0.0,          Symbol: 'H'          Index: 7         AtType: 3 MolecularIndex: 1   AtTypeDigits: 1           Mass: 0.0001         Radius: 0.25          Bonds: [4]              x: 0.82172571192332              y: 1.4232706829369              z: 0.0]       nAtoms: 4         Name: 'NH3'        Bonds: [(4, 5), (4, 6), (4, 7)]    AtomIndex: [4, 5, 6, 7] CenterOfMass:  x: 0.8217257119233199 y: 0.474423560979273 z: 0.3660224035162011         Mass: 14.0063]
+Max points per grid : 47
+Train points per grid : 33
+Train Fraction Used : 1
+Test points per grid : 14
+Confidence Interval used : 0.85
+Training Set : Training Set.x
+Test Set : Test Set.x
+COM Train : COM Train.csv
+COM Test : COM Test.csv
